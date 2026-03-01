@@ -1,0 +1,32 @@
+# FastAPI
+fastapi==0.134.0
+uvicorn[standard]==0.41.0
+
+# Auth & Security
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.22
+
+# Database
+sqlalchemy==2.0.47
+asyncpg==0.31.0
+alembic==1.18.4
+
+# Pydantic
+pydantic==2.12.5
+pydantic-settings==2.13.1
+
+# Redis
+redis==7.2.1
+
+# OAuth
+authlib==1.6.8
+httpx==0.28.1
+
+# Email
+resend==2.23.0
+jinja2==3.1.6
+
+# Utils
+python-dotenv==1.2.1
+greenlet==3.3.2
