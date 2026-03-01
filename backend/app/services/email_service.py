@@ -59,7 +59,7 @@ class EmailService:
                     <h2>Привіт, {full_name}!</h2>
                     <p>Дякуємо за реєстрацію в CoQuest. Будь ласка, підтвердіть вашу електронну адресу, щоб активувати акаунт.</p>
                     
-                    <a href="{verification_url}" class="button">Підтвердити Email</a>
+                    <a style="color: #fff;" href="{verification_url}" class="button">Підтвердити Email</a>
                     
                     <p>Або скопіюйте це посилання в браузер:</p>
                     <p style="word-break: break-all; color: #666;">{verification_url}</p>
