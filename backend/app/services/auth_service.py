@@ -19,18 +19,15 @@ class AuthService:
     async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
         """Register new user with email verification"""
 
-        # Check if email exists
         result = await db.execute(select(User).where(User.email == user_data.email))
         if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
             )
 
-        # Generate verification token
         verification_token = EmailService.generate_verification_token()
-
-        # Create user
         hashed_password = get_password_hash(user_data.password)
+
         db_user = User(
             email=user_data.email,
             password_hash=hashed_password,
@@ -44,7 +41,6 @@ class AuthService:
 
         db.add(db_user)
 
-        # Save and send verification email
         try:
             await db.flush()
             await EmailService.send_verification_email(
@@ -66,7 +62,6 @@ class AuthService:
     @staticmethod
     async def verify_email(db: AsyncSession, token: str) -> User:
         """Verify user email"""
-
         result = await db.execute(
             select(User).where(User.email_verification_token == token)
         )
@@ -89,7 +84,6 @@ class AuthService:
                 detail="Verification token expired",
             )
 
-        # Mark as verified
         user.is_email_verified = True
         user.email_verification_token = None
         user.email_verification_sent_at = None
@@ -97,7 +91,6 @@ class AuthService:
         await db.commit()
         await db.refresh(user)
 
-        # Send welcome email
         try:
             await EmailService.send_welcome_email(
                 email=user.email, full_name=user.full_name
@@ -110,7 +103,6 @@ class AuthService:
     @staticmethod
     async def resend_verification_email(db: AsyncSession, email: str):
         """Resend verification email"""
-
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
 
@@ -124,26 +116,31 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Email already verified"
             )
 
-        # Generate new token
         verification_token = EmailService.generate_verification_token()
         user.email_verification_token = verification_token
         user.email_verification_sent_at = datetime.now(timezone.utc)
 
-        await db.commit()
-
-        # Send email
-        await EmailService.send_verification_email(
-            email=user.email, full_name=user.full_name, token=verification_token
-        )
+        try:
+            await db.flush()
+            await EmailService.send_verification_email(
+                email=user.email, full_name=user.full_name, token=verification_token
+            )
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            print(f"Resend verification error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to resend verification email",
+            )
 
     @staticmethod
     async def authenticate_user(db: AsyncSession, credentials: UserLogin) -> User:
         """Authenticate user (email/password only)"""
-
         result = await db.execute(select(User).where(User.email == credentials.email))
         user = result.scalar_one_or_none()
 
-        if not user or user.auth_provider != AuthProvider.EMAIL:
+        if not user or not user.password_hash:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -175,11 +172,17 @@ class AuthService:
         user = result.scalar_one_or_none()
 
         if user:
-            # If user exists but registered via Email, link accounts
-            if user.auth_provider == AuthProvider.EMAIL:
-                user.auth_provider = AuthProvider.GOOGLE
+            if not user.google_id:
                 user.google_id = google_data["google_id"]
+                if not user.avatar_url and google_data.get("avatar_url"):
+                    user.avatar_url = google_data.get("avatar_url")
+
+                if not user.is_email_verified:
+                    user.is_email_verified = True
+                    user.email_verification_token = None
+
                 await db.commit()
+                await db.refresh(user)
             return user
 
         # New user from Google
