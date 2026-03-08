@@ -4,6 +4,7 @@ uvicorn[standard]==0.41.0
 
 # Auth & Security
 python-jose[cryptography]==3.5.0
+bcrypt==3.2.2
 passlib[bcrypt]
 python-multipart==0.0.22
 
