@@ -1,32 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Eye, EyeOff, Loader2, User, Mail, Lock } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  User,
+  Mail,
+  Lock,
+  CheckCircle2,
+} from "lucide-react";
 
-// Register validation schema
 const registerSchema = z
   .object({
-    email: z.email({ message: "Invalid email format" }),
+    email: z.string().email({ message: "invalidEmail" }),
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number"),
+      .min(8, "passwordMin")
+      .regex(/[A-Z]/, "passwordUppercase")
+      .regex(/[0-9]/, "passwordNumber"),
     confirmPassword: z.string(),
-    full_name: z
-      .string()
-      .min(2, { message: "Full name must be at least 2 characters" }),
+    full_name: z.string().min(2, { message: "nameShort" }),
     role: z.enum(["student", "teacher"] as const, {
-      message: "Please select a role",
+      message: "registerFailed",
     }),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
+    message: "passwordMismatch",
     path: ["confirmPassword"],
   });
 
@@ -36,8 +42,14 @@ export default function RegisterPage() {
   const router = useRouter();
   const { register: authRegister, error: authError } = useAuth();
 
+  const t = useTranslations("auth.register");
+  const tErrors = useTranslations("auth.errors");
+  const tCommon = useTranslations("common");
+
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [customError, setCustomError] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const {
     register,
@@ -55,39 +67,67 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
+    setCustomError("");
     try {
-      // Відправляємо дані на бекенд (без confirmPassword)
       const { confirmPassword, ...registerData } = data;
       await authRegister(registerData);
-      router.push("/dashboard");
-    } catch (err) {
+
+      setIsSuccess(true);
+    } catch (err: any) {
       console.error("Registration failed:", err);
+      if (err.response?.status === 409) {
+        setCustomError(tErrors("emailExists"));
+      } else {
+        setCustomError(tErrors("registerFailed"));
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-lg text-center space-y-6">
+          <div className="flex justify-center">
+            <CheckCircle2 className="h-20 w-20 text-green-500" />
+          </div>
+          <h2 className="text-3xl font-extrabold text-gray-900">
+            {t("success.title")}
+          </h2>
+          <p className="text-gray-600">{t("success.message")}</p>
+          <button
+            onClick={() => router.push("/login")}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-all"
+          >
+            {t("success.backToLogin")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Create Account
+            {t("title")}
           </h2>
-          <p className="mt-2 text-sm text-gray-600">Join CoQuest today</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {authError && (
+          {/* Відображення помилок з useAuth або локальних */}
+          {(authError || customError) && (
             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded text-sm">
-              {authError}
+              {customError || authError}
             </div>
           )}
 
           {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Full Name
+              {t("fullName")}
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -96,15 +136,15 @@ export default function RegisterPage() {
               <input
                 {...register("full_name")}
                 type="text"
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors.full_name ? "border-red-500" : "border-gray-300"
                 }`}
                 placeholder="John Doe"
               />
             </div>
             {errors.full_name && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.full_name.message}
+              <p className="mt-1 text-xs text-red-600 font-medium">
+                {tErrors(errors.full_name.message as any)}
               </p>
             )}
           </div>
@@ -112,7 +152,7 @@ export default function RegisterPage() {
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Email Address
+              {t("email")}
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -121,15 +161,15 @@ export default function RegisterPage() {
               <input
                 {...register("email")}
                 type="email"
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors.email ? "border-red-500" : "border-gray-300"
                 }`}
                 placeholder="you@example.com"
               />
             </div>
             {errors.email && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.email.message}
+              <p className="mt-1 text-xs text-red-600 font-medium">
+                {tErrors(errors.email.message as any)}
               </p>
             )}
           </div>
@@ -137,7 +177,7 @@ export default function RegisterPage() {
           {/* Role Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              I am a...
+              {t("role")}
             </label>
             <div className="mt-1 grid grid-cols-2 gap-3">
               <label
@@ -153,7 +193,7 @@ export default function RegisterPage() {
                   value="student"
                   className="sr-only"
                 />
-                <span className="text-sm font-medium">Student</span>
+                <span className="text-sm font-medium">{t("roleStudent")}</span>
               </label>
               <label
                 className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-all ${
@@ -168,18 +208,20 @@ export default function RegisterPage() {
                   value="teacher"
                   className="sr-only"
                 />
-                <span className="text-sm font-medium">Teacher</span>
+                <span className="text-sm font-medium">{t("roleTeacher")}</span>
               </label>
             </div>
             {errors.role && (
-              <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>
+              <p className="mt-1 text-xs text-red-600 font-medium">
+                {tErrors(errors.role.message as any)}
+              </p>
             )}
           </div>
 
           {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Password
+              {t("password")}
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -188,7 +230,7 @@ export default function RegisterPage() {
               <input
                 {...register("password")}
                 type={showPassword ? "text" : "password"}
-                className={`block w-full pl-10 pr-10 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                className={`block w-full pl-10 pr-10 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors.password ? "border-red-500" : "border-gray-300"
                 }`}
               />
@@ -196,13 +238,14 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.password && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.password.message}
+              <p className="mt-1 text-xs text-red-600 font-medium">
+                {tErrors(errors.password.message as any)}
               </p>
             )}
           </div>
@@ -210,7 +253,7 @@ export default function RegisterPage() {
           {/* Confirm Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Confirm Password
+              {t("confirmPassword")}
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -219,14 +262,14 @@ export default function RegisterPage() {
               <input
                 {...register("confirmPassword")}
                 type={showPassword ? "text" : "password"}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors.confirmPassword ? "border-red-500" : "border-gray-300"
                 }`}
               />
             </div>
             {errors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.confirmPassword.message}
+              <p className="mt-1 text-xs text-red-600 font-medium">
+                {tErrors(errors.confirmPassword.message as any)}
               </p>
             )}
           </div>
@@ -237,19 +280,22 @@ export default function RegisterPage() {
             className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
           >
             {isLoading ? (
-              <Loader2 className="animate-spin h-5 w-5" />
+              <>
+                <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                {tCommon("loading")}
+              </>
             ) : (
-              "Create Account"
+              t("submit")
             )}
           </button>
 
           <p className="text-center text-sm text-gray-600">
-            Already have an account?{" "}
+            {t("hasAccount")}{" "}
             <a
               href="/login"
               className="font-medium text-blue-600 hover:text-blue-500 hover:underline"
             >
-              Sign in
+              {t("login")}
             </a>
           </p>
         </form>
