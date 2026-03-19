@@ -1,17 +1,15 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: coquest-postgres
-    restart: always 
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: coquest_dev
     ports:
       - "5432:5432"
-    healthcheck: 
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d coquest_dev"]
       interval: 10s
       timeout: 5s
@@ -23,7 +21,7 @@ services:
     image: redis:7-alpine
     container_name: coquest-redis
     restart: always
-    command: redis-server # --appendonly yes 
+    command: redis-server # --appendonly yes
     ports:
       - "6379:6379"
     volumes:

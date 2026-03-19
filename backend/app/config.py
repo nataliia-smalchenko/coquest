@@ -1,4 +1,6 @@
-from pydantic_settings import BaseSettings
+import os
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -7,6 +9,14 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str
+
+    # Automatic conversion for asyncpg
+    @field_validator("DATABASE_URL", mode="after")
+    @classmethod
+    def assemble_db_connection(cls, v: str) -> str:
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
@@ -32,8 +42,11 @@ class Settings(BaseSettings):
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",  # Ignore redundant variables in the system
+    )
 
 
 settings = Settings()
