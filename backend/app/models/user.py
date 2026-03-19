@@ -15,6 +15,11 @@ class UserRole(str, enum.Enum):
     STUDENT = "student"
 
 
+class UserLanguage(str, enum.Enum):
+    UK = "uk"
+    EN = "en"
+
+
 class AuthProvider(str, enum.Enum):
     EMAIL = "email"
     GOOGLE = "google"
@@ -52,6 +57,11 @@ class User(Base):
 
     # Profile
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
+
+    # Language preference
+    preferred_language: Mapped[UserLanguage] = mapped_column(
+        Enum(UserLanguage, native_enum=True), default=UserLanguage.UK, nullable=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

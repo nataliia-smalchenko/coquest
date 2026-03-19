@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,10 +12,8 @@ import api from "@/lib/api";
 import { Eye, EyeOff, Loader2, MailCheck, CheckCircle2 } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.email({ message: "Invalid email format" }),
-  password: z
-    .string()
-    .min(8, { message: "Password must be at least 8 characters" }),
+  email: z.string().email({ message: "invalidEmail" }),
+  password: z.string().min(8, { message: "passwordMin" }),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -22,12 +21,16 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const { login, error: authError } = useAuth();
-  // Local UI states
+
+  const t = useTranslations("auth.login");
+  const tErrors = useTranslations("auth.errors");
+  const tCommon = useTranslations("common");
+  const tVerify = useTranslations("auth.verify");
+
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [customError, setCustomError] = useState("");
 
-  // Verification states
   const [needsVerification, setNeedsVerification] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -42,11 +45,18 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    setCustomError("");
     try {
       await login(data.email, data.password);
       router.push("/dashboard");
-    } catch (err) {
-      console.error("Login attempt failed:", err);
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setNeedsVerification(true);
+        setUserEmail(data.email);
+      } else {
+        console.error("Login attempt failed:", err);
+        setCustomError(tErrors("loginFailed"));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -68,28 +78,22 @@ export default function LoginPage() {
         router.push("/dashboard");
       } catch (err: any) {
         console.error("Google Auth failed:", err);
-        setCustomError(err.response?.data?.detail || "Google login failed");
+        setCustomError(tErrors("googleLoginFailed"));
       } finally {
         setIsLoading(false);
       }
     },
-    onError: () => setCustomError("Google login failed. Please try again."),
+    onError: () => setCustomError(tErrors("googleLoginFailed")),
   });
 
   const handleResendVerification = async () => {
     try {
       setSuccessMessage("");
       setCustomError("");
-
       await api.post("/api/auth/resend-verification", { email: userEmail });
-
-      setSuccessMessage(
-        "Verification email successfully sent! Please check your inbox.",
-      );
+      setSuccessMessage(tVerify("successMessage"));
     } catch (err) {
-      setCustomError(
-        "Failed to resend verification email. Please try again later.",
-      );
+      setCustomError(tErrors("verificationFailed"));
     }
   };
 
@@ -101,12 +105,11 @@ export default function LoginPage() {
             <MailCheck className="h-20 w-20 text-blue-500" />
           </div>
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Verify your email
+            {t("verifyEmail")}
           </h2>
           <p className="text-gray-600">
-            Please click the link in the email we sent to{" "}
-            <strong>{userEmail}</strong> to activate your account before signing
-            in.
+            {t("verifyEmailMessage")} <br />
+            <strong>{userEmail}</strong>
           </p>
 
           {successMessage && (
@@ -127,7 +130,7 @@ export default function LoginPage() {
               onClick={handleResendVerification}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-all"
             >
-              Resend verification email
+              {t("resendVerification")}
             </button>
             <button
               onClick={() => {
@@ -137,7 +140,7 @@ export default function LoginPage() {
               }}
               className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
             >
-              Back to Sign in
+              {tVerify("backToLogin")}
             </button>
           </div>
         </div>
@@ -150,9 +153,8 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Sign in to CoQuest
+            {t("title")}
           </h2>
-          <p className="mt-2 text-sm text-gray-600">Welcome back!</p>
         </div>
 
         {/* Google Auth button */}
@@ -180,7 +182,7 @@ export default function LoginPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Sign in with Google
+          {t("google")}
         </button>
 
         {/* Divider */}
@@ -189,14 +191,11 @@ export default function LoginPage() {
             <div className="w-full border-t border-gray-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">
-              Or continue with email
-            </span>
+            <span className="px-2 bg-white text-gray-500">{t("or")}</span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Відображення помилок з useAuth або локальних */}
           {(authError || customError) && (
             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded shadow-sm text-sm">
               {customError || authError}
@@ -206,7 +205,7 @@ export default function LoginPage() {
           {/* Email field */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Email Address
+              {t("email")}
             </label>
             <input
               {...register("email")}
@@ -218,15 +217,15 @@ export default function LoginPage() {
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {errors.email.message}
+                {tErrors(errors.email.message as any)}
               </p>
             )}
           </div>
 
-          {/* Password field with Show/Hide */}
+          {/* Password field */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Password
+              {t("password")}
             </label>
             <div className="relative mt-1">
               <input
@@ -248,7 +247,7 @@ export default function LoginPage() {
             </div>
             {errors.password && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {errors.password.message}
+                {tErrors(errors.password.message as any)}
               </p>
             )}
           </div>
@@ -262,20 +261,20 @@ export default function LoginPage() {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                {tCommon("loading")}
               </>
             ) : (
-              "Sign in"
+              t("submit")
             )}
           </button>
 
           <div className="text-center mt-4 text-sm text-gray-600">
-            Don't have an account?{" "}
+            {t("noAccount")}{" "}
             <a
               href="/register"
               className="font-medium text-blue-600 hover:text-blue-500 underline-offset-4 hover:underline"
             >
-              Register now
+              {t("register")}
             </a>
           </div>
         </form>

@@ -1,27 +1,41 @@
+import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from app.config import settings
-
-# Password hashing configuration using the bcrypt algorithm
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Verify a plain text password against a stored hash.
+    Verify a plain text password against a stored hash using direct bcrypt.
     Used during the login process to check user credentials.
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        # bcrypt вимагає байти. Також обрізаємо до 72 байтів,
+        # щоб уникнути ValueError від самої бібліотеки bcrypt
+        password_bytes = plain_password.encode("utf-8")[:72]
+        hashed_password_bytes = hashed_password.encode("utf-8")
+
+        return bcrypt.checkpw(password_bytes, hashed_password_bytes)
+    except ValueError:
+        # Якщо хеш пошкоджений або має невірний формат
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """
-    Hash a password using bcrypt.
+    Hash a password using direct bcrypt.
     Used during user registration or password reset.
     """
-    return pwd_context.hash(password)
+    # Перетворюємо в байти та обрізаємо до 72 байтів (обмеження алгоритму bcrypt)
+    pwd_bytes = password.encode("utf-8")[:72]
+
+    # Генеруємо сіль і хешуємо
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(pwd_bytes, salt)
+
+    # Повертаємо як звичайний рядок для збереження в базі даних
+    return hashed_password.decode("utf-8")
 
 
 def create_access_token(subject: Any, expires_delta: Optional[timedelta] = None) -> str:

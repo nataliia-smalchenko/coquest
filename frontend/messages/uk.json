@@ -1,0 +1,127 @@
+{
+  "common": {
+    "appName": "CoQuest",
+    "loading": "Завантаження...",
+    "save": "Зберегти",
+    "cancel": "Скасувати",
+    "delete": "Видалити",
+    "edit": "Редагувати",
+    "close": "Закрити",
+    "back": "Назад",
+    "next": "Далі",
+    "submit": "Надіслати",
+    "search": "Пошук",
+    "filter": "Фільтр"
+  },
+
+  "nav": {
+    "home": "Головна",
+    "dashboard": "Дашборд",
+    "explore": "Огляд",
+    "create": "Створити",
+    "profile": "Профіль",
+    "settings": "Налаштування",
+    "logout": "Вийти"
+  },
+
+  "auth": {
+    "login": {
+      "title": "Вхід в CoQuest",
+      "email": "Email",
+      "password": "Пароль",
+      "submit": "Увійти",
+      "google": "Увійти через Google",
+      "or": "Або",
+      "noAccount": "Немає акаунту?",
+      "register": "Зареєструватись",
+      "forgotPassword": "Забули пароль?",
+      "verifyEmail": "Підтвердіть email",
+      "verifyEmailMessage": "Будь ласка, перейдіть за посиланням у листі для активації акаунту.",
+      "resendVerification": "Надіслати лист знову"
+    },
+
+    "register": {
+      "title": "Реєстрація в CoQuest",
+      "fullName": "Повне ім'я",
+      "email": "Email",
+      "password": "Пароль",
+      "confirmPassword": "Підтвердіть пароль",
+      "role": "Я",
+      "roleStudent": "Студент",
+      "roleTeacher": "Викладач",
+      "submit": "Зареєструватись",
+      "hasAccount": "Вже є акаунт?",
+      "login": "Увійти",
+      "success": {
+        "title": "Перевірте пошту!",
+        "message": "Ми надіслали лист з підтвердженням на вашу електронну адресу. Будь ласка, перейдіть за посиланням у листі, щоб активувати акаунт.",
+        "backToLogin": "Повернутись до входу"
+      }
+    },
+
+    "verify": {
+      "loading": "Перевіряємо email...",
+      "success": "Успішно!",
+      "successMessage": "Email підтверджено успішно!",
+      "error": "Помилка",
+      "redirecting": "Перенаправляємо на сторінку входу...",
+      "backToLogin": "Повернутись до входу"
+    },
+
+    "errors": {
+      "invalidEmail": "Невірний email",
+      "passwordMin": "Мінімум 8 символів",
+      "passwordUppercase": "Потрібна велика літера",
+      "passwordNumber": "Потрібна цифра",
+      "passwordMismatch": "Паролі не співпадають",
+      "nameShort": "Ім'я занадто коротке",
+      "loginFailed": "Невірний email або пароль",
+      "registerFailed": "Помилка реєстрації",
+      "emailExists": "Email вже зареєстровано",
+      "googleLoginFailed": "Помилка входу через Google",
+      "verificationFailed": "Невірне посилання підтвердження",
+      "tokenExpired": "Посилання застаріло"
+    }
+  },
+
+  "dashboard": {
+    "teacher": {
+      "title": "Мої квести",
+      "createQuest": "Створити квест",
+      "noQuests": "У вас ще немає квестів",
+      "questsCount": "{count} квестів"
+    },
+    "student": {
+      "title": "Доступні квести",
+      "explore": "Огляд квестів",
+      "continue": "Продовжити",
+      "noQuests": "Немає доступних квестів"
+    }
+  },
+
+  "quest": {
+    "title": "Назва квесту",
+    "description": "Опис",
+    "difficulty": "Складність",
+    "duration": "Тривалість",
+    "players": "Гравці",
+    "easy": "Легкий",
+    "medium": "Середній",
+    "hard": "Складний",
+    "minutes": "хв",
+    "status": {
+      "draft": "Чернетка",
+      "published": "Опубліковано",
+      "archived": "Архівовано"
+    }
+  },
+
+  "settings": {
+    "title": "Налаштування",
+    "profile": "Профіль",
+    "language": "Мова",
+    "notifications": "Сповіщення",
+    "privacy": "Приватність",
+    "account": "Акаунт"
+  }
+}

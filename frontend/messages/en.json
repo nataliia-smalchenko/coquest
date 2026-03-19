@@ -1,0 +1,127 @@
+{
+  "common": {
+    "appName": "CoQuest",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter"
+  },
+
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "explore": "Explore",
+    "create": "Create",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+
+  "auth": {
+    "login": {
+      "title": "Sign in to CoQuest",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "google": "Sign in with Google",
+      "or": "Or",
+      "noAccount": "Don't have an account?",
+      "register": "Register",
+      "forgotPassword": "Forgot password?",
+      "verifyEmail": "Verify your email",
+      "verifyEmailMessage": "Please click the link in your email to activate your account.",
+      "resendVerification": "Resend verification email"
+    },
+
+    "register": {
+      "title": "Sign up for CoQuest",
+      "fullName": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "role": "I am a",
+      "roleStudent": "Student",
+      "roleTeacher": "Teacher",
+      "submit": "Register",
+      "hasAccount": "Already have an account?",
+      "login": "Sign in",
+      "success": {
+        "title": "Check your email!",
+        "message": "We sent you a verification email. Please click the link in the email to activate your account.",
+        "backToLogin": "Back to login"
+      }
+    },
+
+    "verify": {
+      "loading": "Verifying email...",
+      "success": "Success!",
+      "successMessage": "Email verified successfully!",
+      "error": "Error",
+      "redirecting": "Redirecting to login page...",
+      "backToLogin": "Back to login"
+    },
+
+    "errors": {
+      "invalidEmail": "Invalid email",
+      "passwordMin": "Minimum 8 characters",
+      "passwordUppercase": "Need uppercase letter",
+      "passwordNumber": "Need number",
+      "passwordMismatch": "Passwords don't match",
+      "nameShort": "Name too short",
+      "loginFailed": "Incorrect email or password",
+      "registerFailed": "Registration failed",
+      "emailExists": "Email already registered",
+      "googleLoginFailed": "Google login failed",
+      "verificationFailed": "Invalid verification link",
+      "tokenExpired": "Link expired"
+    }
+  },
+
+  "dashboard": {
+    "teacher": {
+      "title": "My Quests",
+      "createQuest": "Create Quest",
+      "noQuests": "You don't have any quests yet",
+      "questsCount": "{count} quests"
+    },
+    "student": {
+      "title": "Available Quests",
+      "explore": "Explore Quests",
+      "continue": "Continue",
+      "noQuests": "No available quests"
+    }
+  },
+
+  "quest": {
+    "title": "Quest title",
+    "description": "Description",
+    "difficulty": "Difficulty",
+    "duration": "Duration",
+    "players": "Players",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "minutes": "min",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    }
+  },
+
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "language": "Language",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "account": "Account"
+  }
+}

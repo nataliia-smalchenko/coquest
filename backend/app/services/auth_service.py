@@ -11,12 +11,17 @@ from app.utils.security import (
     verify_token,
 )
 from app.services.email_service import EmailService
+from app.services.i18n_service import I18nService
 from datetime import datetime, timezone
 
 
 class AuthService:
     @staticmethod
-    async def register_user(db: AsyncSession, user_data: UserCreate) -> User:
+    async def register_user(
+        db: AsyncSession,
+        user_data: UserCreate,
+        language: str = "uk",
+    ) -> User:
         """Register new user with email verification"""
 
         result = await db.execute(select(User).where(User.email == user_data.email))
@@ -37,6 +42,7 @@ class AuthService:
             is_email_verified=False,
             email_verification_token=verification_token,
             email_verification_sent_at=datetime.now(timezone.utc),
+            preferred_language=language,
         )
 
         db.add(db_user)
@@ -47,6 +53,7 @@ class AuthService:
                 email=db_user.email,
                 full_name=db_user.full_name,
                 token=verification_token,
+                language=language,
             )
             await db.commit()
             await db.refresh(db_user)
@@ -93,7 +100,9 @@ class AuthService:
 
         try:
             await EmailService.send_welcome_email(
-                email=user.email, full_name=user.full_name
+                email=user.email,
+                full_name=user.full_name,
+                language=I18nService.get_user_language(user),
             )
         except Exception as e:
             print(f"Failed to send welcome email: {e}")
@@ -123,7 +132,10 @@ class AuthService:
         try:
             await db.flush()
             await EmailService.send_verification_email(
-                email=user.email, full_name=user.full_name, token=verification_token
+                email=user.email,
+                full_name=user.full_name,
+                token=verification_token,
+                language=I18nService.get_user_language(user),
             )
             await db.commit()
         except Exception as e:
@@ -161,7 +173,11 @@ class AuthService:
         return user
 
     @staticmethod
-    async def google_login_or_register(db: AsyncSession, google_data: dict) -> User:
+    async def google_login_or_register(
+        db: AsyncSession,
+        google_data: dict,
+        language: str = "uk",
+    ) -> User:
         """
         Login or register user via Google OAuth.
         google_data should contain: email, full_name, google_id, avatar_url
@@ -195,6 +211,7 @@ class AuthService:
             auth_provider=AuthProvider.GOOGLE,
             is_email_verified=True,  # Google already verified this email
             password_hash=None,  # No password for Google users
+            preferred_language=language,
         )
 
         db.add(new_user)
