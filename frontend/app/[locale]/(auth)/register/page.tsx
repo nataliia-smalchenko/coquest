@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,6 +40,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const locale = useLocale();
   const { register: authRegister, error: authError } = useAuth();
 
   const t = useTranslations("auth.register");
@@ -70,7 +71,10 @@ export default function RegisterPage() {
     setCustomError("");
     try {
       const { confirmPassword, ...registerData } = data;
-      await authRegister(registerData);
+      await authRegister({
+        ...registerData,
+        language: locale,
+      });
 
       setIsSuccess(true);
     } catch (err: any) {

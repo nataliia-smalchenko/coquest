@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 import re
 import uuid
 from enum import Enum
@@ -14,12 +14,16 @@ class UserRole(str, Enum):
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=255)
-    role: UserRole  # Automatically creates a dropdown in Swagger docs
+    role: UserRole  # Автоматично створює випадаючий список у Swagger
 
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
+    language: Optional[Literal["uk", "en"]] = (
+        "uk"  # ← НОВЕ: Поле для мови при реєстрації
+    )
 
+    # Залишаємо сучасний синтаксис Pydantic v2
     @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
@@ -47,6 +51,7 @@ class UserResponse(UserBase):
     auth_provider: str
     is_email_verified: bool
     avatar_url: Optional[str] = None
+    preferred_language: Literal["uk", "en"]  # ← НОВЕ: Повертаємо збережену мову
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -69,3 +74,9 @@ class EmailVerificationRequest(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+
+
+class UserUpdateLanguage(BaseModel):
+    """Update user's preferred language"""
+
+    language: Literal["uk", "en"]
