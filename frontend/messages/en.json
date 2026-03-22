@@ -123,5 +123,72 @@
     "notifications": "Notifications",
     "privacy": "Privacy",
     "account": "Account"
+  },
+
+  "resources": {
+    "title": "Resource Library",
+    "new": "New Resource",
+    "newText": "Text Material",
+    "newQuestion": "Question",
+    "search": "Search resources...",
+    "empty": "No resources yet",
+    "emptyFolder": "This folder is empty",
+    "type": {
+      "text": "Text",
+      "question": "Question"
+    },
+    "folders": {
+      "title": "Folders",
+      "new": "New Folder",
+      "name": "Folder name",
+      "unnamed": "Untitled",
+      "deleteConfirm": "Delete folder? Resources will remain.",
+      "newSubfolder": "Add subfolder",
+      "delete": "Delete"
+    },
+    "tags": {
+      "title": "Tags",
+      "new": "New Tag",
+      "name": "Tag name",
+      "color": "Color",
+      "delete": "Delete tag",
+      "empty": "No tags"
+    },
+    "editor": {
+      "titleLabel": "Resource title",
+      "titlePlaceholder": "Enter title...",
+      "folder": "Folder",
+      "noFolder": "No folder",
+      "tags": "Tags",
+      "saveSuccess": "Saved",
+      "saveError": "Save error"
+    },
+    "text": {
+      "title": "Text Material",
+      "bodyPlaceholder": "Start writing...",
+      "addImage": "Add image",
+      "uploading": "Uploading...",
+      "uploadError": "Upload error"
+    },
+    "question": {
+      "title": "Question",
+      "type": "Question type",
+      "body": "Question text",
+      "bodyPlaceholder": "Enter question...",
+      "explanation": "Explanation (shown after answer)",
+      "explanationPlaceholder": "Optional...",
+      "options": "Answer options",
+      "addOption": "Add option",
+      "addAnswer": "Add answer",
+      "correctAnswer": "Correct answer",
+      "correctAnswers": "Correct answers",
+      "requiresReview": "Requires teacher review",
+      "types": {
+        "single": "Single correct",
+        "multiple": "Multiple correct",
+        "short": "Short answer",
+        "open": "Open answer"
+      }
+    }
   }
 }

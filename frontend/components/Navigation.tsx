@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/useAuth";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -8,7 +9,11 @@ import { Link } from "@/i18n/navigation";
 export default function Navigation() {
   const t = useTranslations("nav");
   const tAuth = useTranslations("auth");
-  const { user, logout } = useAuth();
+  const { user, isLoading, fetchUser, logout } = useAuth();
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
 
   return (
     <nav className="bg-white shadow sticky top-0 z-50">
@@ -51,7 +56,9 @@ export default function Navigation() {
           <div className="flex items-center space-x-6">
             <LanguageSwitcher />
 
-            {user ? (
+            {isLoading ? (
+              <div className="w-20 h-8 bg-gray-100 rounded-md animate-pulse border-l pl-6 border-gray-200" />
+            ) : user ? (
               <div className="flex items-center space-x-4 border-l pl-6 border-gray-200">
                 <Link
                   href="/profile"
@@ -78,7 +85,7 @@ export default function Navigation() {
                   href="/register"
                   className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-700 shadow-sm transition-all"
                 >
-                  {tAuth("register.submit")}{" "}
+                  {tAuth("register.submit")}
                 </Link>
               </div>
             )}

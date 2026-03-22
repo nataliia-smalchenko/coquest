@@ -90,7 +90,7 @@ async def delete_tag(
 async def list_resources(
     folder_id: Optional[uuid.UUID] = None,
     type: Optional[ResourceType] = None,
-    tag_id: Optional[uuid.UUID] = None,
+    tag_ids: List[uuid.UUID] = Query(default=[]),
     search: Optional[str] = None,
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
@@ -102,7 +102,7 @@ async def list_resources(
         teacher.id,
         folder_id=folder_id,
         type=type,
-        tag_id=tag_id,
+        tag_ids=tag_ids or None,
         search=search,
         limit=limit,
         offset=offset,

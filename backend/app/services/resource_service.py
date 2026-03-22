@@ -6,6 +6,7 @@ from typing import Any, Optional, List, Dict
 import cloudinary.utils
 from fastapi import HTTPException, status
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -119,9 +120,12 @@ class ResourceService:
             await db.commit()
             await db.refresh(tag)
             return tag
-        except Exception:
+        except IntegrityError:
             await db.rollback()
-            raise
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Tag with this name already exists",
+            )
 
     @staticmethod
     async def delete_tag(
@@ -146,7 +150,7 @@ class ResourceService:
         teacher_id: uuid.UUID,
         folder_id: Optional[uuid.UUID] = None,
         type: Optional[ResourceType] = None,
-        tag_id: Optional[uuid.UUID] = None,
+        tag_ids: Optional[List[uuid.UUID]] = None,
         search: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
@@ -161,8 +165,9 @@ class ResourceService:
             stmt = stmt.where(Resource.folder_id == folder_id)
         if type is not None:
             stmt = stmt.where(Resource.type == type)
-        if tag_id is not None:
-            stmt = stmt.where(Resource.tags.any(Tag.id == tag_id))
+        if tag_ids:
+            for tid in tag_ids:
+                stmt = stmt.where(Resource.tags.any(Tag.id == tid))
         if search:
             stmt = stmt.where(Resource.title.ilike(f"%{search}%"))
 
@@ -317,13 +322,14 @@ class ResourceService:
         if resource.type != ResourceType.QUESTION:
             raise HTTPException(400, "Resource type is not 'question'")
 
-        option_ids = {opt.id for opt in data.options}
-        for correct_id in data.correct_answers:
-            if correct_id not in option_ids:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Correct answer ID '{correct_id}' not found in options",
-                )
+        if data.question_type in ("single", "multiple"):
+            option_ids = {opt.id for opt in data.options}
+            for correct_id in data.correct_answers:
+                if correct_id not in option_ids:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Correct answer ID '{correct_id}' not found in options",
+                    )
 
         try:
             result = await db.execute(
@@ -363,9 +369,7 @@ class ResourceService:
         timestamp = int(time.time())
         full_folder = f"coquest/{teacher_id}/{folder}"
         params_to_sign = {
-            "allowed_formats": "jpg,png,gif,webp",
             "folder": full_folder,
-            "max_file_size": 10485760,
             "timestamp": timestamp,
             "upload_preset": "coquest_preset",
         }

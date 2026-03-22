@@ -73,39 +73,46 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       const refreshToken = Cookies.get("refresh_token");
-      if (refreshToken) {
-        try {
-          const { data } = await axios.post<RefreshResponse>(
-            `${API_URL}/api/auth/refresh`,
-            {
-              refresh_token: refreshToken,
-            },
-          );
 
-          const newAccessToken = data.access_token;
-
-          // Set cookie with basic security
-          Cookies.set("access_token", newAccessToken, {
-            secure: true,
-            sameSite: "strict",
-          });
-
-          processQueue(null, newAccessToken);
-          isRefreshing = false;
-
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          processQueue(refreshError, null);
-          isRefreshing = false;
-
-          Cookies.remove("access_token");
-          Cookies.remove("refresh_token");
-          if (typeof window !== "undefined") {
-            window.location.href = "/login";
-          }
-          return Promise.reject(refreshError);
+      if (!refreshToken) {
+        isRefreshing = false;
+        processQueue(error, null);
+        Cookies.remove("access_token");
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
         }
+        return Promise.reject(error);
+      }
+
+      try {
+        const { data } = await axios.post<RefreshResponse>(
+          `${API_URL}/api/auth/refresh`,
+          { refresh_token: refreshToken },
+        );
+
+        const newAccessToken = data.access_token;
+
+        Cookies.set("access_token", newAccessToken, {
+          expires: 1 / 96, // 15 min
+          sameSite: "strict",
+          secure: process.env.NODE_ENV === "production",
+        });
+
+        processQueue(null, newAccessToken);
+        isRefreshing = false;
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        isRefreshing = false;
+
+        Cookies.remove("access_token");
+        Cookies.remove("refresh_token");
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        return Promise.reject(refreshError);
       }
     }
 
