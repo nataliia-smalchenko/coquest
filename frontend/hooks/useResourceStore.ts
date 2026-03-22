@@ -39,6 +39,7 @@ interface ResourceStore {
 
   setSelectedFolder: (id: string | null) => void;
   toggleSelectedTag: (id: string) => void;
+  clearFilters: () => void;
   setSearchQuery: (query: string) => void;
 
   deleteResource: (id: string) => Promise<void>;
@@ -143,6 +144,11 @@ export const useResourceStore = create<ResourceStore>()(
 
   setSelectedFolder: (id) => {
     set({ selectedFolderId: id });
+    get().fetchResources();
+  },
+
+  clearFilters: () => {
+    set({ selectedFolderId: null, selectedTagIds: [] });
     get().fetchResources();
   },
 

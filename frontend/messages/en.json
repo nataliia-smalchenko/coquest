@@ -143,6 +143,8 @@
     "search": "Search resources...",
     "empty": "No resources yet",
     "emptyContent": "Empty",
+    "filters": "Filters",
+    "clearFilters": "Clear filters",
     "createNextText": "Create next text",
     "createNextQuestion": "Create next question",
     "emptyFolder": "This folder is empty",

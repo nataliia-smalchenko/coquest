@@ -143,6 +143,8 @@
     "search": "Пошук ресурсів...",
     "empty": "Ресурсів ще немає",
     "emptyContent": "Порожній",
+    "filters": "Фільтри",
+    "clearFilters": "Очистити фільтри",
     "createNextText": "Створити наступний текст",
     "createNextQuestion": "Створити наступне питання",
     "emptyFolder": "Ця папка порожня",

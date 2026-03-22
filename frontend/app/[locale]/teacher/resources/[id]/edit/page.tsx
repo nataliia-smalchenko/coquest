@@ -133,11 +133,11 @@ export default function EditResourcePage({ params }: EditPageProps) {
         style={{
           background: "white",
           borderBottom: "1px solid #e5e7eb",
-          padding: "0 28px",
+          padding: "0 16px",
           height: "56px",
           display: "flex",
           alignItems: "center",
-          gap: "16px",
+          gap: "10px",
           position: "sticky",
           top: 0,
           zIndex: 10,
@@ -161,7 +161,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
           onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")}
         >
           <ArrowLeft size={16} />
-          {tCommon("back")}
+          <span className="topbar-back-label">{tCommon("back")}</span>
         </button>
 
         <span style={{ width: "1px", height: "20px", background: "#e5e7eb", flexShrink: 0 }} />
@@ -181,7 +181,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
           }}
         >
           {isText ? <FileText size={12} /> : <HelpCircle size={12} />}
-          {t(`type.${resource.type}`)}
+          <span className="topbar-type-label">{t(`type.${resource.type}`)}</span>
         </span>
 
         <span
@@ -226,7 +226,8 @@ export default function EditResourcePage({ params }: EditPageProps) {
               }}
             >
               {creatingNext === "text" ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-              {t("createNextText")}
+              <FileText size={13} />
+              <span className="topbar-btn-label">{t("createNextText")}</span>
             </button>
             <button
               onClick={() => handleCreateNext("question")}
@@ -254,7 +255,8 @@ export default function EditResourcePage({ params }: EditPageProps) {
               }}
             >
               {creatingNext === "question" ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-              {t("createNextQuestion")}
+              <HelpCircle size={13} />
+              <span className="topbar-btn-label">{t("createNextQuestion")}</span>
             </button>
             {isNew && (
               <button
@@ -289,14 +291,22 @@ export default function EditResourcePage({ params }: EditPageProps) {
                 }}
               >
                 {cancelling ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
-                {tCommon("cancel")}
+                <span className="topbar-btn-label">{tCommon("cancel")}</span>
               </button>
             )}
         </div>
       </div>
 
+      <style>{`
+        @media (max-width: 640px) {
+          .topbar-btn-label { display: none; }
+          .topbar-back-label { display: none; }
+          .topbar-type-label { display: none; }
+        }
+      `}</style>
+
       {/* Body */}
-      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "28px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
 
         {/* Metadata card */}
         <div
