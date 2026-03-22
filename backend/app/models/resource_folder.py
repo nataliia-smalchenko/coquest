@@ -54,7 +54,6 @@ class ResourceFolder(Base):
     resources: Mapped[List["Resource"]] = relationship(
         "Resource",
         back_populates="folder",
-        cascade="all, delete-orphan",
         passive_deletes=True,
     )
 

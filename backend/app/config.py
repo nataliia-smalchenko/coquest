@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Cloudinary
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
