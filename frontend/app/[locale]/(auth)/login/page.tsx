@@ -22,6 +22,10 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, error: authError } = useAuth();
 
+  const redirectByRole = (role: string) => {
+    router.push(role === "teacher" ? "/teacher/dashboard" : "/dashboard");
+  };
+
   const t = useTranslations("auth.login");
   const tErrors = useTranslations("auth.errors");
   const tCommon = useTranslations("common");
@@ -47,8 +51,8 @@ export default function LoginPage() {
     setIsLoading(true);
     setCustomError("");
     try {
-      await login(data.email, data.password);
-      router.push("/dashboard");
+      const user = await login(data.email, data.password);
+      redirectByRole(user.role);
     } catch (err: any) {
       if (err.response?.status === 403) {
         setNeedsVerification(true);
@@ -75,7 +79,7 @@ export default function LoginPage() {
         document.cookie = `access_token=${data.access_token}; path=/`;
         document.cookie = `refresh_token=${data.refresh_token}; path=/`;
 
-        router.push("/dashboard");
+        redirectByRole(data.user.role);
       } catch (err: any) {
         console.error("Google Auth failed:", err);
         setCustomError(tErrors("googleLoginFailed"));

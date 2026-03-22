@@ -11,7 +11,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   language: string;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (data: any) => Promise<void>;
   logout: () => void;
   fetchUser: () => Promise<void>;
@@ -33,6 +33,7 @@ export const useAuth = create<AuthState>((set) => ({
         language: response.user.preferred_language || "uk",
         isLoading: false,
       });
+      return response.user;
     } catch (error: any) {
       set({
         error: error.response?.data?.detail || "Login failed",
