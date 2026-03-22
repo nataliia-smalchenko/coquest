@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { Calendar, FileText, HelpCircle, Pencil, Trash2 } from "lucide-react";
+import { Calendar, FileText, Folder, HelpCircle, Pencil, Trash2 } from "lucide-react";
 import { useResourceStore } from "@/hooks/useResourceStore";
 import type { ResourceResponse } from "@/types/resource";
 
@@ -14,8 +14,12 @@ interface ResourceCardProps {
 export function ResourceCard({ resource }: ResourceCardProps) {
   const t = useTranslations("resources");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const router = useRouter();
-  const { deleteResource } = useResourceStore();
+  const { deleteResource, folders } = useResourceStore();
+  const folderName = resource.folder_id
+    ? (folders.find((f) => f.id === resource.folder_id)?.name ?? null)
+    : null;
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -36,7 +40,7 @@ export function ResourceCard({ resource }: ResourceCardProps) {
   };
 
   const formattedDate = new Date(resource.updated_at).toLocaleDateString(
-    undefined,
+    locale,
     { day: "numeric", month: "short" },
   );
 
@@ -82,7 +86,7 @@ export function ResourceCard({ resource }: ResourceCardProps) {
       }}
     >
       {/* Top row: icon + badge */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div
           style={{
             width: "40px",
@@ -102,19 +106,37 @@ export function ResourceCard({ resource }: ResourceCardProps) {
           )}
         </div>
 
-        <span
-          style={{
-            fontSize: "11px",
-            fontWeight: 600,
-            color: accentColor,
-            backgroundColor: accentBg,
-            borderRadius: "20px",
-            padding: "3px 10px",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {t(`type.${resource.type}`)}
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-end" }}>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 600,
+              color: accentColor,
+              backgroundColor: accentBg,
+              borderRadius: "20px",
+              padding: "3px 10px",
+              letterSpacing: "0.02em",
+            }}
+          >
+            {t(`type.${resource.type}`)}
+          </span>
+
+          {!resource.has_content && (
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "#9ca3af",
+                backgroundColor: "#f3f4f6",
+                borderRadius: "20px",
+                padding: "3px 10px",
+                letterSpacing: "0.02em",
+                }}
+            >
+              {t("emptyContent")}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Title */}
@@ -182,18 +204,37 @@ export function ResourceCard({ resource }: ResourceCardProps) {
           marginTop: "auto",
         }}
       >
-        <span
-          style={{
-            fontSize: "12px",
-            color: "#9ca3af",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          <Calendar size={12} />
-          {formattedDate}
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+          <span
+            style={{
+              fontSize: "12px",
+              color: "#9ca3af",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <Calendar size={12} />
+            {formattedDate}
+          </span>
+          {folderName && (
+            <span
+              style={{
+                fontSize: "12px",
+                color: "#9ca3af",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Folder size={12} />
+              {folderName}
+            </span>
+          )}
+        </div>
 
         <div
           data-actions

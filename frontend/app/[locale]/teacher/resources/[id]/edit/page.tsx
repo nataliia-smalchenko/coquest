@@ -1,11 +1,12 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { ArrowLeft, Check, FileText, Folder, HelpCircle, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Check, FileText, Folder, HelpCircle, Loader2, Plus, Save, X } from "lucide-react";
 
-import { getResource, updateResource } from "@/lib/api/resources";
+import { createResource, deleteResource, getResource, updateResource } from "@/lib/api/resources";
 import { useResourceStore } from "@/hooks/useResourceStore";
 import { TextEditor } from "@/components/teacher/resources/editors/TextEditor";
 import { QuestionEditor } from "@/components/teacher/resources/editors/QuestionEditor";
@@ -18,11 +19,13 @@ interface EditPageProps {
 
 export default function EditResourcePage({ params }: EditPageProps) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const isNew = searchParams.get("new") === "1";
   const t = useTranslations("resources");
   const tEditor = useTranslations("resources.editor");
   const tCommon = useTranslations("common");
   const router = useRouter();
-  const { folders, tags, fetchFolders, fetchTags } = useResourceStore();
+  const { folders, tags, fetchFolders, fetchTags, resources, selectedFolderId, selectedTagIds: storeTagIds } = useResourceStore();
 
   const [resource, setResource] = useState<ResourceDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +34,8 @@ export default function EditResourcePage({ params }: EditPageProps) {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [metaSaving, setMetaSaving] = useState(false);
   const [metaStatus, setMetaStatus] = useState<"idle" | "success" | "error">("idle");
+  const [cancelling, setCancelling] = useState(false);
+  const [creatingNext, setCreatingNext] = useState<"text" | "question" | null>(null);
 
   useEffect(() => {
     fetchFolders();
@@ -50,6 +55,40 @@ export default function EditResourcePage({ params }: EditPageProps) {
     setSelectedTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId],
     );
+  };
+
+  const handleCancel = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      await deleteResource(id);
+    } catch {
+      // ignore — still navigate away
+    }
+    router.push("/teacher/resources");
+  };
+
+  const isDefaultTitle = (value: string) =>
+    new RegExp(`^${t("newText")} \\d+$`).test(value) ||
+    new RegExp(`^${t("newQuestion")} \\d+$`).test(value);
+
+  const handleCreateNext = async (type: "text" | "question") => {
+    if (creatingNext) return;
+    setCreatingNext(type);
+    try {
+      const count = resources.filter((r) => r.type === type).length + 1;
+      const defaultTitle = type === "text" ? `${t("newText")} ${count}` : `${t("newQuestion")} ${count}`;
+      const nextTitle = title.trim() && !isDefaultTitle(title.trim()) ? title.trim() : defaultTitle;
+      const newResource = await createResource({
+        type,
+        title: nextTitle,
+        folder_id: selectedFolderId ?? null,
+        tag_ids: storeTagIds,
+      });
+      router.push(`/teacher/resources/${newResource.id}/edit?new=1`);
+    } catch {
+      setCreatingNext(null);
+    }
   };
 
   const saveMeta = async () => {
@@ -129,20 +168,6 @@ export default function EditResourcePage({ params }: EditPageProps) {
 
         <span
           style={{
-            fontSize: "15px",
-            fontWeight: 600,
-            color: "#111827",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {resource.title}
-        </span>
-
-        <span
-          style={{
-            marginLeft: "auto",
             display: "inline-flex",
             alignItems: "center",
             gap: "5px",
@@ -158,6 +183,116 @@ export default function EditResourcePage({ params }: EditPageProps) {
           {isText ? <FileText size={12} /> : <HelpCircle size={12} />}
           {t(`type.${resource.type}`)}
         </span>
+
+        <span
+          style={{
+            fontSize: "15px",
+            fontWeight: 600,
+            color: "#111827",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            flex: "1 1 0",
+            minWidth: 0,
+          }}
+        >
+          {resource.title}
+        </span>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+            <button
+              onClick={() => handleCreateNext("text")}
+              disabled={!!creatingNext || cancelling}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 12px",
+                backgroundColor: "white",
+                color: "#2563eb",
+                border: "1.5px solid #2563eb",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: creatingNext || cancelling ? "not-allowed" : "pointer",
+                opacity: creatingNext === "question" || cancelling ? 0.5 : 1,
+                transition: "background-color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#eff6ff";
+              }}
+              onMouseLeave={(e) => {
+                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "white";
+              }}
+            >
+              {creatingNext === "text" ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              {t("createNextText")}
+            </button>
+            <button
+              onClick={() => handleCreateNext("question")}
+              disabled={!!creatingNext || cancelling}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 12px",
+                backgroundColor: "#2563eb",
+                color: "white",
+                border: "1.5px solid #2563eb",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: creatingNext || cancelling ? "not-allowed" : "pointer",
+                opacity: creatingNext === "text" || cancelling ? 0.5 : 1,
+                transition: "background-color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8";
+              }}
+              onMouseLeave={(e) => {
+                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb";
+              }}
+            >
+              {creatingNext === "question" ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              {t("createNextQuestion")}
+            </button>
+            {isNew && (
+              <button
+                onClick={handleCancel}
+                disabled={cancelling || !!creatingNext}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  padding: "6px 12px",
+                  backgroundColor: "white",
+                  color: "#ef4444",
+                  border: "1.5px solid #fca5a5",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: cancelling || creatingNext ? "not-allowed" : "pointer",
+                  opacity: cancelling || creatingNext ? 0.5 : 1,
+                  transition: "background-color 0.15s, border-color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  if (!cancelling && !creatingNext) {
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#fef2f2";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = "#ef4444";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!cancelling && !creatingNext) {
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = "white";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = "#fca5a5";
+                  }
+                }}
+              >
+                {cancelling ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                {tCommon("cancel")}
+              </button>
+            )}
+        </div>
       </div>
 
       {/* Body */}

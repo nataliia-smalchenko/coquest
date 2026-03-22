@@ -59,6 +59,7 @@ class ResourceResponse(BaseModel):
     title: str
     folder_id: Optional[uuid.UUID] = None
     tags: List[TagResponse] = []
+    has_content: bool = False
     created_at: datetime
     updated_at: datetime
 

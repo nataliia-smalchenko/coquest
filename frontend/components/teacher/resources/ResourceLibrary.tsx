@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { FileText, HelpCircle, Search } from "lucide-react";
+import { FileText, HelpCircle, Loader2, Search } from "lucide-react";
 import { useResourceStore } from "@/hooks/useResourceStore";
+import { createResource } from "@/lib/api/resources";
 import { FolderTree } from "./FolderTree";
 import { TagFilter } from "./TagFilter";
 import { ResourceList } from "./ResourceList";
@@ -18,7 +19,12 @@ export function ResourceLibrary() {
     fetchResources,
     setSearchQuery,
     searchQuery,
+    resources,
+    selectedFolderId,
+    selectedTagIds,
   } = useResourceStore();
+
+  const [creating, setCreating] = useState<"text" | "question" | null>(null);
 
   useEffect(() => {
     fetchFolders();
@@ -26,7 +32,6 @@ export function ResourceLibrary() {
     fetchResources();
   }, [fetchFolders, fetchTags, fetchResources]);
 
-  // Debounce для пошуку
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearch = useCallback(
     (value: string) => {
@@ -37,8 +42,23 @@ export function ResourceLibrary() {
     [setSearchQuery, fetchResources],
   );
 
-  const handleNewResource = (type: string) => {
-    router.push(`/teacher/resources/new?type=${type}`);
+  const handleNewResource = async (type: "text" | "question") => {
+    if (creating) return;
+    setCreating(type);
+    try {
+      const count = resources.filter((r) => r.type === type).length + 1;
+      const title = type === "text" ? `${t("newText")} ${count}` : `${t("newQuestion")} ${count}`;
+      const resource = await createResource({
+        type,
+        title,
+        folder_id: selectedFolderId ?? null,
+        tag_ids: selectedTagIds,
+      });
+      await fetchResources();
+      router.push(`/teacher/resources/${resource.id}/edit?new=1`);
+    } catch {
+      setCreating(null);
+    }
   };
 
   return (
@@ -88,6 +108,7 @@ export function ResourceLibrary() {
           <div style={{ display: "flex", gap: "8px" }}>
             <button
               onClick={() => handleNewResource("text")}
+              disabled={!!creating}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -99,21 +120,23 @@ export function ResourceLibrary() {
                 borderRadius: "10px",
                 fontSize: "13px",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: creating ? "not-allowed" : "pointer",
+                opacity: creating === "question" ? 0.5 : 1,
                 transition: "background-color 0.15s",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#eff6ff";
+                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#eff6ff";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "white";
+                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "white";
               }}
             >
-              <FileText size={15} />
+              {creating === "text" ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
               {t("newText")}
             </button>
             <button
               onClick={() => handleNewResource("question")}
+              disabled={!!creating}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -125,17 +148,18 @@ export function ResourceLibrary() {
                 borderRadius: "10px",
                 fontSize: "13px",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: creating ? "not-allowed" : "pointer",
+                opacity: creating === "text" ? 0.5 : 1,
                 transition: "background-color 0.15s",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8";
+                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb";
+                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb";
               }}
             >
-              <HelpCircle size={15} />
+              {creating === "question" ? <Loader2 size={15} className="animate-spin" /> : <HelpCircle size={15} />}
               {t("newQuestion")}
             </button>
           </div>

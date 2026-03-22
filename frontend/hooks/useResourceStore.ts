@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   deleteResource as apiDeleteResource,
   getFolders,
@@ -47,7 +48,9 @@ interface ResourceStore {
 
 const LIMIT = 50;
 
-export const useResourceStore = create<ResourceStore>((set, get) => ({
+export const useResourceStore = create<ResourceStore>()(
+  persist(
+    (set, get) => ({
   folders: [],
   tags: [],
   resources: [],
@@ -192,4 +195,13 @@ export const useResourceStore = create<ResourceStore>((set, get) => ({
       throw err;
     }
   },
-}));
+    }),
+    {
+      name: "resource-filters",
+      partialize: (state) => ({
+        selectedFolderId: state.selectedFolderId,
+        selectedTagIds: state.selectedTagIds,
+      }),
+    },
+  ),
+);

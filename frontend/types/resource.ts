@@ -21,6 +21,7 @@ export interface ResourceResponse {
   title: string;
   folder_id: string | null;
   tags: TagResponse[];
+  has_content: boolean;
   created_at: string;
   updated_at: string;
 }

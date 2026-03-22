@@ -157,7 +157,11 @@ class ResourceService:
     ) -> List[Resource]:
         stmt = (
             select(Resource)
-            .options(selectinload(Resource.tags))
+            .options(
+                selectinload(Resource.tags),
+                selectinload(Resource.text_content),
+                selectinload(Resource.question),
+            )
             .where(Resource.teacher_id == teacher_id)
         )
 
@@ -174,7 +178,10 @@ class ResourceService:
         stmt = stmt.order_by(Resource.created_at.desc()).limit(limit).offset(offset)
 
         result = await db.execute(stmt)
-        return list(result.scalars().all())
+        resources = list(result.scalars().all())
+        for r in resources:
+            r.has_content = bool(r.text_content or r.question)
+        return resources
 
     @staticmethod
     async def create_resource(

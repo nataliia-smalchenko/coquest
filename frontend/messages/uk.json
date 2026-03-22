@@ -17,6 +17,8 @@
   "nav": {
     "home": "Головна",
     "dashboard": "Дашборд",
+    "quests": "Квести",
+    "resources": "Ресурси",
     "explore": "Огляд",
     "create": "Створити",
     "profile": "Профіль",
@@ -86,7 +88,8 @@
 
   "dashboard": {
     "teacher": {
-      "title": "Мої квести",
+      "title": "Дашборд",
+      "comingSoon": "Дашборд з'явиться незабаром.",
       "createQuest": "Створити квест",
       "noQuests": "У вас ще немає квестів",
       "questsCount": "{count} квестів"
@@ -96,6 +99,13 @@
       "explore": "Огляд квестів",
       "continue": "Продовжити",
       "noQuests": "Немає доступних квестів"
+    }
+  },
+
+  "quests": {
+    "teacher": {
+      "title": "Мої квести",
+      "comingSoon": "Створення квестів з'явиться незабаром."
     }
   },
 
@@ -132,6 +142,9 @@
     "newQuestion": "Питання",
     "search": "Пошук ресурсів...",
     "empty": "Ресурсів ще немає",
+    "emptyContent": "Порожній",
+    "createNextText": "Створити наступний текст",
+    "createNextQuestion": "Створити наступне питання",
     "emptyFolder": "Ця папка порожня",
     "type": {
       "text": "Текст",

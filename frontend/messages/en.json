@@ -17,6 +17,8 @@
   "nav": {
     "home": "Home",
     "dashboard": "Dashboard",
+    "quests": "Quests",
+    "resources": "Resources",
     "explore": "Explore",
     "create": "Create",
     "profile": "Profile",
@@ -86,7 +88,8 @@
 
   "dashboard": {
     "teacher": {
-      "title": "My Quests",
+      "title": "Dashboard",
+      "comingSoon": "Dashboard is coming soon.",
       "createQuest": "Create Quest",
       "noQuests": "You don't have any quests yet",
       "questsCount": "{count} quests"
@@ -96,6 +99,13 @@
       "explore": "Explore Quests",
       "continue": "Continue",
       "noQuests": "No available quests"
+    }
+  },
+
+  "quests": {
+    "teacher": {
+      "title": "My Quests",
+      "comingSoon": "Quest creation is coming soon."
     }
   },
 
@@ -132,6 +142,9 @@
     "newQuestion": "Question",
     "search": "Search resources...",
     "empty": "No resources yet",
+    "emptyContent": "Empty",
+    "createNextText": "Create next text",
+    "createNextQuestion": "Create next question",
     "emptyFolder": "This folder is empty",
     "type": {
       "text": "Text",

@@ -75,5 +75,8 @@ class Resource(Base):
         cascade="all, delete-orphan",
     )
 
+    # Populated at query time, not stored in DB
+    has_content: bool = False
+
     def __repr__(self) -> str:
         return f"<Resource {self.title!r} type={self.type}>"
