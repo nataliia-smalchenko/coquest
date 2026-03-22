@@ -4,8 +4,7 @@ uvicorn[standard]==0.41.0
 
 # Auth & Security
 python-jose[cryptography]==3.5.0
-bcrypt==3.2.2
-passlib[bcrypt]
+bcrypt==5.0.0
 python-multipart==0.0.22
 
 # Database
@@ -27,7 +26,11 @@ httpx==0.28.1
 
 # Email
 resend==2.23.0
+babel==2.18.0
 jinja2==3.1.6
+
+# Cloudinary
+cloudinary==1.44.1
 
 # Utils
 python-dotenv==1.2.1

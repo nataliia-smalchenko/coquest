@@ -1,0 +1,35 @@
+{
+  "verification": {
+    "subject": "Verify your email address - CoQuest",
+    "greeting": "Hello, {name}!",
+    "title": "Welcome to CoQuest!",
+    "message": "Thank you for signing up for CoQuest. Please verify your email address to activate your account.",
+    "button": "Verify Email",
+    "or_copy": "Or copy this link to your browser:",
+    "valid_for": "This link is valid for 24 hours.",
+    "ignore": "If you didn't sign up for CoQuest, please ignore this email.",
+    "footer": "© 2026 CoQuest. All rights reserved."
+  },
+
+  "welcome": {
+    "subject": "Welcome to CoQuest! 🎉",
+    "title": "Email Verified!",
+    "greeting": "Hello, {name}!",
+    "message": "Your account has been successfully activated. You can now use all features of CoQuest!",
+    "next_steps": "What's next?",
+    "step1": "Create your first quest",
+    "step2": "Invite colleagues or students",
+    "step3": "Explore ready-made quests",
+    "closing": "Happy questing! 🚀"
+  },
+
+  "password_reset": {
+    "subject": "Password Reset - CoQuest",
+    "title": "Password Reset",
+    "greeting": "Hello, {name}!",
+    "message": "You requested a password reset for your CoQuest account.",
+    "button": "Reset Password",
+    "valid_for": "This link is valid for 1 hour.",
+    "ignore": "If you didn't request a password reset, please ignore this email."
+  }
+}

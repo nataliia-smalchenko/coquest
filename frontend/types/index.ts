@@ -3,6 +3,10 @@ export interface User {
   email: string;
   full_name: string;
   role: "teacher" | "student";
+  auth_provider: string;
+  is_email_verified: boolean;
+  avatar_url: string | null;
+  preferred_language: "uk" | "en";
   created_at: string;
 }
 
@@ -23,4 +27,5 @@ export interface RegisterData {
   password: string;
   full_name: string;
   role: "teacher" | "student";
+  language?: "uk" | "en" | string;
 }

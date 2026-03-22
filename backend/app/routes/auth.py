@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
+
 from app.database import get_db
 from app.schemas.user import (
     UserCreate,
@@ -13,18 +15,28 @@ from app.schemas.user import (
 )
 from app.services.auth_service import AuthService
 from app.services.oauth_service import OAuthService
+from app.services.i18n_service import I18nService
 from app.utils.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
+def get_language(accept_language: Optional[str] = Header(None)) -> str:
+    """Extracts and detects language from Accept-Language header automatically"""
+    return I18nService.detect_language_from_header(accept_language)
+
+
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserCreate,
-    db: AsyncSession = Depends(get_db),  # AsyncSession!
+    db: AsyncSession = Depends(get_db),
+    language: str = Depends(get_language),
 ):
     """Register new user"""
-    user = await AuthService.register_user(db, user_data)
+
+    final_language = getattr(user_data, "language", None) or language
+
+    user = await AuthService.register_user(db, user_data, final_language)
 
     return {
         "message": "Registration successful. Please check your email.",
@@ -60,16 +72,20 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/google", response_model=TokenResponse)
-async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
+async def google_auth(
+    request: GoogleAuthRequest,
+    db: AsyncSession = Depends(get_db),
+    language: str = Depends(get_language),
+):
     """Login or register with Google"""
     # Verify token with Google public keys (cached in Redis)
     google_user_info = await OAuthService.verify_google_token(request.token)
 
     # Add requested role to the data if it's a new user
-    google_user_info["requested_role"] = request.role
+    google_user_info["requested_role"] = getattr(request, "role", "student")
 
-    # Handle registration or login logic
-    user = await AuthService.google_login_or_register(db, google_user_info)
+    # Pass the browser language to save if this is a new registration
+    user = await AuthService.google_login_or_register(db, google_user_info, language)
     tokens = AuthService.create_tokens(user)
 
     return {**tokens, "user": user}
