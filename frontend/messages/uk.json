@@ -17,6 +17,8 @@
   "nav": {
     "home": "Головна",
     "dashboard": "Дашборд",
+    "quests": "Квести",
+    "resources": "Ресурси",
     "explore": "Огляд",
     "create": "Створити",
     "profile": "Профіль",
@@ -86,7 +88,8 @@
 
   "dashboard": {
     "teacher": {
-      "title": "Мої квести",
+      "title": "Дашборд",
+      "comingSoon": "Дашборд з'явиться незабаром.",
       "createQuest": "Створити квест",
       "noQuests": "У вас ще немає квестів",
       "questsCount": "{count} квестів"
@@ -96,6 +99,13 @@
       "explore": "Огляд квестів",
       "continue": "Продовжити",
       "noQuests": "Немає доступних квестів"
+    }
+  },
+
+  "quests": {
+    "teacher": {
+      "title": "Мої квести",
+      "comingSoon": "Створення квестів з'явиться незабаром."
     }
   },
 
@@ -123,5 +133,77 @@
     "notifications": "Сповіщення",
     "privacy": "Приватність",
     "account": "Акаунт"
+  },
+
+  "resources": {
+    "title": "Бібліотека ресурсів",
+    "new": "Новий ресурс",
+    "newText": "Текстовий матеріал",
+    "newQuestion": "Питання",
+    "search": "Пошук ресурсів...",
+    "empty": "Ресурсів ще немає",
+    "emptyContent": "Порожній",
+    "filters": "Фільтри",
+    "clearFilters": "Очистити фільтри",
+    "createNextText": "Створити наступний текст",
+    "createNextQuestion": "Створити наступне питання",
+    "emptyFolder": "Ця папка порожня",
+    "type": {
+      "text": "Текст",
+      "question": "Питання"
+    },
+    "folders": {
+      "title": "Папки",
+      "new": "Нова папка",
+      "name": "Назва папки",
+      "unnamed": "Без назви",
+      "deleteConfirm": "Видалити папку? Ресурси залишаться.",
+      "newSubfolder": "Додати підпапку",
+      "delete": "Видалити"
+    },
+    "tags": {
+      "title": "Теги",
+      "new": "Новий тег",
+      "name": "Назва тегу",
+      "color": "Колір",
+      "delete": "Видалити тег",
+      "empty": "Немає тегів"
+    },
+    "editor": {
+      "titleLabel": "Заголовок ресурсу",
+      "titlePlaceholder": "Введіть заголовок...",
+      "folder": "Папка",
+      "noFolder": "Без папки",
+      "tags": "Теги",
+      "saveSuccess": "Збережено",
+      "saveError": "Помилка збереження"
+    },
+    "text": {
+      "title": "Текстовий матеріал",
+      "bodyPlaceholder": "Почніть писати...",
+      "addImage": "Додати зображення",
+      "uploading": "Завантаження...",
+      "uploadError": "Помилка завантаження"
+    },
+    "question": {
+      "title": "Питання",
+      "type": "Тип питання",
+      "body": "Текст питання",
+      "bodyPlaceholder": "Введіть питання...",
+      "explanation": "Пояснення (після відповіді)",
+      "explanationPlaceholder": "Необов'язково...",
+      "options": "Варіанти відповідей",
+      "addOption": "Додати варіант",
+      "addAnswer": "Додати відповідь",
+      "correctAnswer": "Правильна відповідь",
+      "correctAnswers": "Правильні відповіді",
+      "requiresReview": "Потребує перевірки вчителем",
+      "types": {
+        "single": "Одна правильна",
+        "multiple": "Кілька правильних",
+        "short": "Коротка відповідь",
+        "open": "Відкрита відповідь"
+      }
+    }
   }
 }

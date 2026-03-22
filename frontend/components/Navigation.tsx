@@ -1,90 +1,363 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { Link } from "@/i18n/navigation";
+import { BookOpen, LayoutDashboard, Menu, Sword, X } from "lucide-react";
 
 export default function Navigation() {
   const t = useTranslations("nav");
   const tAuth = useTranslations("auth");
-  const { user, logout } = useAuth();
+  const { user, isLoading, fetchUser, logout } = useAuth();
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
+  // Close menu on route change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  const isActive = (href: string) => pathname.startsWith(href);
+
+  const teacherLinks = [
+    { href: "/teacher/dashboard", label: t("dashboard"), icon: <LayoutDashboard size={16} /> },
+    { href: "/teacher/quests", label: t("quests"), icon: <Sword size={16} /> },
+    { href: "/teacher/resources", label: t("resources"), icon: <BookOpen size={16} /> },
+  ];
+
+  const linkStyle = (active: boolean): React.CSSProperties => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "14px",
+    fontWeight: active ? 600 : 500,
+    color: active ? "#2563eb" : "#374151",
+    textDecoration: "none",
+    padding: "4px 0",
+    borderBottom: active ? "2px solid #2563eb" : "2px solid transparent",
+    transition: "color 0.15s, border-color 0.15s",
+  });
+
+  const mobileLinkStyle = (active: boolean): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "12px 16px",
+    fontSize: "15px",
+    fontWeight: active ? 600 : 500,
+    color: active ? "#2563eb" : "#111827",
+    backgroundColor: active ? "#eff6ff" : "transparent",
+    borderRadius: "10px",
+    textDecoration: "none",
+    transition: "background-color 0.15s, color 0.15s",
+  });
 
   return (
-    <nav className="bg-white shadow sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link
-              href="/"
-              className="text-2xl font-extrabold text-blue-600 tracking-tight"
-            >
-              CoQuest
-            </Link>
+    <nav
+      style={{
+        background: "white",
+        borderBottom: "1px solid #e5e7eb",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+      }}
+    >
+      {/* Main bar */}
+      <div
+        style={{
+          maxWidth: "1280px",
+          margin: "0 auto",
+          padding: "0 20px",
+          height: "64px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+        }}
+      >
+        {/* Left: logo + desktop nav */}
+        <div style={{ display: "flex", alignItems: "center", gap: "32px" }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: "22px",
+              fontWeight: 800,
+              color: "#2563eb",
+              letterSpacing: "-0.02em",
+              textDecoration: "none",
+              flexShrink: 0,
+            }}
+          >
+            CoQuest
+          </Link>
 
-            {user && (
-              <div className="ml-10 flex items-center space-x-6">
-                <Link
-                  href="/dashboard"
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  {t("dashboard")}
+          {/* Desktop nav links — hidden on mobile */}
+          {user && user.role === "teacher" && (
+            <div
+              className="desktop-nav"
+              style={{ display: "flex", alignItems: "center", gap: "24px" }}
+            >
+              {teacherLinks.map((link) => (
+                <Link key={link.href} href={link.href} style={linkStyle(isActive(link.href))}>
+                  {link.icon}
+                  {link.label}
                 </Link>
-                <Link
-                  href="/explore"
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  {t("explore")}
-                </Link>
-                {user.role === "teacher" && (
-                  <Link
-                    href="/create"
-                    className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                  >
-                    {t("create")}
-                  </Link>
-                )}
-              </div>
-            )}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: language + profile/auth + burger */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* Language switcher — hidden on mobile */}
+          <div className="desktop-nav">
+            <LanguageSwitcher />
           </div>
 
-          <div className="flex items-center space-x-6">
-            <LanguageSwitcher />
-
-            {user ? (
-              <div className="flex items-center space-x-4 border-l pl-6 border-gray-200">
+          {isLoading ? (
+            <div
+              style={{
+                width: "72px",
+                height: "32px",
+                backgroundColor: "#f3f4f6",
+                borderRadius: "8px",
+                animation: "pulse 1.5s infinite",
+              }}
+            />
+          ) : user ? (
+            <>
+              {/* Desktop: profile + logout */}
+              <div
+                className="desktop-nav"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "16px",
+                  borderLeft: "1px solid #e5e7eb",
+                  paddingLeft: "16px",
+                }}
+              >
                 <Link
                   href="/profile"
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "#374151",
+                    textDecoration: "none",
+                  }}
                 >
-                  {t("profile")}
+                  {user.full_name ?? t("profile")}
                 </Link>
                 <button
                   onClick={logout}
-                  className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "#ef4444",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
                 >
                   {t("logout")}
                 </button>
               </div>
-            ) : (
-              <div className="flex items-center space-x-4 border-l pl-6 border-gray-200">
-                <Link
-                  href="/login"
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  {tAuth("login.submit")}
-                </Link>
-                <Link
-                  href="/register"
-                  className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-700 shadow-sm transition-all"
-                >
-                  {tAuth("register.submit")}{" "}
-                </Link>
-              </div>
-            )}
-          </div>
+
+              {/* Mobile burger */}
+              <button
+                className="mobile-nav"
+                onClick={() => setMenuOpen((v) => !v)}
+                style={{
+                  display: "none",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e5e7eb",
+                  background: "white",
+                  cursor: "pointer",
+                  color: "#374151",
+                }}
+              >
+                {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <Link
+                href="/login"
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#374151",
+                  textDecoration: "none",
+                }}
+              >
+                {tAuth("login.submit")}
+              </Link>
+              <Link
+                href="/register"
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "white",
+                  backgroundColor: "#2563eb",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  textDecoration: "none",
+                }}
+              >
+                {tAuth("register.submit")}
+              </Link>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Mobile overlay + drawer */}
+      {menuOpen && user && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setMenuOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.35)",
+              zIndex: 99,
+              animation: "fadeIn 0.2s ease",
+            }}
+          />
+
+          {/* Drawer */}
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: "280px",
+              backgroundColor: "white",
+              zIndex: 100,
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
+              animation: "slideIn 0.25s ease",
+            }}
+          >
+            {/* Drawer header */}
+            <div
+              style={{
+                height: "64px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 16px",
+                borderBottom: "1px solid #f3f4f6",
+                flexShrink: 0,
+              }}
+            >
+              <span style={{ fontSize: "16px", fontWeight: 700, color: "#111827" }}>
+                {user.full_name}
+              </span>
+              <button
+                onClick={() => setMenuOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "8px",
+                  border: "1.5px solid #e5e7eb",
+                  background: "white",
+                  cursor: "pointer",
+                  color: "#374151",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Nav links */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
+              {user.role === "teacher" &&
+                teacherLinks.map((link) => (
+                  <Link key={link.href} href={link.href} style={mobileLinkStyle(isActive(link.href))}>
+                    {link.icon}
+                    {link.label}
+                  </Link>
+                ))}
+
+              <div style={{ height: "1px", background: "#f3f4f6", margin: "8px 0" }} />
+
+              <Link href="/profile" style={mobileLinkStyle(isActive("/profile"))}>
+                {t("profile")}
+              </Link>
+            </div>
+
+            {/* Footer: language + logout */}
+            <div
+              style={{
+                borderTop: "1px solid #f3f4f6",
+                padding: "12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ padding: "4px 4px 8px" }}>
+                <LanguageSwitcher />
+              </div>
+              <button
+                onClick={logout}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "12px 16px",
+                  fontSize: "15px",
+                  fontWeight: 500,
+                  color: "#ef4444",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  borderRadius: "10px",
+                  textAlign: "left",
+                  width: "100%",
+                }}
+              >
+                {t("logout")}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-nav { display: none !important; }
+          .mobile-nav { display: flex !important; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
     </nav>
   );
 }

@@ -7,6 +7,7 @@ from app.services.redis_service import RedisService
 
 from app.routes import auth
 from app.routes import user
+from app.routes import resources
 
 
 @asynccontextmanager
@@ -38,6 +39,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(user.router)
+app.include_router(resources.router)
 
 
 @app.get("/api/health")

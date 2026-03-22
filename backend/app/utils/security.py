@@ -52,8 +52,13 @@ def create_access_token(subject: Any, expires_delta: Optional[timedelta] = None)
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
-    # Payload includes expiration time, subject ID, and token type
-    to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
+    # Payload includes expiration time, subject ID, and token type.
+    # If subject is a dict (e.g. {"sub": uuid, "email": ..., "role": ...}),
+    # merge it directly so keys land at the top level of the JWT claims.
+    if isinstance(subject, dict):
+        to_encode = {**subject, "exp": expire, "type": "access"}
+    else:
+        to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
 
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
@@ -67,7 +72,10 @@ def create_refresh_token(subject: Any) -> str:
         days=settings.REFRESH_TOKEN_EXPIRE_DAYS
     )
 
-    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
+    if isinstance(subject, dict):
+        to_encode = {**subject, "exp": expire, "type": "refresh"}
+    else:
+        to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
 
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 

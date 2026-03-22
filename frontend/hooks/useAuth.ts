@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import Cookies from "js-cookie";
 import { User } from "@/types";
 import { authService } from "@/lib/auth";
 import api from "@/lib/api";
@@ -61,7 +62,7 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   fetchUser: async () => {
-    if (!authService.isAuthenticated()) return;
+    if (!Cookies.get("access_token") && !Cookies.get("refresh_token")) return;
 
     set({ isLoading: true });
     try {
