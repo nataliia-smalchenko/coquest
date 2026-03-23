@@ -6,6 +6,8 @@ from app.models.resource import Resource, ResourceType
 from app.models.resource_tag import ResourceTag
 from app.models.text_content import TextContent
 from app.models.question import Question, QuestionType
+from app.models.map import Map, MapTranslation, MapObject, MapObjectHint
+from app.models.quest import Quest, QuestStatus, QuestTranslation, QuestSettings, QuestResource
 
 __all__ = [
     "Base",
@@ -20,4 +22,13 @@ __all__ = [
     "TextContent",
     "Question",
     "QuestionType",
+    "Map",
+    "MapTranslation",
+    "MapObject",
+    "MapObjectHint",
+    "Quest",
+    "QuestStatus",
+    "QuestTranslation",
+    "QuestSettings",
+    "QuestResource",
 ]

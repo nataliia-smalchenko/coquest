@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.resource_folder import ResourceFolder
     from app.models.tag import Tag
     from app.models.resource import Resource
+    from app.models.quest import Quest
 
 
 class UserRole(str, enum.Enum):
@@ -85,6 +86,9 @@ class User(Base):
     )
     resources: Mapped[List["Resource"]] = relationship(
         "Resource", back_populates="teacher", cascade="all, delete-orphan"
+    )
+    quests: Mapped[List["Quest"]] = relationship(
+        "Quest", back_populates="teacher", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
