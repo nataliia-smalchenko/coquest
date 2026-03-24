@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Save } from "lucide-react";
 import { createQuest, getQuest, updateQuest, publishQuest } from "@/lib/api/quests";
 import { getResources } from "@/lib/api/resources";
 import BasicInfoStep, { type BasicInfoRef } from "./steps/BasicInfoStep";
@@ -163,9 +163,9 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
       {/* Header */}
-      <div style={{ background: "white", borderBottom: "1px solid #e5e7eb", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", position: "sticky", top: 0, zIndex: 20 }}>
+      <div className="builder-header" style={{ background: "white", borderBottom: "1px solid #e5e7eb", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", position: "sticky", top: 0, zIndex: 20 }}>
         {/* Left */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
+        <div className="builder-header-left" style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
           <button
             onClick={() => router.push("/teacher/quests")}
             style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "14px", color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}
@@ -176,14 +176,14 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
             <span className="hide-mobile">{tCommon("back")}</span>
           </button>
           <span style={{ width: "1px", height: "20px", background: "#e5e7eb" }} />
-          <span style={{ fontSize: "15px", fontWeight: 600, color: "#111827" }}>
+          <span style={{ fontSize: "15px", fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {mode === "edit" ? tBuilder("editTitle") : tBuilder("title")}
             {data.title && <span style={{ color: "#9ca3af", fontWeight: 400 }}> — {data.title}</span>}
           </span>
         </div>
 
-        {/* Stepper — center */}
-        <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1, maxWidth: "480px", justifyContent: "center" }}>
+        {/* Stepper — center (moves to second row on mobile) */}
+        <div className="builder-header-stepper" style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1, maxWidth: "480px", justifyContent: "center" }}>
           {STEPS.map((label, i) => (
             <button
               key={i}
@@ -205,7 +205,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
         </div>
 
         {/* Right: actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, justifyContent: "flex-end" }}>
+        <div className="builder-header-right" style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, justifyContent: "flex-end" }}>
           {toast && (
             <span style={{ fontSize: "13px", color: toast.ok ? "#16a34a" : "#ef4444", display: "flex", alignItems: "center", gap: "4px" }}>
               {toast.ok && <Check size={13} />} {toast.msg}
@@ -214,6 +214,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
           <button
             onClick={handleSaveDraft}
             disabled={saving || !data.title || !data.map_id}
+            className="builder-btn"
             style={{
               padding: "7px 16px", backgroundColor: "white", color: "#374151",
               border: "1.5px solid #e5e7eb", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
@@ -222,19 +223,20 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
               display: "flex", alignItems: "center", gap: "6px",
             }}
           >
-            {saving && step < 2 && <Loader2 size={13} className="animate-spin" />}
-            {tBuilder("saveDraft")}
+            {saving && step < 2 ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} className="show-mobile" />}
+            <span className="hide-mobile">{tBuilder("saveDraft")}</span>
           </button>
 
           {step > 0 && (
-            <button onClick={handleBack}
+            <button onClick={handleBack} className="builder-btn"
               style={{ padding: "7px 16px", backgroundColor: "white", color: "#374151", border: "1.5px solid #e5e7eb", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
-              {tBuilder("back")}
+              <span className="hide-mobile">{tBuilder("back")}</span>
+              <span className="show-mobile">←</span>
             </button>
           )}
 
           {step < 2 ? (
-            <button onClick={handleNext}
+            <button onClick={handleNext} className="builder-btn"
               style={{ padding: "7px 16px", backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb"; }}
@@ -242,7 +244,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
               {tBuilder("next")} →
             </button>
           ) : (
-            <button onClick={handlePublish} disabled={saving}
+            <button onClick={handlePublish} disabled={saving} className="builder-btn"
               style={{ padding: "7px 16px", backgroundColor: saving ? "#93c5fd" : "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
               {saving && <Loader2 size={13} className="animate-spin" />}
               {tBuilder("publish")}
@@ -251,7 +253,19 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
         </div>
       </div>
 
-      <style>{`.hide-mobile { } @media (max-width: 640px) { .hide-mobile { display: none; } }`}</style>
+      <style>{`
+        .hide-mobile { }
+        .show-mobile { display: none; }
+        @media (max-width: 640px) {
+          .hide-mobile { display: none; }
+          .show-mobile { display: inline-flex; align-items: center; }
+          .builder-header { height: auto !important; flex-wrap: wrap; padding: 8px 16px !important; gap: 0 !important; }
+          .builder-header-left { flex: 1 1 auto; min-width: 0; padding: 6px 0; }
+          .builder-header-right { flex: 0 0 auto; gap: 6px !important; padding: 6px 0; }
+          .builder-header-stepper { order: 3; flex: 1 1 100% !important; max-width: 100% !important; justify-content: center; padding: 6px 0 8px; border-top: 1px solid #f3f4f6; gap: 32px !important; }
+          .builder-btn { padding: 7px 10px !important; font-size: 12px !important; }
+        }
+      `}</style>
 
       {/* Content */}
       <div style={{ maxWidth: "720px", margin: "0 auto", padding: "32px 24px" }}>

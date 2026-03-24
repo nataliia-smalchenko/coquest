@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { BookOpen, Calendar, Compass, Map, Pencil, Trash2, Globe } from "lucide-react";
+import { Archive, BookOpen, Calendar, Compass, Globe, Map, Pencil, Trash2 } from "lucide-react";
 import { getQuests, deleteQuest, publishQuest, archiveQuest } from "@/lib/api/quests";
 import type { QuestListItem, QuestStatus } from "@/types/quest";
 
@@ -54,8 +54,14 @@ export function QuestList() {
 
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 24px" }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .quest-card-actions { opacity: 1 !important; position: static !important; display: flex; justify-content: flex-end; margin-top: 4px; }
+          .quest-card { padding-bottom: 16px !important; }
+        }
+      `}</style>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", gap: "12px" }}>
         <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 700, color: "#111827" }}>{t("title")}</h1>
         <button
           onClick={() => router.push("/teacher/quests/new")}
@@ -92,6 +98,7 @@ export function QuestList() {
             return (
               <div
                 key={q.id}
+                className="quest-card"
                 onClick={() => router.push(`/teacher/quests/${q.id}`)}
                 style={{ background: "white", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px", cursor: "pointer", display: "flex", flexDirection: "column", gap: "10px", transition: "box-shadow 0.15s, border-color 0.15s", position: "relative" }}
                 onMouseEnter={(e) => {
@@ -135,7 +142,7 @@ export function QuestList() {
                 </div>
 
                 {/* Actions */}
-                <div data-actions style={{ display: "flex", gap: "4px", opacity: 0, transition: "opacity 0.15s", position: "absolute", bottom: "12px", right: "12px" }}>
+                <div data-actions className="quest-card-actions" style={{ display: "flex", gap: "4px", opacity: 0, transition: "opacity 0.15s", position: "absolute", bottom: "12px", right: "12px" }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); router.push(`/teacher/quests/${q.id}/edit`); }}
                     title={tCommon("edit")}
@@ -148,11 +155,26 @@ export function QuestList() {
                   <button
                     onClick={(e) => handleToggleStatus(e, q)}
                     title={q.status === "published" ? "Archive" : "Publish"}
-                    style={{ padding: "6px", borderRadius: "8px", border: "none", background: "transparent", cursor: "pointer", color: "#9ca3af", display: "flex", alignItems: "center" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0fdf4"; (e.currentTarget as HTMLButtonElement).style.color = "#16a34a"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "#9ca3af"; }}
+                    style={{
+                      padding: "6px", borderRadius: "8px", border: "none", cursor: "pointer", display: "flex", alignItems: "center",
+                      background: "transparent",
+                      color: "#9ca3af",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (q.status === "published") {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#fff7ed";
+                        (e.currentTarget as HTMLButtonElement).style.color = "#c2410c";
+                      } else {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#f0fdf4";
+                        (e.currentTarget as HTMLButtonElement).style.color = "#16a34a";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.color = "#9ca3af";
+                    }}
                   >
-                    <Globe size={14} />
+                    {q.status === "published" ? <Archive size={14} /> : <Globe size={14} />}
                   </button>
                   <button
                     onClick={(e) => handleDelete(e, q.id)}

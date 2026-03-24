@@ -133,7 +133,7 @@ export default function QuestPreview({ questId }: Props) {
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#6b7280"; }}
           >
             <ArrowLeft size={16} />
-            <span>{tCommon("back")}</span>
+            <span className="hide-mobile">{tCommon("back")}</span>
           </button>
           <span style={{ width: "1px", height: "20px", background: "#e5e7eb", flexShrink: 0 }} />
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -202,6 +202,8 @@ export default function QuestPreview({ questId }: Props) {
       </div>
 
       <style>{`
+        .hide-mobile { }
+        @media (max-width: 640px) { .hide-mobile { display: none; } }
         .tiptap-preview h1 { font-size: 1.5rem; font-weight: 700; margin: 0.75em 0 0.25em; }
         .tiptap-preview h2 { font-size: 1.25rem; font-weight: 700; margin: 0.75em 0 0.25em; }
         .tiptap-preview h3 { font-size: 1.1rem; font-weight: 600; margin: 0.5em 0 0.25em; }
