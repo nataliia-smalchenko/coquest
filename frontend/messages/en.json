@@ -103,9 +103,79 @@
   },
 
   "quests": {
-    "teacher": {
-      "title": "My Quests",
-      "comingSoon": "Quest creation is coming soon."
+    "title": "My Quests",
+    "new": "New Quest",
+    "empty": "No quests yet",
+    "emptyHint": "Create your first quest",
+    "delete": "Delete quest?",
+    "status": { "draft": "Draft", "published": "Published", "archived": "Archived" },
+    "builder": {
+      "title": "New Quest",
+      "editTitle": "Edit Quest",
+      "saveDraft": "Save Draft",
+      "next": "Next",
+      "back": "Back",
+      "publish": "Publish",
+      "saved": "Saved",
+      "saveError": "Save error",
+      "steps": { "basic": "Basic Info", "map": "Map & Resources", "settings": "Settings" }
+    },
+    "basic": {
+      "title": "Quest title",
+      "titlePlaceholder": "Enter title...",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional...",
+      "language": "Quest language",
+      "players": "Number of players",
+      "solo": "Individual",
+      "team": "Team ({n} players)"
+    },
+    "map": {
+      "selectMap": "Select a map",
+      "resources": "Quest resources",
+      "addResources": "Add resources",
+      "noResources": "No resources added yet",
+      "resourceCount": "{count} resources",
+      "done": "Done",
+      "search": "Search..."
+    },
+    "settings": {
+      "time": "Time limit",
+      "timeLimit": "Limit time",
+      "minutes": "Minutes",
+      "order": "Order & display",
+      "randomOrder": "Random resource order",
+      "showAllTexts": "Show all text materials at once",
+      "showAllTextsDisabled": "Too many text materials",
+      "keepCompleted": "Keep completed materials in list",
+      "team": "Team mode",
+      "distributeTexts": "Distribute text materials among players",
+      "results": "Results",
+      "showScore": "Show score after quest",
+      "showCorrect": "Show correct answers"
+    },
+    "preview": {
+      "settings": "Settings",
+      "materials": "Materials",
+      "noMap": "No map selected",
+      "noMaterials": "No materials",
+      "noContent": "No content",
+      "textMaterial": "Text material",
+      "questionLabel": "Question",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "explanation": "Explanation",
+      "shortAnswer": "Short answer",
+      "openAnswer": "Open answer",
+      "settingTime": "{n} min",
+      "settingRandom": "Random order",
+      "settingShowAll": "All texts at once",
+      "settingKeep": "Keep completed",
+      "settingScore": "Score after quest",
+      "settingCorrect": "Show answers",
+      "settingTeam": "{n} players",
+      "settingSolo": "Individual",
+      "settingDistribute": "Distribute texts"
     }
   },
 

@@ -103,9 +103,87 @@
   },
 
   "quests": {
-    "teacher": {
-      "title": "Мої квести",
-      "comingSoon": "Створення квестів з'явиться незабаром."
+    "title": "Мої квести",
+    "new": "Новий квест",
+    "empty": "Квестів ще немає",
+    "emptyHint": "Створіть свій перший квест",
+    "delete": "Видалити квест?",
+    "status": {
+      "draft": "Чернетка",
+      "published": "Опубліковано",
+      "archived": "Архівовано"
+    },
+    "builder": {
+      "title": "Новий квест",
+      "editTitle": "Редагування квесту",
+      "saveDraft": "Зберегти чернетку",
+      "next": "Далі",
+      "back": "Назад",
+      "publish": "Опублікувати",
+      "saved": "Збережено",
+      "saveError": "Помилка збереження",
+      "steps": {
+        "basic": "Основне",
+        "map": "Карта та ресурси",
+        "settings": "Налаштування"
+      }
+    },
+    "basic": {
+      "title": "Назва квесту",
+      "titlePlaceholder": "Введіть назву...",
+      "description": "Опис",
+      "descriptionPlaceholder": "Необов'язково...",
+      "language": "Мова квесту",
+      "players": "Кількість гравців",
+      "solo": "Індивідуально",
+      "team": "Команда ({n} гравців)"
+    },
+    "map": {
+      "selectMap": "Оберіть карту",
+      "resources": "Ресурси квесту",
+      "addResources": "Додати ресурси",
+      "noResources": "Ресурсів ще не додано",
+      "resourceCount": "{count} ресурсів",
+      "done": "Готово",
+      "search": "Пошук..."
+    },
+    "settings": {
+      "time": "Обмеження часу",
+      "timeLimit": "Обмежити час",
+      "minutes": "Хвилин",
+      "order": "Порядок та відображення",
+      "randomOrder": "Випадковий порядок ресурсів",
+      "showAllTexts": "Показати всі текстові матеріали одразу",
+      "showAllTextsDisabled": "Текстових матеріалів забагато",
+      "keepCompleted": "Зберігати переглянуті матеріали у списку",
+      "team": "Командний режим",
+      "distributeTexts": "Розподіляти текстові матеріали між гравцями",
+      "results": "Результати",
+      "showScore": "Показувати оцінку після квесту",
+      "showCorrect": "Показувати правильні відповіді"
+    },
+    "preview": {
+      "settings": "Налаштування",
+      "materials": "Матеріали",
+      "noMap": "Карту не обрано",
+      "noMaterials": "Матеріали відсутні",
+      "noContent": "Вміст відсутній",
+      "textMaterial": "Текстовий матеріал",
+      "questionLabel": "Питання",
+      "correct": "Правильно",
+      "incorrect": "Неправильно",
+      "explanation": "Пояснення",
+      "shortAnswer": "Коротка відповідь",
+      "openAnswer": "Відкрита відповідь",
+      "settingTime": "{n} хв",
+      "settingRandom": "Випадковий порядок",
+      "settingShowAll": "Всі тексти одразу",
+      "settingKeep": "Зберігати переглянуті",
+      "settingScore": "Оцінка після квесту",
+      "settingCorrect": "Показувати відповіді",
+      "settingTeam": "{n} гравців",
+      "settingSolo": "Індивідуально",
+      "settingDistribute": "Розподіл текстів"
     }
   },
 
