@@ -153,6 +153,29 @@
       "results": "Results",
       "showScore": "Show score after quest",
       "showCorrect": "Show correct answers"
+    },
+    "preview": {
+      "settings": "Settings",
+      "materials": "Materials",
+      "noMap": "No map selected",
+      "noMaterials": "No materials",
+      "noContent": "No content",
+      "textMaterial": "Text material",
+      "questionLabel": "Question",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "explanation": "Explanation",
+      "shortAnswer": "Short answer",
+      "openAnswer": "Open answer",
+      "settingTime": "{n} min",
+      "settingRandom": "Random order",
+      "settingShowAll": "All texts at once",
+      "settingKeep": "Keep completed",
+      "settingScore": "Score after quest",
+      "settingCorrect": "Show answers",
+      "settingTeam": "{n} players",
+      "settingSolo": "Individual",
+      "settingDistribute": "Distribute texts"
     }
   },
 

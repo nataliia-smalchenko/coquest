@@ -165,7 +165,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
       {/* Header */}
       <div style={{ background: "white", borderBottom: "1px solid #e5e7eb", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", position: "sticky", top: 0, zIndex: 20 }}>
         {/* Left */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
           <button
             onClick={() => router.push("/teacher/quests")}
             style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "14px", color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}
@@ -183,30 +183,29 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
         </div>
 
         {/* Stepper — center */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0", flex: 1, maxWidth: "480px", justifyContent: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1, maxWidth: "480px", justifyContent: "center" }}>
           {STEPS.map((label, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: "0" }}>
-              {i > 0 && (
-                <div style={{ width: "32px", height: "2px", backgroundColor: i <= step ? "#2563eb" : "#e5e7eb", flexShrink: 0 }} />
-              )}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-                <div style={{
-                  width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, flexShrink: 0,
-                  backgroundColor: i < step ? "#dbeafe" : i === step ? "#2563eb" : "#f3f4f6",
-                  color: i < step ? "#2563eb" : i === step ? "white" : "#9ca3af",
-                }}>
-                  {i < step ? <Check size={13} /> : i + 1}
-                </div>
-                <span style={{ fontSize: "11px", fontWeight: 500, color: i === step ? "#2563eb" : "#9ca3af", whiteSpace: "nowrap" }} className="hide-mobile">
-                  {label}
-                </span>
+            <button
+              key={i}
+              onClick={() => setStep(i)}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              <div style={{
+                width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, flexShrink: 0,
+                backgroundColor: i < step ? "#dbeafe" : i === step ? "#2563eb" : "#f3f4f6",
+                color: i < step ? "#2563eb" : i === step ? "white" : "#9ca3af",
+              }}>
+                {i < step ? <Check size={13} /> : i + 1}
               </div>
-            </div>
+              <span style={{ fontSize: "11px", fontWeight: 500, color: i === step ? "#2563eb" : "#9ca3af", whiteSpace: "nowrap" }} className="hide-mobile">
+                {label}
+              </span>
+            </button>
           ))}
         </div>
 
         {/* Right: actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, justifyContent: "flex-end" }}>
           {toast && (
             <span style={{ fontSize: "13px", color: toast.ok ? "#16a34a" : "#ef4444", display: "flex", alignItems: "center", gap: "4px" }}>
               {toast.ok && <Check size={13} />} {toast.msg}

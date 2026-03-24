@@ -92,7 +92,7 @@ export function QuestList() {
             return (
               <div
                 key={q.id}
-                onClick={() => router.push(`/teacher/quests/${q.id}/edit`)}
+                onClick={() => router.push(`/teacher/quests/${q.id}`)}
                 style={{ background: "white", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "16px", cursor: "pointer", display: "flex", flexDirection: "column", gap: "10px", transition: "box-shadow 0.15s, border-color 0.15s", position: "relative" }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";

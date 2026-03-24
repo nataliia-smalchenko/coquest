@@ -153,6 +153,29 @@
       "results": "Результати",
       "showScore": "Показувати оцінку після квесту",
       "showCorrect": "Показувати правильні відповіді"
+    },
+    "preview": {
+      "settings": "Налаштування",
+      "materials": "Матеріали",
+      "noMap": "Карту не обрано",
+      "noMaterials": "Матеріали відсутні",
+      "noContent": "Вміст відсутній",
+      "textMaterial": "Текстовий матеріал",
+      "questionLabel": "Питання",
+      "correct": "Правильно",
+      "incorrect": "Неправильно",
+      "explanation": "Пояснення",
+      "shortAnswer": "Коротка відповідь",
+      "openAnswer": "Відкрита відповідь",
+      "settingTime": "{n} хв",
+      "settingRandom": "Випадковий порядок",
+      "settingShowAll": "Всі тексти одразу",
+      "settingKeep": "Зберігати переглянуті",
+      "settingScore": "Оцінка після квесту",
+      "settingCorrect": "Показувати відповіді",
+      "settingTeam": "{n} гравців",
+      "settingSolo": "Індивідуально",
+      "settingDistribute": "Розподіл текстів"
     }
   },
 
