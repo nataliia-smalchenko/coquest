@@ -11,6 +11,7 @@ from app.routes import resources
 from app.routes import maps
 from app.routes import quests
 from app.routes import sessions
+from app.routes import websocket as ws_routes
 
 
 @asynccontextmanager
@@ -31,6 +32,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +48,7 @@ app.include_router(resources.router)
 app.include_router(maps.router)
 app.include_router(quests.router)
 app.include_router(sessions.router)
+app.include_router(ws_routes.router)
 
 
 @app.get("/api/health")
