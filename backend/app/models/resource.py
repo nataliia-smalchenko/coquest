@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.tag import Tag
     from app.models.text_content import TextContent
     from app.models.question import Question
+    from app.models.session_progress import SessionProgress
 
 
 class ResourceType(str, enum.Enum):
@@ -73,6 +74,9 @@ class Resource(Base):
         back_populates="resource",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+    progress_items: Mapped[List["SessionProgress"]] = relationship(
+        "SessionProgress", back_populates="resource"
     )
 
     # Populated at query time, not stored in DB

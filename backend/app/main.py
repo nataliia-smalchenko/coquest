@@ -10,6 +10,7 @@ from app.routes import user
 from app.routes import resources
 from app.routes import maps
 from app.routes import quests
+from app.routes import sessions
 
 
 @asynccontextmanager
@@ -44,6 +45,7 @@ app.include_router(user.router)
 app.include_router(resources.router)
 app.include_router(maps.router)
 app.include_router(quests.router)
+app.include_router(sessions.router)
 
 
 @app.get("/api/health")
