@@ -60,6 +60,21 @@ class SessionChatMessage(BaseModel):
     created_at: datetime
 
 
+class SessionListItem(BaseModel):
+    id: uuid.UUID
+    quest_id: uuid.UUID
+    session_code: str
+    status: SessionStatus
+    started_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    scheduled_at: Optional[datetime] = None
+    max_players: int
+    players_count: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class GameSessionResponse(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID

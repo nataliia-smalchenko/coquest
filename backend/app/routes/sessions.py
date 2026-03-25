@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -15,6 +15,7 @@ from app.schemas.session import (
     JoinSessionRequest,
     ReviewAnswerRequest,
     SessionCreate,
+    SessionListItem,
     SessionPlayerResponse,
     SessionProgressResponse,
     SubmitAnswerRequest,
@@ -63,6 +64,14 @@ async def _get_player_by_token(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid guest token"
         )
     return player
+
+
+@router.get("/", response_model=List[SessionListItem])
+async def list_sessions(
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
+    return await SessionService.list_sessions(db, teacher.id)
 
 
 @router.post("/", response_model=GameSessionResponse, status_code=status.HTTP_201_CREATED)

@@ -26,6 +26,7 @@ from app.schemas.session import (
     ReviewAnswerRequest,
     SessionChatMessage,
     SessionCreate,
+    SessionListItem,
     SessionPlayerResponse,
     SessionProgressResponse,
     SubmitAnswerRequest,
@@ -185,6 +186,33 @@ async def _advance_queue(
 
 
 class SessionService:
+
+    @staticmethod
+    async def list_sessions(
+        db: AsyncSession, teacher_id: uuid.UUID
+    ) -> List[SessionListItem]:
+        result = await db.execute(
+            select(GameSession)
+            .where(GameSession.teacher_id == teacher_id)
+            .options(selectinload(GameSession.players))
+            .order_by(GameSession.created_at.desc())
+        )
+        sessions = result.scalars().all()
+        return [
+            SessionListItem(
+                id=s.id,
+                quest_id=s.quest_id,
+                session_code=s.session_code,
+                status=s.status,
+                started_at=s.started_at,
+                ends_at=s.ends_at,
+                scheduled_at=s.scheduled_at,
+                max_players=s.max_players,
+                players_count=len(s.players),
+                created_at=s.created_at,
+            )
+            for s in sessions
+        ]
 
     @staticmethod
     async def create_session(
