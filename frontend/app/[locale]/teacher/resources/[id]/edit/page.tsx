@@ -133,16 +133,12 @@ export default function EditResourcePage({ params }: EditPageProps) {
         style={{
           background: "white",
           borderBottom: "1px solid #e5e7eb",
-          padding: "0 16px",
-          height: "56px",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
           position: "sticky",
           top: 0,
           zIndex: 10,
         }}
       >
+        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 20px", height: "56px", display: "flex", alignItems: "center", gap: "10px" }}>
         <button
           onClick={() => router.push("/teacher/resources")}
           style={{
@@ -294,6 +290,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
                 <span className="topbar-btn-label">{tCommon("cancel")}</span>
               </button>
             )}
+        </div>
         </div>
       </div>
 

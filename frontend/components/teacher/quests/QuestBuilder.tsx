@@ -163,7 +163,8 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
       {/* Header */}
-      <div className="builder-header" style={{ background: "white", borderBottom: "1px solid #e5e7eb", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", position: "sticky", top: 0, zIndex: 20 }}>
+      <div className="builder-header" style={{ background: "white", borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, zIndex: 20 }}>
+        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 20px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
         {/* Left */}
         <div className="builder-header-left" style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
           <button
@@ -250,6 +251,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
               {tBuilder("publish")}
             </button>
           )}
+        </div>
         </div>
       </div>
 

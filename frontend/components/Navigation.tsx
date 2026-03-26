@@ -6,7 +6,7 @@ import { usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { Link } from "@/i18n/navigation";
-import { BookOpen, LayoutDashboard, Menu, Sword, X } from "lucide-react";
+import { Activity, BookOpen, LayoutDashboard, Menu, Sword, X } from "lucide-react";
 
 export default function Navigation() {
   const t = useTranslations("nav");
@@ -24,12 +24,19 @@ export default function Navigation() {
     setMenuOpen(false);
   }, [pathname]);
 
+  // Hide navigation during active gameplay
+  const isGamePage = pathname.includes("/session/") && (
+    pathname.endsWith("/game") || pathname.endsWith("/lobby") || pathname.endsWith("/results")
+  );
+  if (isGamePage) return null;
+
   const isActive = (href: string) => pathname.startsWith(href);
 
   const teacherLinks = [
     { href: "/teacher/dashboard", label: t("dashboard"), icon: <LayoutDashboard size={16} /> },
     { href: "/teacher/quests", label: t("quests"), icon: <Sword size={16} /> },
     { href: "/teacher/resources", label: t("resources"), icon: <BookOpen size={16} /> },
+    { href: "/teacher/sessions", label: t("sessions"), icon: <Activity size={16} /> },
   ];
 
   const linkStyle = (active: boolean): React.CSSProperties => ({
