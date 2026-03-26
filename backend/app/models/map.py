@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
-    pass
+    from app.models.session_progress import SessionProgress
 
 
 class Map(Base):
@@ -75,6 +75,9 @@ class MapObject(Base):
     map: Mapped["Map"] = relationship("Map", back_populates="objects")
     hints: Mapped[List["MapObjectHint"]] = relationship(
         "MapObjectHint", back_populates="object", cascade="all, delete-orphan"
+    )
+    progress_items: Mapped[List["SessionProgress"]] = relationship(
+        "SessionProgress", back_populates="map_object"
     )
 
 

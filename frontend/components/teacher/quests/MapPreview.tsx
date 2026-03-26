@@ -33,7 +33,7 @@ export default function MapPreview({ map, className }: MapPreviewProps) {
       />
 
       {/* Objects */}
-      {map.objects.map((obj) => (
+      {map.objects.filter((obj) => obj.slug !== "background").map((obj) => (
         <img
           key={obj.id}
           src={`/maps/${map.slug}/objects/${obj.slug}.svg`}

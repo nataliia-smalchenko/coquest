@@ -23,7 +23,8 @@
     "create": "Create",
     "profile": "Profile",
     "settings": "Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "sessions": "Sessions"
   },
 
   "auth": {
@@ -203,6 +204,89 @@
     "notifications": "Notifications",
     "privacy": "Privacy",
     "account": "Account"
+  },
+
+  "game": {
+    "session": {
+      "newTitle": "New Session",
+      "quest": "Quest",
+      "solo": "Individual",
+      "team": "Team ({n} players)",
+      "schedule": "Schedule start time",
+      "scheduleEnd": "Schedule end time",
+      "create": "Create Session",
+      "createHint": "After creating, you'll get a code to share with students",
+      "createError": "Failed to create session"
+    },
+    "join": {
+      "title": "Join a Quest",
+      "code": "Session Code",
+      "codePlaceholder": "XXXXXX",
+      "name": "Your Name",
+      "namePlaceholder": "Enter your name...",
+      "submit": "Join",
+      "invalidCode": "Invalid session code",
+      "sessionFull": "Session is full",
+      "sessionClosed": "Session is closed"
+    },
+    "lobby": {
+      "waiting": "Waiting for the teacher to start...",
+      "players": "Players",
+      "start": "Start",
+      "sessionCode": "Session Code"
+    },
+    "game": {
+      "materials": "Materials",
+      "chat": "Chat",
+      "progress": "Progress",
+      "markRead": "Mark as read ✓",
+      "submit": "Submit",
+      "correct": "Correct!",
+      "incorrect": "Incorrect",
+      "pending": "Awaiting review",
+      "timeLeft": "Time left"
+    },
+    "results": {
+      "title": "Results",
+      "score": "Score",
+      "correct": "Correct answers",
+      "time": "Time spent",
+      "home": "Back to home"
+    },
+    "monitor": {
+      "title": "Session Monitor",
+      "stop": "Stop Session",
+      "stopConfirm": "Stop the session for all players?",
+      "pendingReview": "pending review",
+      "participants": "Participants",
+      "finished": "Finished",
+      "pendingReviewCount": "Pending review",
+      "start": "Start",
+      "copyLink": "Copy link",
+      "copied": "Copied",
+      "finishedBadge": "Finished",
+      "noParticipants": "No participants yet",
+      "scheduleStart": "Start",
+      "scheduleEnd": "End",
+      "completedOf": "{completed}/{total} completed",
+      "statusWaiting": "Waiting",
+      "statusActive": "Active",
+      "statusCompleted": "Completed",
+      "statusStopped": "Stopped",
+      "statusScheduled": "Scheduled",
+      "deleteSession": "Delete session",
+      "deleteSessionConfirm": "Delete this session? All participant data will be lost.",
+      "deletePlayer": "Delete participant",
+      "deletePlayerConfirm": "Remove this participant from the session?",
+      "renamePlayer": "Rename",
+      "renamePlaceholder": "Participant name",
+      "monitoring": "Monitor",
+      "results": "Results",
+      "sessionsCount": "{count} sessions",
+      "noSessions": "No sessions yet",
+      "scheduleStartLabel": "Start",
+      "scheduleEndLabel": "End"
+    }
   },
 
   "resources": {

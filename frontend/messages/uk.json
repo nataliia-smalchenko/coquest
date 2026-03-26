@@ -23,7 +23,8 @@
     "create": "Створити",
     "profile": "Профіль",
     "settings": "Налаштування",
-    "logout": "Вийти"
+    "logout": "Вийти",
+    "sessions": "Сесії"
   },
 
   "auth": {
@@ -211,6 +212,89 @@
     "notifications": "Сповіщення",
     "privacy": "Приватність",
     "account": "Акаунт"
+  },
+
+  "game": {
+    "session": {
+      "newTitle": "Нова сесія",
+      "quest": "Квест",
+      "solo": "Індивідуально",
+      "team": "Команда ({n} гравців)",
+      "schedule": "Запланувати час початку",
+      "scheduleEnd": "Запланувати час закінчення",
+      "create": "Створити сесію",
+      "createHint": "Після створення отримаєте код для учнів",
+      "createError": "Помилка створення сесії"
+    },
+    "join": {
+      "title": "Приєднатись до квесту",
+      "code": "Код сесії",
+      "codePlaceholder": "XXXXXX",
+      "name": "Ваше ім'я",
+      "namePlaceholder": "Введіть ім'я...",
+      "submit": "Приєднатись",
+      "invalidCode": "Невірний код сесії",
+      "sessionFull": "Сесія заповнена",
+      "sessionClosed": "Сесія закрита"
+    },
+    "lobby": {
+      "waiting": "Очікування початку...",
+      "players": "Гравці",
+      "start": "Розпочати",
+      "sessionCode": "Код сесії"
+    },
+    "game": {
+      "materials": "Матеріали",
+      "chat": "Чат",
+      "progress": "Прогрес",
+      "markRead": "Ознайомився ✓",
+      "submit": "Відповісти",
+      "correct": "Правильно!",
+      "incorrect": "Неправильно",
+      "pending": "Очікує перевірки",
+      "timeLeft": "Залишилось часу"
+    },
+    "results": {
+      "title": "Результати",
+      "score": "Результат",
+      "correct": "Правильних відповідей",
+      "time": "Час проходження",
+      "home": "На головну"
+    },
+    "monitor": {
+      "title": "Моніторинг сесії",
+      "stop": "Зупинити сесію",
+      "stopConfirm": "Зупинити сесію для всіх гравців?",
+      "pendingReview": "на перевірці",
+      "participants": "Учасників",
+      "finished": "Завершили",
+      "pendingReviewCount": "На перевірці",
+      "start": "Розпочати",
+      "copyLink": "Скопіювати посилання",
+      "copied": "Скопійовано",
+      "finishedBadge": "Завершено",
+      "noParticipants": "Учасників ще немає",
+      "scheduleStart": "Початок",
+      "scheduleEnd": "Кінець",
+      "completedOf": "{completed}/{total} виконано",
+      "statusWaiting": "Очікування",
+      "statusActive": "Активна",
+      "statusCompleted": "Завершена",
+      "statusStopped": "Зупинена",
+      "statusScheduled": "Запланована",
+      "deleteSession": "Видалити сесію",
+      "deleteSessionConfirm": "Видалити цю сесію? Усі дані учасників будуть втрачені.",
+      "deletePlayer": "Видалити учасника",
+      "deletePlayerConfirm": "Видалити цього учасника із сесії?",
+      "renamePlayer": "Перейменувати",
+      "renamePlaceholder": "Ім'я учасника",
+      "monitoring": "Моніторинг",
+      "results": "Результати",
+      "sessionsCount": "{count} сесій",
+      "noSessions": "Сесій ще немає",
+      "scheduleStartLabel": "Початок",
+      "scheduleEndLabel": "Кінець"
+    }
   },
 
   "resources": {

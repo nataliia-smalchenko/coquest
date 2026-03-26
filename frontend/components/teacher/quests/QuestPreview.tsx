@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { ArrowLeft, Check, Clock, FileText, HelpCircle, Pencil, Shuffle, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Clock, FileText, HelpCircle, Pencil, Play, Shuffle, Users, X } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import Image from "@tiptap/extension-image";
 import { getQuest } from "@/lib/api/quests";
@@ -27,7 +26,6 @@ function renderTiptap(body: Record<string, unknown>): string {
   try {
     return generateHTML(body as Parameters<typeof generateHTML>[0], [
       StarterKit,
-      Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Image,
     ]);
@@ -121,10 +119,10 @@ export default function QuestPreview({ questId }: Props) {
     <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
       {/* Header */}
       <div style={{
-        background: "white", borderBottom: "1px solid #e5e7eb", padding: "0 24px",
-        height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: "16px", position: "sticky", top: 0, zIndex: 20,
+        background: "white", borderBottom: "1px solid #e5e7eb",
+        position: "sticky", top: 0, zIndex: 20,
       }}>
+        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 20px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
           <button
             onClick={() => router.push("/teacher/quests")}
@@ -143,14 +141,28 @@ export default function QuestPreview({ questId }: Props) {
             {t(`status.${quest.status}`)}
           </span>
         </div>
-        <button
-          onClick={() => router.push(`/teacher/quests/${quest.id}/edit`)}
-          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 16px", backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb"; }}
-        >
-          <Pencil size={13} /> {tCommon("edit")}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          {quest.status === "published" && (
+            <button
+              onClick={() => router.push(`/teacher/sessions/new?quest_id=${quest.id}`)}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", backgroundColor: "#16a34a", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#15803d"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#16a34a"; }}
+            >
+              <Play size={13} />
+              <span className="hide-mobile">Почати сесію</span>
+            </button>
+          )}
+          <button
+            onClick={() => router.push(`/teacher/quests/${quest.id}/edit`)}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 16px", backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb"; }}
+          >
+            <Pencil size={13} /> {tCommon("edit")}
+          </button>
+        </div>
+        </div>
       </div>
 
       {/* Content */}

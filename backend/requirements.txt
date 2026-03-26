@@ -35,3 +35,6 @@ cloudinary==1.44.1
 # Utils
 python-dotenv==1.2.1
 greenlet==3.3.2
+
+# Sockets
+websockets==16.0

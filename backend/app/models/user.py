@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from app.models.tag import Tag
     from app.models.resource import Resource
     from app.models.quest import Quest
+    from app.models.game_session import GameSession
+    from app.models.session_player import SessionPlayer
 
 
 class UserRole(str, enum.Enum):
@@ -89,6 +91,15 @@ class User(Base):
     )
     quests: Mapped[List["Quest"]] = relationship(
         "Quest", back_populates="teacher", cascade="all, delete-orphan"
+    )
+    teaching_sessions: Mapped[List["GameSession"]] = relationship(
+        "GameSession",
+        back_populates="teacher",
+        foreign_keys="GameSession.teacher_id",
+        cascade="all, delete-orphan",
+    )
+    game_sessions: Mapped[List["SessionPlayer"]] = relationship(
+        "SessionPlayer", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
