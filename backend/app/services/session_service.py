@@ -19,10 +19,12 @@ from app.models.session_player import PlayerStatus, SessionPlayer
 from app.models.session_progress import ProgressStatus, SessionProgress
 from app.models.user import User
 from app.schemas.session import (
+    GameInfoResponse,
     GameSessionDetailResponse,
     GameSessionResponse,
     JoinSessionRequest,
     PlayerProgressSummary,
+    QuestSettingsPublic,
     ReviewAnswerRequest,
     SessionChatMessage,
     SessionCreate,
@@ -253,7 +255,8 @@ class SessionService:
             session_code=code,
             status=sess_status,
             scheduled_at=data.scheduled_at,
-            max_players=quest.max_players,
+            ends_at=data.ends_at,
+            max_players=data.max_participants or 999,
         )
         db.add(session)
         await db.commit()
@@ -412,32 +415,12 @@ class SessionService:
         if random_order:
             random.shuffle(resources)
 
-        # Build per-player resource assignment
-        player_resources_map: Dict[uuid.UUID, List[QuestResource]] = {}
-        if len(players) == 1:
-            player_resources_map[players[0].id] = list(resources)
-        else:
-            player_resources_map = {p.id: [] for p in players}
-            text_resources = [
-                r for r in resources
-                if r.resource and r.resource.type == ResourceType.TEXT
-            ]
-            question_resources = [
-                r for r in resources
-                if not (r.resource and r.resource.type == ResourceType.TEXT)
-            ]
-
-            if show_all_texts:
-                for p in players:
-                    player_resources_map[p.id].extend(text_resources)
-                for i, r in enumerate(question_resources):
-                    player_resources_map[players[i % len(players)].id].append(r)
-            else:
-                for i, r in enumerate(resources):
-                    player_resources_map[players[i % len(players)].id].append(r)
-
+        # Individual mode: each player gets all resources independently
         for player in players:
-            for i, qr in enumerate(player_resources_map[player.id]):
+            player_resources = list(resources)
+            if random_order:
+                random.shuffle(player_resources)
+            for i, qr in enumerate(player_resources):
                 map_obj = interactive_objects[i] if i < len(interactive_objects) else None
                 db.add(SessionProgress(
                     session_id=session.id,
@@ -695,6 +678,102 @@ class SessionService:
         await db.commit()
 
     @staticmethod
+    async def get_game_info(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        player: SessionPlayer,
+        lang: str = "uk",
+    ) -> GameInfoResponse:
+        from app.models.quest import Quest, QuestTranslation, QuestSettings
+        from app.models.map import Map
+
+        if player.session_id != session_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+        result = await db.execute(
+            select(GameSession)
+            .where(GameSession.id == session_id)
+            .options(
+                selectinload(GameSession.quest).selectinload(Quest.translations),
+                selectinload(GameSession.quest).selectinload(Quest.settings),
+                selectinload(GameSession.quest).selectinload(Quest.map),
+            )
+        )
+        session = result.scalar_one_or_none()
+        if not session or not session.quest:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session or quest not found")
+
+        quest = session.quest
+        title = (
+            next((t.title for t in quest.translations if t.language == lang), None)
+            or next((t.title for t in quest.translations), "Quest")
+        )
+        map_slug = quest.map.slug if quest.map else None
+        settings_obj = None
+        if quest.settings:
+            s = quest.settings
+            settings_obj = QuestSettingsPublic(
+                time_limit_minutes=s.time_limit_minutes,
+                keep_completed_in_materials=s.keep_completed_in_materials,
+                show_score_after=s.show_score_after,
+                show_correct_answers=s.show_correct_answers,
+            )
+        return GameInfoResponse(quest_title=title, map_slug=map_slug, settings=settings_obj)
+
+    @staticmethod
+    async def get_progress_resource(
+        db: AsyncSession,
+        progress_id: uuid.UUID,
+        player: SessionPlayer,
+    ):
+        from app.models.resource import Resource
+        from app.schemas.resource import ResourceDetailResponse
+
+        progress_result = await db.execute(
+            select(SessionProgress).where(SessionProgress.id == progress_id)
+        )
+        progress = progress_result.scalar_one_or_none()
+        if not progress:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Progress not found")
+        if progress.player_id != player.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        if not progress.resource_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No resource for this progress")
+
+        resource_result = await db.execute(
+            select(Resource)
+            .where(Resource.id == progress.resource_id)
+            .options(
+                selectinload(Resource.text_content),
+                selectinload(Resource.question),
+                selectinload(Resource.tags),
+            )
+        )
+        resource = resource_result.scalar_one_or_none()
+        if not resource:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
+        resource.has_content = resource.text_content is not None or resource.question is not None
+        return resource
+
+    @staticmethod
+    async def get_my_progress(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        player: SessionPlayer,
+    ) -> List[SessionProgressResponse]:
+        if player.session_id != session_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        result = await db.execute(
+            select(SessionProgress).where(
+                SessionProgress.session_id == session_id,
+                SessionProgress.player_id == player.id,
+                SessionProgress.map_object_id != None,  # noqa: E711
+            )
+        )
+        items = result.scalars().all()
+        return [SessionProgressResponse.model_validate(p) for p in items]
+
+    @staticmethod
     async def update_player_guest_name(
         db: AsyncSession,
         session_id: uuid.UUID,
@@ -739,3 +818,25 @@ class SessionService:
         await db.commit()
         await db.refresh(player)
         return _player_response(player)
+
+    @staticmethod
+    async def delete_player(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        player_id: uuid.UUID,
+        teacher_id: uuid.UUID,
+    ) -> None:
+        await _load_own_session(db, session_id, teacher_id)
+        player_result = await db.execute(
+            select(SessionPlayer).where(
+                SessionPlayer.id == player_id,
+                SessionPlayer.session_id == session_id,
+            )
+        )
+        player = player_result.scalar_one_or_none()
+        if not player:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Player not found"
+            )
+        await db.delete(player)
+        await db.commit()

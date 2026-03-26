@@ -12,6 +12,8 @@ from app.models.session_progress import ProgressStatus
 class SessionCreate(BaseModel):
     quest_id: uuid.UUID
     scheduled_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    max_participants: Optional[int] = None
 
 
 class JoinSessionRequest(BaseModel):
@@ -120,3 +122,16 @@ class ReviewAnswerRequest(BaseModel):
 
 class UpdateGuestNameRequest(BaseModel):
     guest_name: Optional[str] = None
+
+
+class QuestSettingsPublic(BaseModel):
+    time_limit_minutes: Optional[int] = None
+    keep_completed_in_materials: bool = True
+    show_score_after: bool = True
+    show_correct_answers: bool = True
+
+
+class GameInfoResponse(BaseModel):
+    quest_title: str
+    map_slug: Optional[str] = None
+    settings: Optional[QuestSettingsPublic] = None

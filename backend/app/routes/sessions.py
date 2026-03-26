@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.session_player import SessionPlayer
 from app.models.user import User
+from app.schemas.resource import ResourceDetailResponse
 from app.schemas.session import (
+    GameInfoResponse,
     GameSessionDetailResponse,
     GameSessionResponse,
     JoinSessionRequest,
@@ -180,6 +182,47 @@ async def update_player_guest_name(
     return await SessionService.update_player_guest_name(
         db, session_id, player_id, teacher.id, data.guest_name
     )
+
+
+@router.delete(
+    "/{session_id}/players/{player_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_player(
+    session_id: uuid.UUID,
+    player_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
+    await SessionService.delete_player(db, session_id, player_id, teacher.id)
+
+
+@router.get("/{session_id}/game-info", response_model=GameInfoResponse)
+async def get_game_info(
+    session_id: uuid.UUID,
+    lang: str = Query("uk"),
+    db: AsyncSession = Depends(get_db),
+    player: SessionPlayer = Depends(_get_player_by_token),
+):
+    return await SessionService.get_game_info(db, session_id, player, lang)
+
+
+@router.get("/{session_id}/my-progress", response_model=List[SessionProgressResponse])
+async def get_my_progress(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    player: SessionPlayer = Depends(_get_player_by_token),
+):
+    return await SessionService.get_my_progress(db, session_id, player)
+
+
+@router.get("/progress/{progress_id}/resource", response_model=ResourceDetailResponse)
+async def get_progress_resource(
+    progress_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    player: SessionPlayer = Depends(_get_player_by_token),
+):
+    return await SessionService.get_progress_resource(db, progress_id, player)
 
 
 @router.get("/{session_id}/results", response_model=GameSessionDetailResponse)
