@@ -181,6 +181,7 @@ class ResourceService:
         resources = list(result.scalars().all())
         for r in resources:
             r.has_content = bool(r.text_content or r.question)
+            r.difficulty = r.question.difficulty if r.question else None
         return resources
 
     @staticmethod
@@ -352,6 +353,7 @@ class ResourceService:
                 question.options = options_dict
                 question.correct_answers = data.correct_answers
                 question.requires_review = data.requires_review
+                question.difficulty = data.difficulty
             else:
                 question = Question(
                     resource_id=resource_id,
@@ -361,6 +363,7 @@ class ResourceService:
                     options=options_dict,
                     correct_answers=data.correct_answers,
                     requires_review=data.requires_review,
+                    difficulty=data.difficulty,
                 )
                 db.add(question)
 

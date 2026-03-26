@@ -6,14 +6,18 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
-import Image from "@tiptap/extension-image";
+import { ResizableImage } from "@/components/editor/ResizableImage";
 import Placeholder from "@tiptap/extension-placeholder";
+import CharacterCount from "@tiptap/extension-character-count";
+import { CodeBlockWithSelector } from "@/components/editor/CodeBlockWithSelector";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
   Check,
+  Code,
+  Code2,
   Image as ImageIcon,
   Italic,
   List,
@@ -66,13 +70,15 @@ function ToolbarButton({
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#f3f4f6";
+          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+            "#f3f4f6";
           (e.currentTarget as HTMLButtonElement).style.color = "#111827";
         }
       }}
       onMouseLeave={(e) => {
         if (!active) {
-          (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+            "transparent";
           (e.currentTarget as HTMLButtonElement).style.color = "#6b7280";
         }
       }}
@@ -117,15 +123,20 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
         heading: { levels: [1, 2, 3] },
         bulletList: { keepMarks: true },
         orderedList: { keepMarks: true },
+        underline: false,
+        codeBlock: false,
       }),
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image.configure({ inline: false, allowBase64: false }),
+      CodeBlockWithSelector,
+      ResizableImage.configure({ inline: false, allowBase64: false }),
       Placeholder.configure({ placeholder: t("bodyPlaceholder") }),
+      CharacterCount,
     ],
-    content: initial?.body && Object.keys(initial.body).length > 0
-      ? (initial.body as object)
-      : { type: "doc", content: [{ type: "paragraph" }] },
+    content:
+      initial?.body && Object.keys(initial.body).length > 0
+        ? (initial.body as object)
+        : { type: "doc", content: [{ type: "paragraph" }] },
   });
 
   const handleImageUpload = async (file: File) => {
@@ -147,7 +158,11 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
       );
       const data = await res.json();
 
-      editor.chain().focus().setImage({ src: data.secure_url, alt: file.name }).run();
+      editor
+        .chain()
+        .focus()
+        .setImage({ src: data.secure_url, alt: file.name })
+        .run();
       setImages((prev) => [
         ...prev,
         {
@@ -188,7 +203,6 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-
       {/* Toolbar */}
       <div
         style={{
@@ -228,11 +242,15 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
         {([1, 2, 3] as const).map((level) => (
           <ToolbarButton
             key={level}
-            onClick={() => editor.chain().focus().toggleHeading({ level }).run()}
+            onClick={() =>
+              editor.chain().focus().toggleHeading({ level }).run()
+            }
             active={editor.isActive("heading", { level })}
             title={`Heading ${level}`}
           >
-            <span style={{ fontSize: "12px", fontWeight: 700, lineHeight: 1 }}>H{level}</span>
+            <span style={{ fontSize: "12px", fontWeight: 700, lineHeight: 1 }}>
+              H{level}
+            </span>
           </ToolbarButton>
         ))}
 
@@ -279,6 +297,23 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
 
         <Separator />
 
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          active={editor.isActive("code")}
+          title="Inline code"
+        >
+          <Code size={15} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          active={editor.isActive("codeBlock")}
+          title="Code block"
+        >
+          <Code2 size={15} />
+        </ToolbarButton>
+
+        <Separator />
+
         {/* Image upload — onClick, not onMouseDown, so input.click() works */}
         <button
           type="button"
@@ -299,15 +334,21 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
             transition: "background 0.12s, color 0.12s",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#f3f4f6";
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+              "#f3f4f6";
             (e.currentTarget as HTMLButtonElement).style.color = "#111827";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+              "transparent";
             (e.currentTarget as HTMLButtonElement).style.color = "#6b7280";
           }}
         >
-          {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImageIcon size={15} />}
+          {uploading ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <ImageIcon size={15} />
+          )}
         </button>
       </div>
 
@@ -317,6 +358,21 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
         onClick={() => editor.commands.focus()}
       >
         <EditorContent editor={editor} />
+      </div>
+
+      {/* Word count */}
+      <div
+        style={{
+          padding: "6px 24px",
+          borderTop: "1px solid #f3f4f6",
+          fontSize: "12px",
+          color: "#9ca3af",
+          textAlign: "right",
+        }}
+      >
+        {tEditor("wordCount", {
+          count: editor.storage.characterCount?.words() ?? 0,
+        })}
       </div>
 
       {/* Hidden file input */}
@@ -361,13 +417,21 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
             transition: "background-color 0.15s",
           }}
           onMouseEnter={(e) => {
-            if (!saving) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8";
+            if (!saving)
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                "#1d4ed8";
           }}
           onMouseLeave={(e) => {
-            if (!saving) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb";
+            if (!saving)
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                "#2563eb";
           }}
         >
-          {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+          {saving ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <Save size={15} />
+          )}
           {saving ? tCommon("loading") : tCommon("save")}
         </button>
 

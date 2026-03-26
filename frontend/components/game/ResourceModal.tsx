@@ -1,30 +1,31 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import { X, CheckCircle, XCircle, Clock } from "lucide-react"
-import { generateHTML } from "@tiptap/core"
-import StarterKit from "@tiptap/starter-kit"
-import TextAlign from "@tiptap/extension-text-align"
-import Image from "@tiptap/extension-image"
-import type { ResourceDetailResponse } from "@/types/resource"
-import type { SessionProgress } from "@/types/session"
-import QuestionForm from "./QuestionForm"
+import { useEffect, useRef, useState } from "react";
+import { X, CheckCircle, XCircle, Clock } from "lucide-react";
+import { generateHTML } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
+import { ResizableImage } from "@/components/editor/ResizableImage";
+import { sanitizeHtml } from "@/lib/sanitize";
+import type { ResourceDetailResponse } from "@/types/resource";
+import type { SessionProgress } from "@/types/session";
+import QuestionForm from "./QuestionForm";
 
 interface AnswerResult {
-  correct: boolean | null
-  score: number | null
-  requires_review: boolean
+  correct: boolean | null;
+  score: number | null;
+  requires_review: boolean;
 }
 
 interface ResourceModalProps {
-  progress: SessionProgress
-  resource: ResourceDetailResponse | null
-  loading?: boolean
-  answerResult?: AnswerResult | null
-  onClose: () => void
-  onMarkViewed: () => void
-  onSubmitAnswer: (answer: Record<string, unknown>) => void
-  isSubmitting?: boolean
+  progress: SessionProgress;
+  resource: ResourceDetailResponse | null;
+  loading?: boolean;
+  answerResult?: AnswerResult | null;
+  onClose: () => void;
+  onMarkViewed: () => void;
+  onSubmitAnswer: (answer: Record<string, unknown>) => void;
+  isSubmitting?: boolean;
 }
 
 function renderTiptap(body: Record<string, unknown>): string {
@@ -32,10 +33,10 @@ function renderTiptap(body: Record<string, unknown>): string {
     return generateHTML(body as Parameters<typeof generateHTML>[0], [
       StarterKit,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image,
-    ])
+      ResizableImage,
+    ]);
   } catch {
-    return ""
+    return "";
   }
 }
 
@@ -49,22 +50,33 @@ export default function ResourceModal({
   onSubmitAnswer,
   isSubmitting,
 }: ResourceModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Close on overlay click
   const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current) onClose()
-  }
+    if (e.target === overlayRef.current) onClose();
+  };
 
   // Prevent body scroll when open
   useEffect(() => {
-    document.body.style.overflow = "hidden"
+    document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = ""
-    }
-  }, [])
+      document.body.style.overflow = "";
+    };
+  }, []);
 
-  const isAnswered = progress.status === "answered" || progress.status === "viewed"
+  // Syntax-highlight code blocks lazily
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !el.querySelector("pre code")) return;
+    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
+      if (contentRef.current) applyHighlighting(contentRef.current);
+    });
+  }, [resource]);
+
+  const isAnswered =
+    progress.status === "answered" || progress.status === "viewed";
 
   return (
     <div
@@ -89,7 +101,10 @@ export default function ResourceModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+        <div
+          ref={contentRef}
+          className="flex-1 overflow-y-auto px-5 py-4 min-h-0"
+        >
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -100,10 +115,11 @@ export default function ResourceModal({
             <>
               <div
                 className="prose prose-sm max-w-none text-gray-700"
-                // biome-ignore lint/security/noDangerouslySetInnerHtml: Tiptap trusted content
                 dangerouslySetInnerHTML={{
-                  __html: renderTiptap(
-                    resource.text_content.body as Record<string, unknown>,
+                  __html: sanitizeHtml(
+                    renderTiptap(
+                      resource.text_content.body as Record<string, unknown>,
+                    ),
                   ),
                 }}
               />
@@ -130,9 +146,12 @@ export default function ResourceModal({
             <>
               {answerResult != null ? (
                 <div className="space-y-4">
-                  <p className="text-base font-medium text-gray-800 leading-snug">
-                    {resource.question.body}
-                  </p>
+                  <div
+                    className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(resource.question.body),
+                    }}
+                  />
                   {answerResult.requires_review ? (
                     <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3 text-sm">
                       <Clock size={16} />
@@ -142,11 +161,12 @@ export default function ResourceModal({
                     <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm font-medium">
                       <CheckCircle size={16} />
                       Правильно!
-                      {answerResult.score !== null && answerResult.score < 1 && (
-                        <span className="ml-auto text-xs">
-                          {Math.round((answerResult.score ?? 0) * 100)}%
-                        </span>
-                      )}
+                      {answerResult.score !== null &&
+                        answerResult.score < 1 && (
+                          <span className="ml-auto text-xs">
+                            {Math.round((answerResult.score ?? 0) * 100)}%
+                          </span>
+                        )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm font-medium">
@@ -177,10 +197,12 @@ export default function ResourceModal({
           )}
 
           {!loading && !resource && (
-            <p className="text-center text-gray-400 py-8 text-sm">Не вдалося завантажити ресурс</p>
+            <p className="text-center text-gray-400 py-8 text-sm">
+              Не вдалося завантажити ресурс
+            </p>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }

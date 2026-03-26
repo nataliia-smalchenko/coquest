@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { FileText, Filter, FilterX, HelpCircle, Loader2, Search, X } from "lucide-react";
+import {
+  FileText,
+  Filter,
+  FilterX,
+  HelpCircle,
+  Loader2,
+  Search,
+  X,
+} from "lucide-react";
 import { useResourceStore } from "@/hooks/useResourceStore";
 import { createResource } from "@/lib/api/resources";
 import { FolderTree } from "./FolderTree";
@@ -49,7 +57,10 @@ export function ResourceLibrary() {
     setCreating(type);
     try {
       const count = resources.filter((r) => r.type === type).length + 1;
-      const title = type === "text" ? `${t("newText")} ${count}` : `${t("newQuestion")} ${count}`;
+      const title =
+        type === "text"
+          ? `${t("newText")} ${count}`
+          : `${t("newQuestion")} ${count}`;
       const resource = await createResource({
         type,
         title,
@@ -94,7 +105,12 @@ export function ResourceLibrary() {
   return (
     <div
       className="resource-library"
-      style={{ height: "calc(100vh - 4rem)", width: "100%", display: "flex", background: "#f9fafb" }}
+      style={{
+        height: "calc(100vh - 4rem)",
+        width: "100%",
+        display: "flex",
+        background: "#f9fafb",
+      }}
     >
       {/* Desktop sidebar */}
       <aside
@@ -151,7 +167,9 @@ export function ResourceLibrary() {
                 flexShrink: 0,
               }}
             >
-              <span style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+              <span
+                style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}
+              >
                 {t("filters")}
               </span>
               <button
@@ -172,7 +190,14 @@ export function ResourceLibrary() {
                 <X size={18} />
               </button>
             </div>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+              }}
+            >
               {sidebarContent}
             </div>
           </div>
@@ -180,7 +205,14 @@ export function ResourceLibrary() {
       )}
 
       {/* Main */}
-      <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          flex: "1 1 0",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         {/* Header */}
         <div
           className="library-header"
@@ -195,7 +227,14 @@ export function ResourceLibrary() {
             gap: "12px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              minWidth: 0,
+            }}
+          >
             {/* Mobile filter button */}
             <button
               className="filter-btn-mobile"
@@ -233,7 +272,13 @@ export function ResourceLibrary() {
 
             <h1
               className="library-title"
-              style={{ fontSize: "20px", fontWeight: 700, color: "#111827", margin: 0, whiteSpace: "nowrap" }}
+              style={{
+                fontSize: "20px",
+                fontWeight: 700,
+                color: "#111827",
+                margin: 0,
+                whiteSpace: "nowrap",
+              }}
             >
               {t("title")}
             </h1>
@@ -257,8 +302,16 @@ export function ResourceLibrary() {
                   whiteSpace: "nowrap",
                   transition: "background-color 0.15s",
                 }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = "#fee2e2")}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = "#fef2f2")}
+                onMouseEnter={(e) =>
+                  ((
+                    e.currentTarget as HTMLButtonElement
+                  ).style.backgroundColor = "#fee2e2")
+                }
+                onMouseLeave={(e) =>
+                  ((
+                    e.currentTarget as HTMLButtonElement
+                  ).style.backgroundColor = "#fef2f2")
+                }
               >
                 <FilterX size={13} />
                 <span className="btn-label">{t("clearFilters")}</span>
@@ -288,13 +341,21 @@ export function ResourceLibrary() {
                 whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => {
-                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#eff6ff";
+                if (!creating)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#eff6ff";
               }}
               onMouseLeave={(e) => {
-                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "white";
+                if (!creating)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "white";
               }}
             >
-              {creating === "text" ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
+              {creating === "text" ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <FileText size={15} />
+              )}
               <span className="btn-label">{t("newText")}</span>
             </button>
             <button
@@ -318,20 +379,36 @@ export function ResourceLibrary() {
                 whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => {
-                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8";
+                if (!creating)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#1d4ed8";
               }}
               onMouseLeave={(e) => {
-                if (!creating) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb";
+                if (!creating)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#2563eb";
               }}
             >
-              {creating === "question" ? <Loader2 size={15} className="animate-spin" /> : <HelpCircle size={15} />}
+              {creating === "question" ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <HelpCircle size={15} />
+              )}
               <span className="btn-label">{t("newQuestion")}</span>
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ flex: "1 1 0", minHeight: 0, overflowY: "auto", width: "100%", padding: "20px" }}>
+        <div
+          style={{
+            flex: "1 1 0",
+            minHeight: 0,
+            overflowY: "auto",
+            width: "100%",
+            padding: "20px",
+          }}
+        >
           {/* Search */}
           <div style={{ position: "relative", marginBottom: "20px" }}>
             <Search
