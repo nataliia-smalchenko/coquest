@@ -1,81 +1,102 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import type { QuestionResponse } from "@/types/resource"
+import { useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
+import type { QuestionResponse } from "@/types/resource";
 
 interface QuestionFormProps {
-  question: QuestionResponse
-  onSubmit: (answer: Record<string, unknown>) => void
-  isSubmitting?: boolean
+  question: QuestionResponse;
+  onSubmit: (answer: Record<string, unknown>) => void;
+  isSubmitting?: boolean;
 }
 
-export default function QuestionForm({ question, onSubmit, isSubmitting }: QuestionFormProps) {
-  const [singleId, setSingleId] = useState<string>("")
-  const [multiIds, setMultiIds] = useState<string[]>([])
-  const [shortText, setShortText] = useState("")
-  const [openText, setOpenText] = useState("")
+export default function QuestionForm({
+  question,
+  onSubmit,
+  isSubmitting,
+}: QuestionFormProps) {
+  const [singleId, setSingleId] = useState<string>("");
+  const [multiIds, setMultiIds] = useState<string[]>([]);
+  const [shortText, setShortText] = useState("");
+  const [openText, setOpenText] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    let answer: Record<string, unknown>
+    e.preventDefault();
+    let answer: Record<string, unknown>;
     switch (question.question_type) {
       case "single":
-        answer = { option_id: singleId }
-        break
+        answer = { option_id: singleId };
+        break;
       case "multiple":
-        answer = { option_ids: multiIds }
-        break
+        answer = { option_ids: multiIds };
+        break;
       case "short":
-        answer = { text: shortText.trim() }
-        break
+        answer = { text: shortText.trim() };
+        break;
       case "open":
-        answer = { text: openText.trim() }
-        break
+        answer = { text: openText.trim() };
+        break;
       default:
-        answer = {}
+        answer = {};
     }
-    onSubmit(answer)
-  }
+    onSubmit(answer);
+  };
 
   const isValid = () => {
     switch (question.question_type) {
       case "single":
-        return !!singleId
+        return !!singleId;
       case "multiple":
-        return multiIds.length > 0
+        return multiIds.length > 0;
       case "short":
-        return shortText.trim().length > 0
+        return shortText.trim().length > 0;
       case "open":
-        return openText.trim().length > 0
+        return openText.trim().length > 0;
       default:
-        return false
+        return false;
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-base font-medium text-gray-800 leading-snug">{question.body}</p>
+      {/* Question body — HTML with possible images */}
+      <div
+        className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full"
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.body) }}
+      />
 
       {question.question_type === "single" && (
         <div className="space-y-2">
           {question.options.map((opt) => (
             <label
               key={opt.id}
-              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+              className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
                 singleId === opt.id
                   ? "border-blue-500 bg-blue-50"
                   : "border-gray-200 hover:bg-gray-50"
               }`}
             >
-              <input
-                type="radio"
-                name="single"
-                value={opt.id}
-                checked={singleId === opt.id}
-                onChange={() => setSingleId(opt.id)}
-                className="text-blue-600 accent-blue-600"
-              />
-              <span className="text-sm text-gray-700">{opt.text}</span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  name="single"
+                  value={opt.id}
+                  checked={singleId === opt.id}
+                  onChange={() => setSingleId(opt.id)}
+                  className="text-blue-600 accent-blue-600 flex-shrink-0"
+                />
+                {opt.text && (
+                  <span className="text-sm text-gray-700">{opt.text}</span>
+                )}
+              </div>
+              {opt.image_url && (
+                <img
+                  src={opt.image_url}
+                  alt=""
+                  className="rounded-md max-w-full"
+                  style={{ maxHeight: "160px", objectFit: "contain" }}
+                />
+              )}
             </label>
           ))}
         </div>
@@ -86,26 +107,38 @@ export default function QuestionForm({ question, onSubmit, isSubmitting }: Quest
           {question.options.map((opt) => (
             <label
               key={opt.id}
-              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+              className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
                 multiIds.includes(opt.id)
                   ? "border-blue-500 bg-blue-50"
                   : "border-gray-200 hover:bg-gray-50"
               }`}
             >
-              <input
-                type="checkbox"
-                value={opt.id}
-                checked={multiIds.includes(opt.id)}
-                onChange={(e) => {
-                  setMultiIds(
-                    e.target.checked
-                      ? [...multiIds, opt.id]
-                      : multiIds.filter((id) => id !== opt.id),
-                  )
-                }}
-                className="text-blue-600 accent-blue-600"
-              />
-              <span className="text-sm text-gray-700">{opt.text}</span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  value={opt.id}
+                  checked={multiIds.includes(opt.id)}
+                  onChange={(e) => {
+                    setMultiIds(
+                      e.target.checked
+                        ? [...multiIds, opt.id]
+                        : multiIds.filter((id) => id !== opt.id),
+                    );
+                  }}
+                  className="text-blue-600 accent-blue-600 flex-shrink-0"
+                />
+                {opt.text && (
+                  <span className="text-sm text-gray-700">{opt.text}</span>
+                )}
+              </div>
+              {opt.image_url && (
+                <img
+                  src={opt.image_url}
+                  alt=""
+                  className="rounded-md max-w-full"
+                  style={{ maxHeight: "160px", objectFit: "contain" }}
+                />
+              )}
             </label>
           ))}
         </div>
@@ -139,5 +172,5 @@ export default function QuestionForm({ question, onSubmit, isSubmitting }: Quest
         {isSubmitting ? "Відправка..." : "Відповісти"}
       </button>
     </form>
-  )
+  );
 }

@@ -176,6 +176,7 @@
       "explanation": "Пояснення",
       "shortAnswer": "Коротка відповідь",
       "openAnswer": "Відкрита відповідь",
+      "startSession": "Почати сесію",
       "settingTime": "{n} хв",
       "settingRandom": "Випадковий порядок",
       "settingShowAll": "Всі тексти одразу",
@@ -259,7 +260,16 @@
       "score": "Результат",
       "correct": "Правильних відповідей",
       "time": "Час проходження",
-      "home": "На головну"
+      "minutes": "хв",
+      "home": "На головну",
+      "player": "Гравець",
+      "question": "Питання {n}",
+      "pendingReview": "Очікує перевірки",
+      "unavailable": "Результати недоступні",
+      "errorToken": "Результати недоступні або токен невірний",
+      "tokenTitle": "Введіть токен гравця",
+      "tokenPlaceholder": "Ваш guest_token...",
+      "tokenSubmit": "Переглянути"
     },
     "monitor": {
       "title": "Моніторинг сесії",
@@ -338,7 +348,10 @@
       "noFolder": "Без папки",
       "tags": "Теги",
       "saveSuccess": "Збережено",
-      "saveError": "Помилка збереження"
+      "saveError": "Помилка збереження",
+      "wordCount": "{count} слів",
+      "copy": "Дублювати",
+      "copyOf": "Копія {title}"
     },
     "text": {
       "title": "Текстовий матеріал",
@@ -360,11 +373,20 @@
       "correctAnswer": "Правильна відповідь",
       "correctAnswers": "Правильні відповіді",
       "requiresReview": "Потребує перевірки вчителем",
+      "addImage": "Додати зображення",
+      "difficulty": "Рівень складності",
+      "difficultyNone": "Не вказано",
       "types": {
         "single": "Одна правильна",
         "multiple": "Кілька правильних",
         "short": "Коротка відповідь",
         "open": "Відкрита відповідь"
+      },
+      "difficulties": {
+        "beginner": "Початковий",
+        "intermediate": "Середній",
+        "sufficient": "Достатній",
+        "advanced": "Високий"
       }
     }
   }

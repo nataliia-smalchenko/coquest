@@ -20,6 +20,13 @@ class QuestionType(str, enum.Enum):
     OPEN = "open"
 
 
+class DifficultyLevel(str, enum.Enum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    SUFFICIENT = "sufficient"
+    ADVANCED = "advanced"
+
+
 class Question(Base):
     __tablename__ = "questions"
 
@@ -48,6 +55,8 @@ class Question(Base):
     correct_answers: Mapped[List[Any]] = mapped_column(
         JSONB, nullable=False, server_default="[]", default=list
     )
+
+    difficulty: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     requires_review: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False

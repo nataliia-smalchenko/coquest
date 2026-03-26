@@ -168,6 +168,7 @@
       "explanation": "Explanation",
       "shortAnswer": "Short answer",
       "openAnswer": "Open answer",
+      "startSession": "Start session",
       "settingTime": "{n} min",
       "settingRandom": "Random order",
       "settingShowAll": "All texts at once",
@@ -251,7 +252,16 @@
       "score": "Score",
       "correct": "Correct answers",
       "time": "Time spent",
-      "home": "Back to home"
+      "minutes": "min",
+      "home": "Back to home",
+      "player": "Player",
+      "question": "Question {n}",
+      "pendingReview": "Awaiting review",
+      "unavailable": "Results unavailable",
+      "errorToken": "Results unavailable or invalid token",
+      "tokenTitle": "Enter player token",
+      "tokenPlaceholder": "Your guest_token...",
+      "tokenSubmit": "View results"
     },
     "monitor": {
       "title": "Session Monitor",
@@ -330,7 +340,10 @@
       "noFolder": "No folder",
       "tags": "Tags",
       "saveSuccess": "Saved",
-      "saveError": "Save error"
+      "saveError": "Save error",
+      "wordCount": "{count} words",
+      "copy": "Duplicate",
+      "copyOf": "Copy of {title}"
     },
     "text": {
       "title": "Text Material",
@@ -352,11 +365,20 @@
       "correctAnswer": "Correct answer",
       "correctAnswers": "Correct answers",
       "requiresReview": "Requires teacher review",
+      "addImage": "Add image",
+      "difficulty": "Difficulty level",
+      "difficultyNone": "Not specified",
       "types": {
         "single": "Single correct",
         "multiple": "Multiple correct",
         "short": "Short answer",
         "open": "Open answer"
+      },
+      "difficulties": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "sufficient": "Sufficient",
+        "advanced": "Advanced"
       }
     }
   }

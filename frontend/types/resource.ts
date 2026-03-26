@@ -1,5 +1,6 @@
 export type ResourceType = "text" | "question";
 export type QuestionType = "single" | "multiple" | "short" | "open";
+export type DifficultyLevel = "beginner" | "intermediate" | "sufficient" | "advanced";
 
 export interface FolderResponse {
   id: string;
@@ -22,6 +23,7 @@ export interface ResourceResponse {
   folder_id: string | null;
   tags: TagResponse[];
   has_content: boolean;
+  difficulty: DifficultyLevel | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +31,7 @@ export interface ResourceResponse {
 export interface QuestionOption {
   id: string;
   text: string;
+  image_url?: string | null;
   is_correct: boolean;
 }
 
@@ -56,6 +59,7 @@ export interface QuestionResponse {
   options: QuestionOption[];
   correct_answers: string[];
   requires_review: boolean;
+  difficulty: DifficultyLevel | null;
 }
 
 export interface ResourceDetailResponse extends ResourceResponse {
@@ -108,4 +112,5 @@ export interface QuestionCreate {
   options: QuestionOption[];
   correct_answers: string[];
   requires_review?: boolean;
+  difficulty?: DifficultyLevel | null;
 }
