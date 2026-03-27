@@ -11,9 +11,22 @@ from app.models.session_progress import ProgressStatus
 
 class SessionCreate(BaseModel):
     quest_id: uuid.UUID
+    # Game mode
+    max_players: int = Field(
+        default=1, ge=1, le=30, description="1 = individual, 2+ = team"
+    )
+    allow_solo_in_team: bool = Field(
+        default=True, description="Allow solo play in team mode"
+    )
+    # Gameplay settings
+    show_feedback_after_answer: bool = False
+    show_score_after: bool = True
+    show_correct_answers: bool = True
+    keep_completed_in_materials: bool = True
+    allow_change_answers: bool = True
+    # Scheduling
     scheduled_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
-    max_participants: Optional[int] = None
 
 
 class JoinSessionRequest(BaseModel):
@@ -86,6 +99,12 @@ class GameSessionResponse(BaseModel):
     ends_at: Optional[datetime] = None
     scheduled_at: Optional[datetime] = None
     max_players: int
+    allow_solo_in_team: bool = True
+    show_feedback_after_answer: bool = False
+    show_score_after: bool = True
+    show_correct_answers: bool = True
+    keep_completed_in_materials: bool = True
+    allow_change_answers: bool = True
     created_at: datetime
     players: List[SessionPlayerResponse] = []
 
@@ -124,14 +143,16 @@ class UpdateGuestNameRequest(BaseModel):
     guest_name: Optional[str] = None
 
 
-class QuestSettingsPublic(BaseModel):
+class SessionSettingsPublic(BaseModel):
     time_limit_minutes: Optional[int] = None
     keep_completed_in_materials: bool = True
+    show_feedback_after_answer: bool = False
     show_score_after: bool = True
     show_correct_answers: bool = True
+    allow_change_answers: bool = True
 
 
 class GameInfoResponse(BaseModel):
     quest_title: str
     map_slug: Optional[str] = None
-    settings: Optional[QuestSettingsPublic] = None
+    settings: Optional[SessionSettingsPublic] = None

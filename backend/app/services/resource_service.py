@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.models.question import Question
+from app.models.question import Question, DifficultyLevel
 from app.models.resource import Resource, ResourceType
 from app.models.resource_folder import ResourceFolder
 from app.models.resource_tag import ResourceTag
@@ -152,6 +152,7 @@ class ResourceService:
         type: Optional[ResourceType] = None,
         tag_ids: Optional[List[uuid.UUID]] = None,
         search: Optional[str] = None,
+        difficulty: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> List[Resource]:
@@ -174,6 +175,9 @@ class ResourceService:
                 stmt = stmt.where(Resource.tags.any(Tag.id == tid))
         if search:
             stmt = stmt.where(Resource.title.ilike(f"%{search}%"))
+        if difficulty is not None:
+            subq = select(Question.resource_id).where(Question.difficulty == difficulty)
+            stmt = stmt.where(Resource.id.in_(subq))
 
         stmt = stmt.order_by(Resource.created_at.desc()).limit(limit).offset(offset)
 

@@ -10,7 +10,10 @@ from app.models.game_session import GameSession, SessionStatus
 from app.models.session_player import SessionPlayer
 from app.models.user import User
 from app.schemas.session import GameSessionResponse, SessionPlayerResponse
-from app.services.websocket_handlers import handle_player_message, handle_teacher_message
+from app.services.websocket_handlers import (
+    handle_player_message,
+    handle_teacher_message,
+)
 from app.services.websocket_manager import manager
 from app.utils.security import verify_token
 
@@ -24,8 +27,16 @@ def _session_dict(session: GameSession) -> dict:
         "id": str(session.id),
         "quest_id": str(session.quest_id),
         "session_code": session.session_code,
-        "status": session.status.value if hasattr(session.status, "value") else session.status,
+        "status": session.status.value
+        if hasattr(session.status, "value")
+        else session.status,
         "max_players": session.max_players,
+        "allow_solo_in_team": session.allow_solo_in_team,
+        "keep_completed_in_materials": session.keep_completed_in_materials,
+        "show_feedback_after_answer": session.show_feedback_after_answer,
+        "show_score_after": session.show_score_after,
+        "show_correct_answers": session.show_correct_answers,
+        "allow_change_answers": session.allow_change_answers,
         "players_count": len(session.players),
     }
 
@@ -35,7 +46,9 @@ def _player_dict(player: SessionPlayer) -> dict:
         "id": str(player.id),
         "display_name": player.display_name,
         "avatar_color": player.avatar_color,
-        "status": player.status.value if hasattr(player.status, "value") else player.status,
+        "status": player.status.value
+        if hasattr(player.status, "value")
+        else player.status,
     }
 
 
@@ -58,7 +71,9 @@ async def ws_player(
             return
 
         if player.session_id != session_id:
-            await websocket.close(code=4002, reason="Forbidden: token does not match session")
+            await websocket.close(
+                code=4002, reason="Forbidden: token does not match session"
+            )
             return
 
         session_result = await db.execute(
@@ -67,26 +82,39 @@ async def ws_player(
             .options(selectinload(GameSession.players))
         )
         session = session_result.scalar_one_or_none()
-        if not session or session.status in (SessionStatus.COMPLETED, SessionStatus.STOPPED):
+        if not session or session.status in (
+            SessionStatus.COMPLETED,
+            SessionStatus.STOPPED,
+        ):
             await websocket.close(code=4003, reason="Session is closed")
             return
 
         player_id = str(player.id)
         session_data = _session_dict(session)
         player_data = _player_dict(player)
+        players_data = [_player_dict(p) for p in session.players]
 
     await manager.connect_player(sid, player_id, websocket)
 
-    await manager.send_to_player(sid, player_id, {
-        "type": "connected",
-        "player_id": player_id,
-        "session": session_data,
-    })
+    await manager.send_to_player(
+        sid,
+        player_id,
+        {
+            "type": "connected",
+            "player_id": player_id,
+            "session": session_data,
+            "players": players_data,
+        },
+    )
 
-    await manager.broadcast_to_session(sid, {
-        "type": "player_joined",
-        "player": player_data,
-    }, exclude_player_id=player_id)
+    await manager.broadcast_to_session(
+        sid,
+        {
+            "type": "player_joined",
+            "player": player_data,
+        },
+        exclude_player_id=player_id,
+    )
 
     try:
         while True:
@@ -94,12 +122,20 @@ async def ws_player(
             await handle_player_message(sid, player_id, data)
     except WebSocketDisconnect:
         await manager.disconnect_player(sid, player_id)
-        await manager.broadcast_to_session(sid, {
-            "type": "player_left",
-            "player_id": player_id,
-        })
+        await manager.broadcast_to_session(
+            sid,
+            {
+                "type": "player_left",
+                "player_id": player_id,
+            },
+        )
     except Exception as exc:
-        logger.exception("Unexpected error in player WS session=%s player=%s: %s", sid, player_id, exc)
+        logger.exception(
+            "Unexpected error in player WS session=%s player=%s: %s",
+            sid,
+            player_id,
+            exc,
+        )
         await manager.disconnect_player(sid, player_id)
 
 
@@ -123,7 +159,9 @@ async def ws_teacher(
         user = user_result.scalar_one_or_none()
 
         if not user or user.role != "teacher":
-            await websocket.close(code=4001, reason="Unauthorized: teacher role required")
+            await websocket.close(
+                code=4001, reason="Unauthorized: teacher role required"
+            )
             return
 
         session_result = await db.execute(
@@ -146,11 +184,14 @@ async def ws_teacher(
 
     await manager.connect_teacher(sid, teacher_id, websocket)
 
-    await manager.send_to_teacher(sid, {
-        "type": "connected",
-        "role": "teacher",
-        "session": session_data,
-    })
+    await manager.send_to_teacher(
+        sid,
+        {
+            "type": "connected",
+            "role": "teacher",
+            "session": session_data,
+        },
+    )
 
     try:
         while True:

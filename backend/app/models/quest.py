@@ -3,7 +3,17 @@ import uuid
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text, func, Uuid, UniqueConstraint
+from sqlalchemy import (
+    String,
+    Integer,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Text,
+    func,
+    Uuid,
+    UniqueConstraint,
+)
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,9 +44,10 @@ class Quest(Base):
     )
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     status: Mapped[QuestStatus] = mapped_column(
-        SQLEnum(QuestStatus, native_enum=False), default=QuestStatus.DRAFT, nullable=False
+        SQLEnum(QuestStatus, native_enum=False),
+        default=QuestStatus.DRAFT,
+        nullable=False,
     )
-    max_players: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -51,7 +62,10 @@ class Quest(Base):
         "QuestTranslation", back_populates="quest", cascade="all, delete-orphan"
     )
     settings: Mapped[Optional["QuestSettings"]] = relationship(
-        "QuestSettings", back_populates="quest", cascade="all, delete-orphan", uselist=False
+        "QuestSettings",
+        back_populates="quest",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
     resources: Mapped[List["QuestResource"]] = relationship(
         "QuestResource", back_populates="quest", cascade="all, delete-orphan"
@@ -67,7 +81,9 @@ class Quest(Base):
 class QuestTranslation(Base):
     __tablename__ = "quest_translations"
     __table_args__ = (
-        UniqueConstraint("quest_id", "language", name="uq_quest_translations_quest_language"),
+        UniqueConstraint(
+            "quest_id", "language", name="uq_quest_translations_quest_language"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -94,11 +110,6 @@ class QuestSettings(Base):
     )
     time_limit_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     random_order: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    show_all_texts: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    keep_completed_in_materials: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    show_score_after: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    show_correct_answers: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    distribute_texts_in_team: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     quest: Mapped["Quest"] = relationship("Quest", back_populates="settings")
