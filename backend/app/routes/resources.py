@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.resource import ResourceType
+from app.models.question import DifficultyLevel
 from app.models.user import User
 from app.schemas.resource import (
     CloudinarySignatureRequest,
@@ -92,6 +93,7 @@ async def list_resources(
     type: Optional[ResourceType] = None,
     tag_ids: List[uuid.UUID] = Query(default=[]),
     search: Optional[str] = None,
+    difficulty: Optional[DifficultyLevel] = None,
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     db: AsyncSession = Depends(get_db),
@@ -104,6 +106,7 @@ async def list_resources(
         type=type,
         tag_ids=tag_ids or None,
         search=search,
+        difficulty=difficulty,
         limit=limit,
         offset=offset,
     )

@@ -11,7 +11,8 @@
     "next": "Next",
     "submit": "Submit",
     "search": "Search",
-    "filter": "Filter"
+    "filter": "Filter",
+    "loadMore": "Load more"
   },
 
   "nav": {
@@ -126,10 +127,7 @@
       "titlePlaceholder": "Enter title...",
       "description": "Description",
       "descriptionPlaceholder": "Optional...",
-      "language": "Quest language",
-      "players": "Number of players",
-      "solo": "Individual",
-      "team": "Team ({n} players)"
+      "language": "Quest language"
     },
     "map": {
       "selectMap": "Select a map",
@@ -138,22 +136,17 @@
       "noResources": "No resources added yet",
       "resourceCount": "{count} resources",
       "done": "Done",
-      "search": "Search..."
+      "search": "Search...",
+      "allFolders": "All folders",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all"
     },
     "settings": {
       "time": "Time limit",
       "timeLimit": "Limit time",
       "minutes": "Minutes",
-      "order": "Order & display",
-      "randomOrder": "Random resource order",
-      "showAllTexts": "Show all text materials at once",
-      "showAllTextsDisabled": "Too many text materials",
-      "keepCompleted": "Keep completed materials in list",
-      "team": "Team mode",
-      "distributeTexts": "Distribute text materials among players",
-      "results": "Results",
-      "showScore": "Show score after quest",
-      "showCorrect": "Show correct answers"
+      "order": "Order",
+      "randomOrder": "Random resource order"
     },
     "preview": {
       "settings": "Settings",
@@ -211,8 +204,24 @@
     "session": {
       "newTitle": "New Session",
       "quest": "Quest",
+      "mode": "Game mode",
       "solo": "Individual",
-      "team": "Team ({n} players)",
+      "soloHint": "Each player completes the quest on their own",
+      "teamMode": "Team mode",
+      "teamModeHint": "Players complete the quest together",
+      "teamSize": "Players per team",
+      "allowSolo": "Allow individual play",
+      "allowSoloHint": "Players can start without waiting for a full team",
+      "gameplay": "Gameplay",
+      "showFeedback": "Show feedback after each answer",
+      "showFeedbackHint": "Players see whether their answer was correct immediately",
+      "keepCompleted": "Keep completed materials in list",
+      "keepCompletedHint": "Players can revisit previous materials during the quest",
+      "allowChangeAnswers": "Allow changing answers",
+      "allowChangeAnswersHint": "Players can change their answer after the first submission",
+      "results": "Results",
+      "showScore": "Show score after quest",
+      "showCorrect": "Show correct answers",
       "schedule": "Schedule start time",
       "scheduleEnd": "Schedule end time",
       "create": "Create Session",
@@ -231,10 +240,15 @@
       "sessionClosed": "Session is closed"
     },
     "lobby": {
-      "waiting": "Waiting for the teacher to start...",
+      "waiting": "Connecting...",
       "players": "Players",
       "start": "Start",
-      "sessionCode": "Session Code"
+      "starting": "Starting...",
+      "startError": "Failed to start",
+      "sessionCode": "Session Code",
+      "minPlayers": "At least 2 players required for team mode",
+      "waitingOptional": "You can start alone or wait for teammates",
+      "waitingRequired": "Wait for one more player to join"
     },
     "game": {
       "materials": "Materials",

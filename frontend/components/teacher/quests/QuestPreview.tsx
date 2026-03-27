@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { generateHTML } from "@tiptap/core";
+import TextAlign from "@tiptap/extension-text-align";
+import StarterKit from "@tiptap/starter-kit";
 import {
   ArrowLeft,
   Check,
@@ -12,21 +12,19 @@ import {
   Pencil,
   Play,
   Shuffle,
-  Users,
-  X,
 } from "lucide-react";
-import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import TextAlign from "@tiptap/extension-text-align";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
-import { sanitizeHtml } from "@/lib/sanitize";
+import { useRouter } from "@/i18n/navigation";
+import { getMap, getMaps } from "@/lib/api/maps";
 import { getQuest } from "@/lib/api/quests";
-import { getMaps, getMap } from "@/lib/api/maps";
 import { getResource } from "@/lib/api/resources";
-import MapPreview from "./MapPreview";
-import type { QuestResponse, QuestSettings, QuestStatus } from "@/types/quest";
+import { sanitizeHtml } from "@/lib/sanitize";
 import type { MapResponse } from "@/types/map";
+import type { QuestResponse, QuestStatus } from "@/types/quest";
 import type { ResourceDetailResponse } from "@/types/resource";
+import MapPreview from "./MapPreview";
 
 const STATUS_STYLE: Record<QuestStatus, { bg: string; color: string }> = {
   draft: { bg: "#f3f4f6", color: "#4b5563" },
@@ -119,24 +117,11 @@ export default function QuestPreview({ questId }: Props) {
   }
 
   const translation = quest.translations[0];
-  const settings = quest.settings as QuestSettings | null;
+  const settings = quest.settings;
   const badge = STATUS_STYLE[quest.status];
 
   // Build active settings chips
   const chips: { icon: React.ReactNode; label: string; color: string }[] = [];
-  if (quest.max_players > 1) {
-    chips.push({
-      icon: <Users size={13} />,
-      label: tp("settingTeam", { n: quest.max_players }),
-      color: "#7c3aed",
-    });
-  } else {
-    chips.push({
-      icon: <Users size={13} />,
-      label: tp("settingSolo"),
-      color: "#6b7280",
-    });
-  }
   if (settings?.time_limit_minutes) {
     chips.push({
       icon: <Clock size={13} />,
@@ -149,34 +134,6 @@ export default function QuestPreview({ questId }: Props) {
       icon: <Shuffle size={13} />,
       label: tp("settingRandom"),
       color: "#2563eb",
-    });
-  }
-  if (settings?.show_all_texts) {
-    chips.push({
-      icon: <FileText size={13} />,
-      label: tp("settingShowAll"),
-      color: "#2563eb",
-    });
-  }
-  if (settings?.distribute_texts_in_team) {
-    chips.push({
-      icon: <FileText size={13} />,
-      label: tp("settingDistribute"),
-      color: "#7c3aed",
-    });
-  }
-  if (settings?.show_score_after) {
-    chips.push({
-      icon: <Check size={13} />,
-      label: tp("settingScore"),
-      color: "#16a34a",
-    });
-  }
-  if (settings?.show_correct_answers) {
-    chips.push({
-      icon: <Check size={13} />,
-      label: tp("settingCorrect"),
-      color: "#16a34a",
     });
   }
 

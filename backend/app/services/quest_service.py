@@ -1,20 +1,19 @@
-import math
 import uuid
 from typing import List, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.map import Map, MapObject, MapTranslation
+from app.models.map import Map
 from app.models.quest import Quest, QuestResource, QuestSettings, QuestTranslation
-from app.models.resource import Resource, ResourceType
 from app.schemas.quest import QuestCreate, QuestListItem, QuestUpdate
 
 
 def _make_slug(title: str) -> str:
     import re
+
     base = re.sub(r"[^\w\s-]", "", title.lower())
     base = re.sub(r"[\s_-]+", "-", base).strip("-")
     return f"{base}-{str(uuid.uuid4())[:8]}"
@@ -28,7 +27,9 @@ def _load_options():
     )
 
 
-async def _get_own_quest(db: AsyncSession, quest_id: uuid.UUID, teacher_id: uuid.UUID) -> Quest:
+async def _get_own_quest(
+    db: AsyncSession, quest_id: uuid.UUID, teacher_id: uuid.UUID
+) -> Quest:
     result = await db.execute(
         select(Quest)
         .where(Quest.id == quest_id, Quest.teacher_id == teacher_id)
@@ -36,49 +37,10 @@ async def _get_own_quest(db: AsyncSession, quest_id: uuid.UUID, teacher_id: uuid
     )
     quest = result.scalar_one_or_none()
     if not quest:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found")
-    return quest
-
-
-async def _validate_show_all_texts(
-    db: AsyncSession,
-    map_id: Optional[uuid.UUID],
-    resource_ids: List[uuid.UUID],
-    show_all_texts: bool,
-) -> None:
-    if not show_all_texts:
-        return
-
-    # Count interactive objects on the map
-    objects_count = 0
-    if map_id:
-        result = await db.execute(
-            select(func.count()).where(
-                MapObject.map_id == map_id,
-                MapObject.is_interactive == True,  # noqa: E712
-            )
-        )
-        objects_count = result.scalar_one()
-
-    # Count text-type resources
-    if resource_ids:
-        result = await db.execute(
-            select(func.count())
-            .select_from(Resource)
-            .where(Resource.id.in_(resource_ids), Resource.type == ResourceType.TEXT)
-        )
-        text_count = result.scalar_one()
-    else:
-        text_count = 0
-
-    if text_count > math.floor(objects_count / 2):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"show_all_texts requires text_count ({text_count}) "
-                f"<= floor(objects_count / 2) ({math.floor(objects_count / 2)})"
-            ),
+            status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found"
         )
+    return quest
 
 
 class QuestService:
@@ -130,16 +92,10 @@ class QuestService:
     async def create_quest(
         db: AsyncSession, teacher_id: uuid.UUID, data: QuestCreate
     ) -> Quest:
-        resource_ids = [r.resource_id for r in data.resources]
-        await _validate_show_all_texts(
-            db, data.map_id, resource_ids, data.settings.show_all_texts
-        )
-
         quest = Quest(
             teacher_id=teacher_id,
             map_id=data.map_id,
             slug=_make_slug(data.title),
-            max_players=data.max_players,
         )
         db.add(quest)
         await db.flush()
@@ -191,8 +147,6 @@ class QuestService:
 
         if data.map_id is not None:
             quest.map_id = data.map_id
-        if data.max_players is not None:
-            quest.max_players = data.max_players
 
         # Update or create translation for the given language
         if data.title is not None or data.description is not None:
@@ -217,15 +171,6 @@ class QuestService:
 
         # Update settings
         if data.settings is not None:
-            resource_ids = (
-                [r.resource_id for r in data.resources]
-                if data.resources is not None
-                else [r.resource_id for r in quest.resources]
-            )
-            map_id = data.map_id if data.map_id is not None else quest.map_id
-            await _validate_show_all_texts(
-                db, map_id, resource_ids, data.settings.show_all_texts
-            )
             if quest.settings:
                 for field, value in data.settings.model_dump().items():
                     setattr(quest.settings, field, value)

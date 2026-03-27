@@ -54,6 +54,7 @@ export interface ListResourcesParams {
   type?: ResourceType | null;
   tag_ids?: string[];
   search?: string;
+  difficulty?: string | null;
   limit?: number;
   offset?: number;
 }
@@ -71,7 +72,9 @@ export const getResources = async (
     paramsSerializer: (p) =>
       Object.entries(p)
         .flatMap(([k, v]) =>
-          Array.isArray(v) ? v.map((i) => `${k}=${encodeURIComponent(i)}`) : [`${k}=${encodeURIComponent(String(v))}`],
+          Array.isArray(v)
+            ? v.map((i) => `${k}=${encodeURIComponent(i)}`)
+            : [`${k}=${encodeURIComponent(String(v))}`],
         )
         .join("&"),
   });

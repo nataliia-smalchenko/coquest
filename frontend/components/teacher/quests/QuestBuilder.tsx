@@ -1,25 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
 import { ArrowLeft, Check, Loader2, Save } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "@/i18n/navigation";
 import {
   createQuest,
   getQuest,
-  updateQuest,
   publishQuest,
+  updateQuest,
 } from "@/lib/api/quests";
-import { getResources } from "@/lib/api/resources";
-import BasicInfoStep, { type BasicInfoRef } from "./steps/BasicInfoStep";
-import MapAndResourcesStep from "./steps/MapAndResourcesStep";
-import SettingsStep from "./steps/SettingsStep";
 import type {
   QuestCreate,
   QuestResourceItem,
   QuestSettingsCreate,
 } from "@/types/quest";
-import type { ResourceResponse } from "@/types/resource";
+import BasicInfoStep, { type BasicInfoRef } from "./steps/BasicInfoStep";
+import MapAndResourcesStep from "./steps/MapAndResourcesStep";
+import SettingsStep from "./steps/SettingsStep";
 
 interface Props {
   mode: "create" | "edit";
@@ -29,25 +27,19 @@ interface Props {
 const DEFAULT_SETTINGS: QuestSettingsCreate = {
   time_limit_minutes: null,
   random_order: false,
-  show_all_texts: false,
-  keep_completed_in_materials: true,
-  show_score_after: true,
-  show_correct_answers: true,
-  distribute_texts_in_team: false,
 };
 
 interface BuilderData {
   title: string;
   description?: string;
   language: string;
-  max_players: number;
   map_id?: string;
   resources: QuestResourceItem[];
   settings: QuestSettingsCreate;
 }
 
 export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
-  const t = useTranslations("quests");
+  const _t = useTranslations("quests");
   const tBuilder = useTranslations("quests.builder");
   const tCommon = useTranslations("common");
   const locale = useLocale();
@@ -58,13 +50,9 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
   const [dataReady, setDataReady] = useState(mode === "create");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const [resourceCache, setResourceCache] = useState<
-    Record<string, ResourceResponse>
-  >({});
   const [data, setData] = useState<BuilderData>({
     title: "",
     language: locale,
-    max_players: 1,
     resources: [],
     settings: { ...DEFAULT_SETTINGS },
   });
@@ -81,7 +69,6 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
             title: tr?.title ?? "",
             description: tr?.description ?? undefined,
             language: tr?.language ?? locale,
-            max_players: q.max_players,
             map_id: q.map_id ?? undefined,
             resources: q.resources.map((r) => ({
               resource_id: r.resource_id,
@@ -95,17 +82,6 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
     }
   }, [mode, initialQuestId, locale, router]);
 
-  // Load resource cache
-  useEffect(() => {
-    getResources().then((list) => {
-      const cache: Record<string, ResourceResponse> = {};
-      list.forEach((r) => {
-        cache[r.id] = r;
-      });
-      setResourceCache(cache);
-    });
-  }, []);
-
   const showToast = (msg: string, ok: boolean) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 2500);
@@ -117,7 +93,6 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
     title: data.title,
     description: data.description ?? null,
     language: data.language,
-    max_players: data.max_players,
     map_id: data.map_id,
     settings: data.settings,
     resources: data.resources,
@@ -179,12 +154,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
     tBuilder("steps.settings"),
   ];
 
-  const [interactiveCount, setInteractiveCount] = useState(0);
-
-  // Compute text count for show_all_texts validation
-  const textCount = data.resources.filter(
-    (r) => resourceCache[r.resource_id]?.type === "text",
-  ).length;
+  const [_interactiveCount, setInteractiveCount] = useState(0);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
@@ -495,7 +465,6 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
               title: data.title,
               description: data.description,
               language: data.language,
-              max_players: data.max_players,
             }}
             onChange={(d) => setData((prev) => ({ ...prev, ...d }))}
           />
@@ -515,9 +484,6 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
         {step === 2 && (
           <SettingsStep
             settings={data.settings}
-            maxPlayers={data.max_players}
-            textCount={textCount}
-            interactiveCount={interactiveCount}
             onChange={(s) => setData((prev) => ({ ...prev, settings: s }))}
           />
         )}

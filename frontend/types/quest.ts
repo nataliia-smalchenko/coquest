@@ -3,11 +3,6 @@ export type QuestStatus = "draft" | "published" | "archived";
 export interface QuestSettings {
   time_limit_minutes: number | null;
   random_order: boolean;
-  show_all_texts: boolean;
-  keep_completed_in_materials: boolean;
-  show_score_after: boolean;
-  show_correct_answers: boolean;
-  distribute_texts_in_team: boolean;
 }
 
 export interface QuestTranslation {
@@ -27,7 +22,6 @@ export interface QuestResponse {
   slug: string;
   status: QuestStatus;
   map_id: string | null;
-  max_players: number;
   translations: QuestTranslation[];
   settings: QuestSettings | null;
   resources: QuestResource[];
@@ -51,11 +45,6 @@ export interface QuestListItem {
 export interface QuestSettingsCreate {
   time_limit_minutes?: number | null;
   random_order?: boolean;
-  show_all_texts?: boolean;
-  keep_completed_in_materials?: boolean;
-  show_score_after?: boolean;
-  show_correct_answers?: boolean;
-  distribute_texts_in_team?: boolean;
 }
 
 export interface QuestResourceItem {
@@ -68,7 +57,6 @@ export interface QuestCreate {
   title: string;
   description?: string | null;
   language?: string;
-  max_players?: number;
   settings?: QuestSettingsCreate;
   resources?: QuestResourceItem[];
 }
@@ -78,7 +66,6 @@ export interface QuestUpdate {
   title?: string;
   description?: string | null;
   language?: string;
-  max_players?: number;
   settings?: QuestSettingsCreate;
   resources?: QuestResourceItem[];
 }

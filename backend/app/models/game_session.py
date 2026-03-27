@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import String, Integer, DateTime, Enum, ForeignKey, Uuid, func
+from sqlalchemy import String, Integer, Boolean, DateTime, Enum, ForeignKey, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -52,6 +52,24 @@ class GameSession(Base):
         DateTime(timezone=True), nullable=True
     )
     max_players: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    allow_solo_in_team: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    show_feedback_after_answer: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    show_score_after: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    show_correct_answers: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    keep_completed_in_materials: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    allow_change_answers: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
