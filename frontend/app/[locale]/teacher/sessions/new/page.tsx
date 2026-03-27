@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ArrowLeft, Calendar, Play, User, Users } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Play, Calendar, Users, ArrowLeft } from "lucide-react";
-import { createSession } from "@/lib/api/sessions";
+import { useEffect, useState } from "react";
+import { useRouter } from "@/i18n/navigation";
 import { getQuest } from "@/lib/api/quests";
+import { createSession } from "@/lib/api/sessions";
 import type { QuestResponse } from "@/types/quest";
 
 export default function NewSessionPage() {
@@ -17,15 +17,26 @@ export default function NewSessionPage() {
   const questId = searchParams.get("quest_id") ?? "";
 
   const [quest, setQuest] = useState<QuestResponse | null>(null);
+  const [loadingQuest, setLoadingQuest] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Game mode
+  const [maxPlayers, setMaxPlayers] = useState(1);
+  const [allowSoloInTeam, setAllowSoloInTeam] = useState(true);
+
+  // Gameplay settings
+  const [showFeedbackAfterAnswer, setShowFeedbackAfterAnswer] = useState(false);
+  const [showScoreAfter, setShowScoreAfter] = useState(true);
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState(true);
+  const [keepCompleted, setKeepCompleted] = useState(true);
+  const [allowChangeAnswers, setAllowChangeAnswers] = useState(true);
+
+  // Scheduling
   const [scheduledAt, setScheduledAt] = useState("");
   const [useScheduled, setUseScheduled] = useState(false);
   const [endsAt, setEndsAt] = useState("");
   const [useEndsAt, setUseEndsAt] = useState(false);
-  const [maxParticipants, setMaxParticipants] = useState("");
-  const [useMaxParticipants, setUseMaxParticipants] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loadingQuest, setLoadingQuest] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!questId) {
@@ -45,16 +56,19 @@ export default function NewSessionPage() {
     try {
       const session = await createSession({
         quest_id: questId,
+        max_players: maxPlayers,
+        allow_solo_in_team: maxPlayers > 1 ? allowSoloInTeam : true,
+        show_feedback_after_answer: showFeedbackAfterAnswer,
+        show_score_after: showScoreAfter,
+        show_correct_answers: showCorrectAnswers,
+        keep_completed_in_materials: keepCompleted,
+        allow_change_answers: keepCompleted ? allowChangeAnswers : false,
         scheduled_at:
           useScheduled && scheduledAt
             ? new Date(scheduledAt).toISOString()
             : undefined,
         ends_at:
           useEndsAt && endsAt ? new Date(endsAt).toISOString() : undefined,
-        max_participants:
-          useMaxParticipants && maxParticipants
-            ? Number(maxParticipants)
-            : undefined,
       });
       router.push(`/teacher/sessions/${session.id}/monitor`);
     } catch (err: unknown) {
@@ -67,6 +81,34 @@ export default function NewSessionPage() {
   };
 
   const translation = quest?.translations?.[0];
+  const isTeam = maxPlayers > 1;
+
+  const cardStyle = "bg-white rounded-2xl border border-gray-200 p-5 space-y-3";
+  const sectionLabel =
+    "text-xs font-semibold text-gray-400 uppercase tracking-wide";
+  const checkRow = (
+    label: string,
+    hint: string | null,
+    checked: boolean,
+    onChange: (v: boolean) => void,
+    disabled = false,
+  ) => (
+    <label
+      className={`flex items-start gap-3 ${disabled ? "opacity-50" : "cursor-pointer"}`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="w-4 h-4 accent-blue-600 mt-0.5 flex-shrink-0"
+      />
+      <div>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
+        {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+      </div>
+    </label>
+  );
 
   if (loadingQuest) {
     return (
@@ -89,6 +131,7 @@ export default function NewSessionPage() {
           }}
         >
           <button
+            type="button"
             onClick={() => router.push(`/teacher/quests/${questId}`)}
             className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"
           >
@@ -108,46 +151,133 @@ export default function NewSessionPage() {
         style={{ marginTop: "40px", paddingLeft: "24px", paddingRight: "24px" }}
       >
         {/* Quest info */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
-            {t("quest")}
-          </p>
+        <div className={cardStyle}>
+          <p className={sectionLabel}>{t("quest")}</p>
           <p className="text-base font-semibold text-gray-900">
             {translation?.title ?? "—"}
           </p>
-          <p className="text-sm text-gray-500 mt-1">
-            Індивідуальне проходження
-          </p>
         </div>
 
-        {/* Max participants (optional) */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={useMaxParticipants}
-              onChange={(e) => setUseMaxParticipants(e.target.checked)}
-              className="w-4 h-4 accent-blue-600"
-            />
-            <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Users size={15} className="text-gray-400" />
-              Обмежити кількість учасників
-            </span>
-          </label>
-          {useMaxParticipants && (
-            <input
-              type="number"
-              min={1}
-              value={maxParticipants}
-              onChange={(e) => setMaxParticipants(e.target.value)}
-              placeholder="Максимум учасників"
-              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+        {/* Game mode */}
+        <div className={cardStyle}>
+          <p className={sectionLabel}>{t("mode")}</p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setMaxPlayers(1)}
+              className="flex-1 p-3 rounded-xl border-2 text-left transition-all"
+              style={{
+                borderColor: !isTeam ? "#2563eb" : "#e5e7eb",
+                backgroundColor: !isTeam ? "#eff6ff" : "white",
+                color: !isTeam ? "#2563eb" : "#374151",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <User size={15} />
+                <span className="text-sm font-semibold">{t("solo")}</span>
+              </div>
+              <p
+                className="text-xs"
+                style={{ color: !isTeam ? "#3b82f6" : "#9ca3af" }}
+              >
+                {t("soloHint")}
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMaxPlayers(4)}
+              className="flex-1 p-3 rounded-xl border-2 text-left transition-all"
+              style={{
+                borderColor: isTeam ? "#2563eb" : "#e5e7eb",
+                backgroundColor: isTeam ? "#eff6ff" : "white",
+                color: isTeam ? "#2563eb" : "#374151",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Users size={15} />
+                <span className="text-sm font-semibold">{t("teamMode")}</span>
+              </div>
+              <p
+                className="text-xs"
+                style={{ color: isTeam ? "#3b82f6" : "#9ca3af" }}
+              >
+                {t("teamModeHint")}
+              </p>
+            </button>
+          </div>
+          {isTeam && (
+            <div>
+              <span className="text-xs font-medium text-gray-500 block mb-1">
+                {t("teamSize")}
+              </span>
+              <div className="flex gap-2">
+                {[2, 3, 4].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setMaxPlayers(n)}
+                    className="w-10 h-10 rounded-lg border-2 text-sm font-semibold transition-all"
+                    style={{
+                      borderColor: maxPlayers === n ? "#2563eb" : "#e5e7eb",
+                      backgroundColor: maxPlayers === n ? "#eff6ff" : "white",
+                      color: maxPlayers === n ? "#2563eb" : "#374151",
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3">
+                {checkRow(
+                  t("allowSolo"),
+                  t("allowSoloHint"),
+                  allowSoloInTeam,
+                  setAllowSoloInTeam,
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Gameplay settings */}
+        <div className={cardStyle}>
+          <p className={sectionLabel}>{t("gameplay")}</p>
+          {checkRow(
+            t("showFeedback"),
+            t("showFeedbackHint"),
+            showFeedbackAfterAnswer,
+            setShowFeedbackAfterAnswer,
+          )}
+          {checkRow(
+            t("keepCompleted"),
+            t("keepCompletedHint"),
+            keepCompleted,
+            setKeepCompleted,
+          )}
+          {keepCompleted &&
+            checkRow(
+              t("allowChangeAnswers"),
+              t("allowChangeAnswersHint"),
+              allowChangeAnswers,
+              setAllowChangeAnswers,
+            )}
+        </div>
+
+        {/* Results settings */}
+        <div className={cardStyle}>
+          <p className={sectionLabel}>{t("results")}</p>
+          {checkRow(t("showScore"), null, showScoreAfter, setShowScoreAfter)}
+          {checkRow(
+            t("showCorrect"),
+            null,
+            showCorrectAnswers,
+            setShowCorrectAnswers,
+            !showScoreAfter,
           )}
         </div>
 
         {/* Scheduled start time (optional) */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+        <div className={cardStyle}>
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -171,7 +301,7 @@ export default function NewSessionPage() {
         </div>
 
         {/* End time (optional) */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+        <div className={cardStyle}>
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -202,6 +332,7 @@ export default function NewSessionPage() {
 
         {/* Create button */}
         <button
+          type="button"
           onClick={handleCreate}
           disabled={loading}
           className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors text-sm"

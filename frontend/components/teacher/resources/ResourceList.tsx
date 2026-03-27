@@ -1,13 +1,21 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Loader2 } from "lucide-react";
 import { useResourceStore } from "@/hooks/useResourceStore";
 import { ResourceCard, ResourceCardSkeleton } from "./ResourceCard";
 
 export function ResourceList() {
   const t = useTranslations("resources");
-  const { resources, isLoading, selectedFolderId } = useResourceStore();
+  const tCommon = useTranslations("common");
+  const {
+    resources,
+    isLoading,
+    hasMore,
+    isLoadingMore,
+    loadMoreResources,
+    selectedFolderId,
+  } = useResourceStore();
 
   const gridStyle: React.CSSProperties = {
     display: "grid",
@@ -38,10 +46,47 @@ export function ResourceList() {
   }
 
   return (
-    <div style={gridStyle}>
-      {resources.map((resource) => (
-        <ResourceCard key={resource.id} resource={resource} />
-      ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={gridStyle}>
+        {resources.map((resource) => (
+          <ResourceCard key={resource.id} resource={resource} />
+        ))}
+      </div>
+
+      {hasMore && (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <button
+            onClick={loadMoreResources}
+            disabled={isLoadingMore}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "9px 24px",
+              border: "1.5px solid #e5e7eb",
+              borderRadius: "10px",
+              background: "white",
+              fontSize: "13px",
+              fontWeight: 500,
+              color: "#374151",
+              cursor: isLoadingMore ? "not-allowed" : "pointer",
+              opacity: isLoadingMore ? 0.7 : 1,
+              transition: "background 0.12s",
+            }}
+            onMouseEnter={(e) => {
+              if (!isLoadingMore)
+                (e.currentTarget as HTMLButtonElement).style.background =
+                  "#f9fafb";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "white";
+            }}
+          >
+            {isLoadingMore && <Loader2 size={14} className="animate-spin" />}
+            {isLoadingMore ? tCommon("loading") : tCommon("loadMore")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

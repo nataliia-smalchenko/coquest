@@ -121,6 +121,54 @@ pre code {
   font-weight: bold;
 }
 
+/* Tiptap preview (read-only rendered HTML) */
+.tiptap-preview h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.75em 0 0.25em;
+}
+.tiptap-preview h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.75em 0 0.25em;
+}
+.tiptap-preview h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+}
+.tiptap-preview p {
+  margin: 0 0 0.5em;
+  line-height: 1.6;
+}
+.tiptap-preview ul,
+.tiptap-preview ol {
+  padding-left: 1.5em;
+  margin: 0 0 0.5em;
+}
+.tiptap-preview li {
+  margin-bottom: 0.25em;
+}
+.tiptap-preview img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.tiptap-preview strong {
+  font-weight: 600;
+}
+.tiptap-preview em {
+  font-style: italic;
+}
+.tiptap-preview u {
+  text-decoration: underline;
+}
+.tiptap-preview [style*="text-align: center"] {
+  text-align: center;
+}
+.tiptap-preview [style*="text-align: right"] {
+  text-align: right;
+}
+
 /* Tiptap / ProseMirror */
 .ProseMirror {
   outline: none;
