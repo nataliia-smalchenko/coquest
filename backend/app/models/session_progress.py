@@ -11,6 +11,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.game_session import GameSession
+    from app.models.session_team import SessionTeam
     from app.models.session_player import SessionPlayer
     from app.models.resource import Resource
     from app.models.map import MapObject
@@ -27,10 +28,22 @@ class SessionProgress(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("game_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid,
+        ForeignKey("game_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    team_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("session_teams.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     player_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("session_players.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid,
+        ForeignKey("session_players.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     resource_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid, ForeignKey("resources.id", ondelete="SET NULL"), nullable=True, index=True
@@ -58,6 +71,9 @@ class SessionProgress(Base):
     # Relationships
     session: Mapped["GameSession"] = relationship(
         "GameSession", back_populates="progress"
+    )
+    team: Mapped[Optional["SessionTeam"]] = relationship(
+        "SessionTeam", back_populates="progress"
     )
     player: Mapped["SessionPlayer"] = relationship(
         "SessionPlayer", back_populates="progress"

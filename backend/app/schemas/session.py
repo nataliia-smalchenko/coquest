@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.game_session import SessionStatus
 from app.models.session_player import PlayerStatus
 from app.models.session_progress import ProgressStatus
+from app.models.session_team import TeamStatus
 
 
 class SessionCreate(BaseModel):
@@ -35,6 +36,26 @@ class JoinSessionRequest(BaseModel):
     display_name: Optional[str] = None
 
 
+class TeamPlayerResponse(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    avatar_color: str
+    status: PlayerStatus
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamResponse(BaseModel):
+    id: uuid.UUID
+    session_id: uuid.UUID
+    status: TeamStatus
+    players: List[TeamPlayerResponse]
+    created_at: datetime
+    started_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SessionPlayerResponse(BaseModel):
     id: uuid.UUID
     session_id: uuid.UUID
@@ -44,8 +65,10 @@ class SessionPlayerResponse(BaseModel):
     avatar_color: str
     status: PlayerStatus
     joined_at: datetime
+    started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     guest_token: str
+    team_id: Optional[uuid.UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -116,12 +139,38 @@ class GameSessionDetailResponse(GameSessionResponse):
     chat_messages: List[SessionChatMessage] = []
 
 
+class QuestionResultOption(BaseModel):
+    id: str
+    text: str
+    is_correct: bool
+
+
+class QuestionResultData(BaseModel):
+    body: str
+    question_type: str
+    options: List[QuestionResultOption]
+    correct_answers: List[str]
+
+
+class SessionProgressResultResponse(SessionProgressResponse):
+    resource_title: Optional[str] = None
+    question: Optional[QuestionResultData] = None
+
+
+class GameSessionResultResponse(GameSessionResponse):
+    progress: List[SessionProgressResultResponse] = []
+    chat_messages: List[SessionChatMessage] = []
+
+
 class PlayerProgressSummary(BaseModel):
     player: SessionPlayerResponse
     completed: int
     total: int
     score: Optional[float] = None
     pending_review: int
+    correct: int = 0
+    incorrect: int = 0
+    viewed: int = 0
 
 
 class TeacherMonitorResponse(BaseModel):

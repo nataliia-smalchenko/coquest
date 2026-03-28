@@ -17,6 +17,7 @@ from app.models.resource import Resource
 from app.models.session_chat import SessionChat
 from app.models.session_player import PlayerStatus, SessionPlayer
 from app.models.session_progress import ProgressStatus, SessionProgress
+from app.models.session_team import SessionTeam, TeamStatus
 from app.models.user import User
 from app.schemas.session import (
     GameInfoResponse,
@@ -33,6 +34,8 @@ from app.schemas.session import (
     SessionProgressResponse,
     SubmitAnswerRequest,
     TeacherMonitorResponse,
+    TeamPlayerResponse,
+    TeamResponse,
 )
 
 AVATAR_COLORS = [
@@ -51,6 +54,24 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+async def _maybe_expire_session(db: AsyncSession, session: GameSession) -> bool:
+    """Auto-stop a session if ends_at has passed. Returns True if the session was expired."""
+    if session.status != SessionStatus.ACTIVE or session.ends_at is None:
+        return False
+    now = _now()
+    if session.ends_at >= now:
+        return False
+    session.status = SessionStatus.STOPPED
+    results_until = now + timedelta(days=30)
+    for player in session.players:
+        if player.status != PlayerStatus.FINISHED:
+            player.status = PlayerStatus.FINISHED
+            player.finished_at = now
+        player.results_available_until = results_until
+    await db.flush()
+    return True
+
+
 def _player_response(player: SessionPlayer) -> SessionPlayerResponse:
     return SessionPlayerResponse(
         id=player.id,
@@ -61,9 +82,52 @@ def _player_response(player: SessionPlayer) -> SessionPlayerResponse:
         avatar_color=player.avatar_color,
         status=player.status,
         joined_at=player.joined_at,
+        started_at=player.started_at,
         finished_at=player.finished_at,
         guest_token=player.guest_token,
+        team_id=player.team_id,
     )
+
+
+def _team_response(team: SessionTeam) -> TeamResponse:
+    return TeamResponse(
+        id=team.id,
+        session_id=team.session_id,
+        status=team.status,
+        players=[
+            TeamPlayerResponse(
+                id=p.id,
+                display_name=p.display_name,
+                avatar_color=p.avatar_color,
+                status=p.status,
+            )
+            for p in team.players
+        ],
+        created_at=team.created_at,
+        started_at=team.started_at,
+    )
+
+
+async def _find_or_create_team(db: AsyncSession, session: GameSession) -> SessionTeam:
+    """Find a waiting team with an open slot, or create a new one."""
+    result = await db.execute(
+        select(SessionTeam)
+        .where(
+            SessionTeam.session_id == session.id,
+            SessionTeam.status == TeamStatus.WAITING,
+        )
+        .options(selectinload(SessionTeam.players))
+        .order_by(SessionTeam.created_at)
+    )
+    waiting_teams = list(result.scalars().all())
+    team = next(
+        (t for t in waiting_teams if len(t.players) < session.max_players), None
+    )
+    if not team:
+        team = SessionTeam(session_id=session.id)
+        db.add(team)
+        await db.flush()
+    return team
 
 
 def _session_response(session: GameSession) -> GameSessionResponse:
@@ -156,12 +220,16 @@ def _auto_score(question, answer: dict) -> Tuple[Optional[float], bool]:
 async def _check_player_completion(
     db: AsyncSession, session_id: uuid.UUID, player: SessionPlayer
 ) -> None:
-    """Mark player FINISHED if all their progress items are answered; then check session completion."""
+    """Mark player FINISHED if all their progress items are answered.
+
+    The session itself stays ACTIVE until the teacher explicitly stops it —
+    multiple teams/players can be playing concurrently in the same session.
+    """
     remaining_result = await db.execute(
         select(func.count()).where(
             SessionProgress.session_id == session_id,
             SessionProgress.player_id == player.id,
-            SessionProgress.status != ProgressStatus.ANSWERED,
+            SessionProgress.status == ProgressStatus.ASSIGNED,
         )
     )
     if remaining_result.scalar_one() > 0:
@@ -169,19 +237,26 @@ async def _check_player_completion(
 
     player.status = PlayerStatus.FINISHED
     player.finished_at = _now()
+    player.results_available_until = _now() + timedelta(days=30)
     await db.flush()
 
-    all_players_result = await db.execute(
-        select(SessionPlayer).where(SessionPlayer.session_id == session_id)
-    )
-    all_players = all_players_result.scalars().all()
-    if all(p.status == PlayerStatus.FINISHED for p in all_players):
-        session_result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
+    if player.team_id is not None:
+        # Team mode: mark team COMPLETED when all members finish
+        team_players_result = await db.execute(
+            select(SessionPlayer).where(
+                SessionPlayer.team_id == player.team_id,
+                SessionPlayer.session_id == session_id,
+            )
         )
-        await SessionService._complete_session(db, session_result.scalar_one())
+        team_players = team_players_result.scalars().all()
+        if all(p.status == PlayerStatus.FINISHED for p in team_players):
+            team_result = await db.execute(
+                select(SessionTeam).where(SessionTeam.id == player.team_id)
+            )
+            team = team_result.scalar_one_or_none()
+            if team:
+                team.status = TeamStatus.COMPLETED
+            await db.flush()
 
 
 async def _advance_queue(
@@ -222,10 +297,11 @@ async def _advance_queue(
     )
     used_ids = {row[0] for row in used_result.all()}
 
-    # Pick the next object not yet used
-    next_obj = next((obj for obj in all_objects if obj.id not in used_ids), None)
-    if not next_obj:
+    # Pick a random object not yet used
+    available_objs = [obj for obj in all_objects if obj.id not in used_ids]
+    if not available_objs:
         return
+    next_obj = random.choice(available_objs)
 
     # Assign the next queued progress item to it
     queued_result = await db.execute(
@@ -257,6 +333,12 @@ class SessionService:
             .order_by(GameSession.created_at.desc())
         )
         sessions = result.scalars().all()
+        expired_any = False
+        for s in sessions:
+            if await _maybe_expire_session(db, s):
+                expired_any = True
+        if expired_any:
+            await db.commit()
         return [
             SessionListItem(
                 id=s.id,
@@ -371,18 +453,14 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
             )
-        if session.status not in (SessionStatus.WAITING, SessionStatus.ACTIVE):
+        if session.status not in (
+            SessionStatus.WAITING,
+            SessionStatus.ACTIVE,
+            SessionStatus.SCHEDULED,
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Session is not accepting new players",
-            )
-
-        active_count = sum(
-            1 for p in session.players if p.status != PlayerStatus.FINISHED
-        )
-        if active_count >= session.max_players:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Session is full"
             )
 
         # Authenticated user: return existing player record if already joined
@@ -420,6 +498,13 @@ class SessionService:
             status=PlayerStatus.WAITING,
         )
         db.add(player)
+        await db.flush()
+
+        # In team mode, assign player to a waiting team (or create one)
+        if session.max_players > 1:
+            team = await _find_or_create_team(db, session)
+            player.team_id = team.id
+
         await db.commit()
         await db.refresh(player)
         return _player_response(player)
@@ -441,15 +526,9 @@ class SessionService:
         session.status = SessionStatus.ACTIVE
         session.started_at = now
 
-        settings_result = await db.execute(
-            select(QuestSettings).where(QuestSettings.quest_id == session.quest_id)
-        )
-        settings = settings_result.scalar_one_or_none()
-        if settings and settings.time_limit_minutes:
-            session.ends_at = now + timedelta(minutes=settings.time_limit_minutes)
-
         for player in session.players:
             player.status = PlayerStatus.PLAYING
+            player.started_at = now
 
         await db.commit()
 
@@ -464,50 +543,32 @@ class SessionService:
     async def player_start_session(
         db: AsyncSession, session_id: uuid.UUID, player: SessionPlayer
     ) -> GameSessionResponse:
-        """Start a session initiated by a player (instead of the teacher)."""
+        """Solo mode: start this player's quest. Distributes resources only for the requesting player."""
         if player.session_id != session_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
             )
 
         session = await _load_session(db, session_id)
-        if session.status not in (SessionStatus.WAITING, SessionStatus.SCHEDULED):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Session must be WAITING or SCHEDULED to start",
-            )
-
-        active_players = [
-            p for p in session.players if p.status != PlayerStatus.FINISHED
-        ]
-
-        # Team-only mode: require at least 2 players
-        if (
-            session.max_players > 1
-            and not session.allow_solo_in_team
-            and len(active_players) < 2
+        if session.status not in (
+            SessionStatus.WAITING,
+            SessionStatus.SCHEDULED,
+            SessionStatus.ACTIVE,
         ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="At least 2 players required to start in team mode",
+                detail="Session is not active",
             )
 
-        await SessionService._distribute_resources(db, session)
+        await SessionService._distribute_resources_for_player(db, session, player)
 
         now = _now()
-        session.status = SessionStatus.ACTIVE
-        session.started_at = now
+        if session.status != SessionStatus.ACTIVE:
+            session.status = SessionStatus.ACTIVE
+            session.started_at = now
 
-        settings_result = await db.execute(
-            select(QuestSettings).where(QuestSettings.quest_id == session.quest_id)
-        )
-        settings = settings_result.scalar_one_or_none()
-        if settings and settings.time_limit_minutes:
-            session.ends_at = now + timedelta(minutes=settings.time_limit_minutes)
-
-        for p in session.players:
-            p.status = PlayerStatus.PLAYING
-
+        player.started_at = now
+        player.status = PlayerStatus.PLAYING
         await db.commit()
 
         result = await db.execute(
@@ -516,6 +577,96 @@ class SessionService:
             .options(selectinload(GameSession.players))
         )
         return _session_response(result.scalar_one())
+
+    @staticmethod
+    async def get_team(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        team_id: uuid.UUID,
+        player: SessionPlayer,
+    ) -> TeamResponse:
+        if player.team_id != team_id or player.session_id != session_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
+        result = await db.execute(
+            select(SessionTeam)
+            .where(SessionTeam.id == team_id, SessionTeam.session_id == session_id)
+            .options(selectinload(SessionTeam.players))
+        )
+        team = result.scalar_one_or_none()
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+            )
+        return _team_response(team)
+
+    @staticmethod
+    async def start_team(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        team_id: uuid.UUID,
+        player: SessionPlayer,
+    ) -> TeamResponse:
+        """Team mode: player starts their team's quest."""
+        if player.team_id != team_id or player.session_id != session_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
+
+        result = await db.execute(
+            select(SessionTeam)
+            .where(SessionTeam.id == team_id, SessionTeam.session_id == session_id)
+            .options(selectinload(SessionTeam.players))
+        )
+        team = result.scalar_one_or_none()
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+            )
+        if team.status != TeamStatus.WAITING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Team already started"
+            )
+
+        session = await _load_session(db, session_id)
+        if session.status not in (
+            SessionStatus.WAITING,
+            SessionStatus.SCHEDULED,
+            SessionStatus.ACTIVE,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Session is not active"
+            )
+
+        if not session.allow_solo_in_team and len(team.players) < session.max_players:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Need {session.max_players} players to start",
+            )
+
+        await SessionService._distribute_resources_for_team(db, session, team)
+
+        now = _now()
+        team.status = TeamStatus.ACTIVE
+        team.started_at = now
+
+        if session.status != SessionStatus.ACTIVE:
+            session.status = SessionStatus.ACTIVE
+            session.started_at = now
+
+        for p in team.players:
+            p.status = PlayerStatus.PLAYING
+            p.started_at = now
+
+        await db.commit()
+
+        result = await db.execute(
+            select(SessionTeam)
+            .where(SessionTeam.id == team_id)
+            .options(selectinload(SessionTeam.players))
+        )
+        return _team_response(result.scalar_one())
 
     @staticmethod
     async def _distribute_resources(db: AsyncSession, session: GameSession) -> None:
@@ -548,12 +699,14 @@ class SessionService:
         random_order = settings.random_order if settings else False
 
         # Progressive display: each player gets all resources but only the first
-        # is assigned to the first map object; the rest are queued (no map_object_id).
+        # is assigned to a random map object; the rest are queued (no map_object_id).
         for player in players:
             player_resources = list(resources)
             if random_order:
                 random.shuffle(player_resources)
-            first_obj = interactive_objects[0] if interactive_objects else None
+            first_obj = (
+                random.choice(interactive_objects) if interactive_objects else None
+            )
             for i, qr in enumerate(player_resources):
                 db.add(
                     SessionProgress(
@@ -566,6 +719,129 @@ class SessionService:
                 )
 
         await db.flush()
+
+    @staticmethod
+    async def _distribute_resources_for_player(
+        db: AsyncSession, session: GameSession, player: SessionPlayer
+    ) -> None:
+        """Solo mode: give all quest resources to one player."""
+        quest_result = await db.execute(
+            select(Quest)
+            .where(Quest.id == session.quest_id)
+            .options(selectinload(Quest.settings), selectinload(Quest.resources))
+        )
+        quest = quest_result.scalar_one()
+
+        objects_result = await db.execute(
+            select(MapObject)
+            .where(
+                MapObject.map_id == quest.map_id,
+                MapObject.is_interactive == True,  # noqa: E712
+            )
+            .order_by(MapObject.order_index)
+        )
+        interactive_objects = list(objects_result.scalars().all())
+
+        resources = sorted(quest.resources, key=lambda r: r.order_index)
+        if quest.settings and quest.settings.random_order:
+            random.shuffle(resources)
+
+        first_obj = random.choice(interactive_objects) if interactive_objects else None
+        for i, qr in enumerate(resources):
+            db.add(
+                SessionProgress(
+                    session_id=session.id,
+                    player_id=player.id,
+                    resource_id=qr.resource_id,
+                    map_object_id=first_obj.id if i == 0 and first_obj else None,
+                    status=ProgressStatus.ASSIGNED,
+                )
+            )
+        await db.flush()
+
+    @staticmethod
+    async def _distribute_resources_for_team(
+        db: AsyncSession, session: GameSession, team: SessionTeam
+    ) -> None:
+        """Team mode: distribute resources round-robin among team members."""
+        quest_result = await db.execute(
+            select(Quest)
+            .where(Quest.id == session.quest_id)
+            .options(selectinload(Quest.settings), selectinload(Quest.resources))
+        )
+        quest = quest_result.scalar_one()
+
+        objects_result = await db.execute(
+            select(MapObject)
+            .where(
+                MapObject.map_id == quest.map_id,
+                MapObject.is_interactive == True,  # noqa: E712
+            )
+            .order_by(MapObject.order_index)
+        )
+        interactive_objects = list(objects_result.scalars().all())
+
+        players = team.players
+        if not players:
+            return
+
+        resources = sorted(quest.resources, key=lambda r: r.order_index)
+        if quest.settings and quest.settings.random_order:
+            random.shuffle(resources)
+
+        # Each player gets a random starting object (no two players share the same initial object)
+        available_starts = list(interactive_objects)
+        random.shuffle(available_starts)
+        player_first_obj: Dict[uuid.UUID, Optional[MapObject]] = {}
+        for idx, p in enumerate(players):
+            player_first_obj[p.id] = (
+                available_starts[idx] if idx < len(available_starts) else None
+            )
+
+        # Track how many resources each player has received (to know which is "first")
+        player_count: Dict[uuid.UUID, int] = {p.id: 0 for p in players}
+
+        for i, qr in enumerate(resources):
+            player = players[i % len(players)]
+            is_first = player_count[player.id] == 0
+            player_count[player.id] += 1
+            first_obj = player_first_obj.get(player.id)
+            db.add(
+                SessionProgress(
+                    session_id=session.id,
+                    team_id=team.id,
+                    player_id=player.id,
+                    resource_id=qr.resource_id,
+                    map_object_id=first_obj.id if is_first and first_obj else None,
+                    status=ProgressStatus.ASSIGNED,
+                )
+            )
+        await db.flush()
+
+    @staticmethod
+    async def player_timeout(
+        db: AsyncSession, session_id: uuid.UUID, player: SessionPlayer
+    ) -> SessionPlayer:
+        """Mark a player FINISHED due to time limit expiry.
+
+        Idempotent — safe to call even if the player is already FINISHED.
+        Does NOT touch the session status.
+        """
+        if player.session_id != session_id:
+            from fastapi import HTTPException, status as http_status
+
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="Player does not belong to this session",
+            )
+        if player.status != PlayerStatus.FINISHED:
+            now = _now()
+            player.status = PlayerStatus.FINISHED
+            player.finished_at = now
+            player.results_available_until = now + timedelta(days=30)
+            await db.commit()
+            await db.refresh(player)
+        return player
 
     @staticmethod
     async def stop_session(
@@ -590,16 +866,6 @@ class SessionService:
             .options(selectinload(GameSession.players))
         )
         return _session_response(result.scalar_one())
-
-    @staticmethod
-    async def _complete_session(db: AsyncSession, session: GameSession) -> None:
-        now = _now()
-        session.status = SessionStatus.COMPLETED
-        session.ends_at = now
-        results_until = now + timedelta(days=30)
-        for player in session.players:
-            player.results_available_until = results_until
-        await db.flush()
 
     @staticmethod
     async def submit_answer(
@@ -672,7 +938,7 @@ class SessionService:
                 status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
             )
 
-        progress.status = ProgressStatus.ANSWERED
+        progress.status = ProgressStatus.VIEWED
         progress.completed_at = _now()
         await db.flush()
 
@@ -725,7 +991,15 @@ class SessionService:
     @staticmethod
     async def get_session_results(
         db: AsyncSession, session_id: uuid.UUID, guest_token: str
-    ) -> GameSessionDetailResponse:
+    ) -> "GameSessionResultResponse":
+        from app.models.resource import Resource
+        from app.schemas.session import (
+            GameSessionResultResponse,
+            QuestionResultData,
+            QuestionResultOption,
+            SessionProgressResultResponse,
+        )
+
         player_result = await db.execute(
             select(SessionPlayer).where(
                 SessionPlayer.guest_token == guest_token,
@@ -737,28 +1011,67 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token or session"
             )
-        if not player.results_available_until:
+        now = _now()
+        # Allow access if time limit expired (even if results_available_until is not set yet)
+        session_for_check_result = await db.execute(
+            select(GameSession).where(GameSession.id == session_id)
+        )
+        session_for_check = session_for_check_result.scalar_one_or_none()
+        time_expired = False
+        if session_for_check:
+            if (
+                session_for_check.ends_at is not None
+                and session_for_check.ends_at < now
+            ):
+                time_expired = True
+            if not time_expired and player.started_at:
+                settings_res = await db.execute(
+                    select(QuestSettings).where(
+                        QuestSettings.quest_id == session_for_check.quest_id
+                    )
+                )
+                settings_obj = settings_res.scalar_one_or_none()
+                if settings_obj and settings_obj.time_limit_minutes:
+                    player_ends_at = player.started_at + timedelta(
+                        minutes=settings_obj.time_limit_minutes
+                    )
+                    if player_ends_at < now:
+                        time_expired = True
+
+        if not player.results_available_until and not time_expired:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Results not yet available",
             )
-        if player.results_available_until < _now():
+        if (
+            player.results_available_until
+            and player.results_available_until < now
+            and not time_expired
+        ):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Results have expired"
             )
+
+        # Auto-set results_available_until if time expired and not already set
+        if time_expired and not player.results_available_until:
+            player.results_available_until = now + timedelta(days=30)
+            await db.flush()
 
         result = await db.execute(
             select(GameSession)
             .where(GameSession.id == session_id)
             .options(
                 selectinload(GameSession.players),
-                selectinload(GameSession.progress),
+                selectinload(GameSession.progress)
+                .selectinload(SessionProgress.resource)
+                .selectinload(Resource.question),
                 selectinload(GameSession.chat_messages).selectinload(
                     SessionChat.player
                 ),
             )
         )
         session = result.scalar_one()
+        show_correct = session.show_correct_answers
 
         chat_messages = [
             SessionChatMessage(
@@ -771,7 +1084,42 @@ class SessionService:
             )
             for m in session.chat_messages
         ]
-        return GameSessionDetailResponse(
+
+        enriched_progress: List[SessionProgressResultResponse] = []
+        for p in session.progress:
+            question_data: Optional[QuestionResultData] = None
+            resource_title: Optional[str] = None
+            if p.resource and p.resource.question:
+                resource_title = p.resource.title
+                q = p.resource.question
+                options = [
+                    QuestionResultOption(
+                        id=str(opt.get("id", "")),
+                        text=str(opt.get("text", "")),
+                        is_correct=bool(opt.get("is_correct", False))
+                        if show_correct
+                        else False,
+                    )
+                    for opt in (q.options or [])
+                ]
+                correct_answers = (
+                    [str(a) for a in (q.correct_answers or [])] if show_correct else []
+                )
+                question_data = QuestionResultData(
+                    body=q.body or "",
+                    question_type=q.question_type,
+                    options=options,
+                    correct_answers=correct_answers,
+                )
+            enriched_progress.append(
+                SessionProgressResultResponse(
+                    **SessionProgressResponse.model_validate(p).model_dump(),
+                    resource_title=resource_title,
+                    question=question_data,
+                )
+            )
+
+        return GameSessionResultResponse(
             id=session.id,
             quest_id=session.quest_id,
             session_code=session.session_code,
@@ -780,11 +1128,15 @@ class SessionService:
             ends_at=session.ends_at,
             scheduled_at=session.scheduled_at,
             max_players=session.max_players,
+            allow_solo_in_team=session.allow_solo_in_team,
+            show_feedback_after_answer=session.show_feedback_after_answer,
+            show_score_after=session.show_score_after,
+            show_correct_answers=session.show_correct_answers,
+            keep_completed_in_materials=session.keep_completed_in_materials,
+            allow_change_answers=session.allow_change_answers,
             created_at=session.created_at,
             players=[_player_response(p) for p in session.players],
-            progress=[
-                SessionProgressResponse.model_validate(p) for p in session.progress
-            ],
+            progress=enriched_progress,
             chat_messages=chat_messages,
         )
 
@@ -793,6 +1145,8 @@ class SessionService:
         db: AsyncSession, session_id: uuid.UUID, teacher_id: uuid.UUID
     ) -> TeacherMonitorResponse:
         session = await _load_own_session(db, session_id, teacher_id)
+        if await _maybe_expire_session(db, session):
+            await db.commit()
 
         progress_result = await db.execute(
             select(SessionProgress).where(SessionProgress.session_id == session_id)
@@ -803,10 +1157,30 @@ class SessionService:
         for player in session.players:
             p_items = [p for p in all_progress if p.player_id == player.id]
             total = len(p_items)
-            completed = sum(1 for p in p_items if p.status == ProgressStatus.ANSWERED)
+            completed = sum(
+                1
+                for p in p_items
+                if p.status in (ProgressStatus.ANSWERED, ProgressStatus.VIEWED)
+            )
             pending_review = sum(
                 1 for p in p_items if p.requires_review and p.score is None
             )
+            correct = sum(
+                1
+                for p in p_items
+                if p.status == ProgressStatus.ANSWERED
+                and p.score is not None
+                and p.score >= 1.0
+            )
+            incorrect = sum(
+                1
+                for p in p_items
+                if p.status == ProgressStatus.ANSWERED
+                and p.score is not None
+                and p.score < 1.0
+                and not (p.requires_review and p.score is None)
+            )
+            viewed = sum(1 for p in p_items if p.status == ProgressStatus.VIEWED)
             scores = [p.score for p in p_items if p.score is not None]
             avg_score = round(sum(scores) / len(scores), 2) if scores else None
             players_progress.append(
@@ -816,6 +1190,9 @@ class SessionService:
                     total=total,
                     score=avg_score,
                     pending_review=pending_review,
+                    correct=correct,
+                    incorrect=incorrect,
+                    viewed=viewed,
                 )
             )
 
@@ -823,6 +1200,68 @@ class SessionService:
             session=_session_response(session),
             players_progress=players_progress,
         )
+
+    @staticmethod
+    async def get_player_progress_detail(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        player_id: uuid.UUID,
+        teacher_id: uuid.UUID,
+    ) -> List["SessionProgressResultResponse"]:
+        """Teacher-facing detailed progress for one player — always includes correct answers."""
+        from app.models.resource import Resource
+        from app.schemas.session import (
+            QuestionResultData,
+            QuestionResultOption,
+            SessionProgressResultResponse,
+        )
+
+        await _load_own_session(db, session_id, teacher_id)
+
+        result = await db.execute(
+            select(SessionProgress)
+            .where(
+                SessionProgress.session_id == session_id,
+                SessionProgress.player_id == player_id,
+            )
+            .options(
+                selectinload(SessionProgress.resource).selectinload(Resource.question)
+            )
+            .order_by(SessionProgress.assigned_at)
+        )
+        items = result.scalars().all()
+
+        enriched: List[SessionProgressResultResponse] = []
+        for p in items:
+            question_data: Optional[QuestionResultData] = None
+            resource_title: Optional[str] = None
+            if p.resource and p.resource.question:
+                resource_title = p.resource.title
+                q = p.resource.question
+                options = [
+                    QuestionResultOption(
+                        id=str(opt.get("id", "")),
+                        text=str(opt.get("text", "")),
+                        is_correct=bool(opt.get("is_correct", False)),
+                    )
+                    for opt in (q.options or [])
+                ]
+                question_data = QuestionResultData(
+                    body=q.body or "",
+                    question_type=q.question_type,
+                    options=options,
+                    correct_answers=[str(a) for a in (q.correct_answers or [])],
+                )
+            elif p.resource:
+                resource_title = p.resource.title
+            enriched.append(
+                SessionProgressResultResponse(
+                    **SessionProgressResponse.model_validate(p).model_dump(),
+                    resource_title=resource_title,
+                    question=question_data,
+                )
+            )
+        return enriched
 
     @staticmethod
     async def delete_session(
@@ -947,11 +1386,12 @@ class SessionService:
                 status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
             )
         result = await db.execute(
-            select(SessionProgress).where(
+            select(SessionProgress)
+            .where(
                 SessionProgress.session_id == session_id,
                 SessionProgress.player_id == player.id,
-                SessionProgress.map_object_id != None,  # noqa: E711
             )
+            .order_by(SessionProgress.assigned_at)
         )
         items = result.scalars().all()
         return [SessionProgressResponse.model_validate(p) for p in items]

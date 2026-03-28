@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
@@ -7,7 +8,8 @@ from sqlalchemy.orm import selectinload
 
 from app.database import AsyncSessionLocal
 from app.models.game_session import GameSession, SessionStatus
-from app.models.session_player import SessionPlayer
+from app.models.quest import QuestSettings
+from app.models.session_player import PlayerStatus, SessionPlayer
 from app.models.user import User
 from app.schemas.session import GameSessionResponse, SessionPlayerResponse
 from app.services.websocket_handlers import (
@@ -38,6 +40,8 @@ def _session_dict(session: GameSession) -> dict:
         "show_correct_answers": session.show_correct_answers,
         "allow_change_answers": session.allow_change_answers,
         "players_count": len(session.players),
+        "started_at": session.started_at.isoformat() if session.started_at else None,
+        "ends_at": session.ends_at.isoformat() if session.ends_at else None,
     }
 
 
@@ -49,6 +53,8 @@ def _player_dict(player: SessionPlayer) -> dict:
         "status": player.status.value
         if hasattr(player.status, "value")
         else player.status,
+        "team_id": str(player.team_id) if player.team_id else None,
+        "started_at": player.started_at.isoformat() if player.started_at else None,
     }
 
 
@@ -94,6 +100,31 @@ async def ws_player(
         player_data = _player_dict(player)
         players_data = [_player_dict(p) for p in session.players]
 
+        # If time limit expired and player is not yet finished, mark them finished
+        now = datetime.now(timezone.utc)
+        time_expired = session.ends_at is not None and session.ends_at < now
+        if not time_expired and player.started_at:
+            settings_result = await db.execute(
+                select(QuestSettings).where(QuestSettings.quest_id == session.quest_id)
+            )
+            settings_obj = settings_result.scalar_one_or_none()
+            if settings_obj and settings_obj.time_limit_minutes:
+                player_ends_at = player.started_at + timedelta(
+                    minutes=settings_obj.time_limit_minutes
+                )
+                if player_ends_at < now:
+                    time_expired = True
+        already_finished = player.status == PlayerStatus.FINISHED
+        if time_expired and not already_finished:
+            from datetime import timedelta
+
+            player.status = PlayerStatus.FINISHED
+            if not player.finished_at:
+                player.finished_at = now
+            player.results_available_until = now + timedelta(days=30)
+            await db.commit()
+            already_finished = True
+
     await manager.connect_player(sid, player_id, websocket)
 
     await manager.send_to_player(
@@ -102,10 +133,19 @@ async def ws_player(
         {
             "type": "connected",
             "player_id": player_id,
+            "team_id": str(player.team_id) if player.team_id else None,
             "session": session_data,
             "players": players_data,
         },
     )
+
+    # Immediately notify the player if they are already finished
+    if already_finished:
+        await manager.send_to_player(
+            sid,
+            player_id,
+            {"type": "player_finished", "player_id": player_id},
+        )
 
     await manager.broadcast_to_session(
         sid,
@@ -114,6 +154,15 @@ async def ws_player(
             "player": player_data,
         },
         exclude_player_id=player_id,
+    )
+
+    # Notify teacher about the new player
+    await manager.send_to_teacher(
+        sid,
+        {
+            "type": "player_joined",
+            "player": player_data,
+        },
     )
 
     try:

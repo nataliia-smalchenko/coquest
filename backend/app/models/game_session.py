@@ -11,6 +11,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.quest import Quest
     from app.models.user import User
+    from app.models.session_team import SessionTeam
     from app.models.session_player import SessionPlayer
     from app.models.session_progress import SessionProgress
     from app.models.session_chat import SessionChat
@@ -75,6 +76,9 @@ class GameSession(Base):
     )
 
     # Relationships
+    teams: Mapped[List["SessionTeam"]] = relationship(
+        "SessionTeam", back_populates="session", cascade="all, delete-orphan"
+    )
     players: Mapped[List["SessionPlayer"]] = relationship(
         "SessionPlayer", back_populates="session", cascade="all, delete-orphan"
     )
