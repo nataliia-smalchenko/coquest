@@ -16,8 +16,26 @@ export interface SessionPlayer {
   avatar_color: string;
   status: PlayerStatus;
   joined_at: string;
+  started_at: string | null;
   finished_at: string | null;
   guest_token?: string;
+  team_id: string | null;
+}
+
+export interface TeamPlayer {
+  id: string;
+  display_name: string;
+  avatar_color: string;
+  status: PlayerStatus;
+}
+
+export interface Team {
+  id: string;
+  session_id: string;
+  status: "waiting" | "active" | "completed";
+  players: TeamPlayer[];
+  created_at: string;
+  started_at: string | null;
 }
 
 export interface SessionProgress {
@@ -81,6 +99,9 @@ export interface PlayerProgressSummary {
   total: number;
   score: number | null;
   pending_review: number;
+  correct: number;
+  incorrect: number;
+  viewed: number;
 }
 
 export interface TeacherMonitorResponse {
@@ -105,6 +126,29 @@ export interface GameInfoResponse {
 
 export interface GameSessionDetailResponse extends GameSession {
   progress: SessionProgress[];
+  chat_messages: ChatMessage[];
+}
+
+export interface QuestionResultOption {
+  id: string;
+  text: string;
+  is_correct: boolean;
+}
+
+export interface QuestionResultData {
+  body: string;
+  question_type: string;
+  options: QuestionResultOption[];
+  correct_answers: string[];
+}
+
+export interface SessionProgressResult extends SessionProgress {
+  resource_title: string | null;
+  question: QuestionResultData | null;
+}
+
+export interface GameSessionResultResponse extends GameSession {
+  progress: SessionProgressResult[];
   chat_messages: ChatMessage[];
 }
 

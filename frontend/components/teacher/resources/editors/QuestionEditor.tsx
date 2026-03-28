@@ -548,7 +548,13 @@ export function QuestionEditor({
                     ) : (
                       <input
                         type="checkbox"
-                        {...register(`options.${idx}.is_correct`)}
+                        checked={!!watch(`options.${idx}.is_correct`)}
+                        onChange={(e) =>
+                          setValue(
+                            `options.${idx}.is_correct`,
+                            e.target.checked,
+                          )
+                        }
                         style={{
                           width: "16px",
                           height: "16px",

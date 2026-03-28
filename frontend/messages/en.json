@@ -110,7 +110,11 @@
     "empty": "No quests yet",
     "emptyHint": "Create your first quest",
     "delete": "Delete quest?",
-    "status": { "draft": "Draft", "published": "Published", "archived": "Archived" },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
     "builder": {
       "title": "New Quest",
       "editTitle": "Edit Quest",
@@ -120,7 +124,11 @@
       "publish": "Publish",
       "saved": "Saved",
       "saveError": "Save error",
-      "steps": { "basic": "Basic Info", "map": "Map & Resources", "settings": "Settings" }
+      "steps": {
+        "basic": "Basic Info",
+        "map": "Map & Resources",
+        "settings": "Settings"
+      }
     },
     "basic": {
       "title": "Quest title",
@@ -242,13 +250,15 @@
     "lobby": {
       "waiting": "Connecting...",
       "players": "Players",
+      "team": "Your team",
       "start": "Start",
       "starting": "Starting...",
       "startError": "Failed to start",
       "sessionCode": "Session Code",
-      "minPlayers": "At least 2 players required for team mode",
+      "minPlayers": "Waiting for teammates...",
       "waitingOptional": "You can start alone or wait for teammates",
-      "waitingRequired": "Wait for one more player to join"
+      "waitingRequired": "Wait for teammates to join",
+      "sessionEndsAt": "Session ends at"
     },
     "game": {
       "materials": "Materials",
@@ -259,7 +269,11 @@
       "correct": "Correct!",
       "incorrect": "Incorrect",
       "pending": "Awaiting review",
-      "timeLeft": "Time left"
+      "timeLeft": "Time left",
+      "hintTitle": "Hint",
+      "hintGo": "Let's go!",
+      "completed": "Quest completed!",
+      "viewResults": "View results"
     },
     "results": {
       "title": "Results",
@@ -275,7 +289,9 @@
       "errorToken": "Results unavailable or invalid token",
       "tokenTitle": "Enter player token",
       "tokenPlaceholder": "Your guest_token...",
-      "tokenSubmit": "View results"
+      "tokenSubmit": "View results",
+      "yourAnswer": "Your answer",
+      "correctAnswer": "Correct answer"
     },
     "monitor": {
       "title": "Session Monitor",
@@ -309,7 +325,21 @@
       "sessionsCount": "{count} sessions",
       "noSessions": "No sessions yet",
       "scheduleStartLabel": "Start",
-      "scheduleEndLabel": "End"
+      "scheduleEndLabel": "End",
+      "settingsTitle": "Session settings",
+      "playerDetail": "Player answer",
+      "viewedText": "Viewed",
+      "notStarted": "Not started",
+      "scoreLabel": "Score",
+      "submitReview": "Submit",
+      "reviewScore": "Score (0–100%)",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "joinedAt": "Joined",
+      "finishedAt": "Finished",
+      "durationLabel": "Duration",
+      "sessionEndsAt": "Session ends at",
+      "timeLeft": "time left"
     }
   },
 

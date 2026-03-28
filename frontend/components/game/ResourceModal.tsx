@@ -7,7 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import { sanitizeHtml } from "@/lib/sanitize";
-import type { ResourceDetailResponse } from "@/types/resource";
+import type { ResourceDetailPublicResponse } from "@/types/resource";
 import type { SessionProgress } from "@/types/session";
 import QuestionForm from "./QuestionForm";
 
@@ -19,7 +19,7 @@ interface AnswerResult {
 
 interface ResourceModalProps {
   progress: SessionProgress;
-  resource: ResourceDetailResponse | null;
+  resource: ResourceDetailPublicResponse | null;
   loading?: boolean;
   answerResult?: AnswerResult | null;
   onClose: () => void;

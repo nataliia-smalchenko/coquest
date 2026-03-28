@@ -282,7 +282,16 @@ export default function NewSessionPage() {
             <input
               type="checkbox"
               checked={useScheduled}
-              onChange={(e) => setUseScheduled(e.target.checked)}
+              onChange={(e) => {
+                setUseScheduled(e.target.checked);
+                if (e.target.checked && !scheduledAt) {
+                  const d = new Date(Date.now() + 60 * 60 * 1000);
+                  const pad = (n: number) => String(n).padStart(2, "0");
+                  setScheduledAt(
+                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                  );
+                }
+              }}
               className="w-4 h-4 accent-blue-600"
             />
             <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -306,7 +315,16 @@ export default function NewSessionPage() {
             <input
               type="checkbox"
               checked={useEndsAt}
-              onChange={(e) => setUseEndsAt(e.target.checked)}
+              onChange={(e) => {
+                setUseEndsAt(e.target.checked);
+                if (e.target.checked && !endsAt) {
+                  const d = new Date(Date.now() + 60 * 60 * 1000);
+                  const pad = (n: number) => String(n).padStart(2, "0");
+                  setEndsAt(
+                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                  );
+                }
+              }}
               className="w-4 h-4 accent-blue-600"
             />
             <span className="text-sm font-medium text-gray-700 flex items-center gap-2">

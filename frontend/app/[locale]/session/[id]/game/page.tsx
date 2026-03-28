@@ -1,9 +1,9 @@
 "use client";
 
-import { BookOpen, MessageSquare, X } from "lucide-react";
+import { BookOpen, Lightbulb, MessageSquare, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import ChatPanel from "@/components/game/ChatPanel";
 import MapInteractive from "@/components/game/MapInteractive";
 import ResourceModal from "@/components/game/ResourceModal";
@@ -17,10 +17,11 @@ import {
   getMyProgress,
   getProgressResource,
   markViewed,
+  playerTimeout,
   submitAnswer,
 } from "@/lib/api/sessions";
 import type { MapResponse } from "@/types/map";
-import type { ResourceDetailResponse } from "@/types/resource";
+import type { ResourceDetailPublicResponse } from "@/types/resource";
 import type {
   GameInfoResponse,
   GameSession,
@@ -49,9 +50,9 @@ export default function GamePage() {
     progress,
     setProgress,
     updateProgress,
+    updatePlayer,
     chatMessages,
     handleWsMessage,
-    guestToken,
   } = useGameSession();
 
   const [stored, setStored] = useState<{
@@ -65,7 +66,7 @@ export default function GamePage() {
   // Modal state
   const [modalProgressId, setModalProgressId] = useState<string | null>(null);
   const [modalResource, setModalResource] =
-    useState<ResourceDetailResponse | null>(null);
+    useState<ResourceDetailPublicResponse | null>(null);
   const [modalResourceLoading, setModalResourceLoading] = useState(false);
   const [answerResult, setAnswerResult] = useState<AnswerResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,7 +76,59 @@ export default function GamePage() {
   const [showMaterials, setShowMaterials] = useState(false);
   const [unreadChat, setUnreadChat] = useState(0);
 
+  // Hint overlay — shown when a new active object is revealed
+  const [pendingHint, setPendingHint] = useState<string | null>(null);
+  const shownHintObjects = useRef<Set<string>>(new Set());
+
+  // Temporary highlight on the active object when user presses the hint button
+  const [highlightObjectId, setHighlightObjectId] = useState<string | null>(
+    null,
+  );
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHintFlash = () => {
+    if (!activeObjectId) return;
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightObjectId(activeObjectId);
+    highlightTimerRef.current = setTimeout(
+      () => setHighlightObjectId(null),
+      1200,
+    );
+  };
+
   const token = stored?.guest_token ?? "";
+
+  // The one currently assigned (and not yet completed) object
+  const activeObjectId = useMemo(
+    () =>
+      progress.find((p) => p.status === "assigned" && p.map_object_id)
+        ?.map_object_id ?? null,
+    [progress],
+  );
+
+  // Personal timer: based on when THIS player started + quest time limit
+  const playerEndsAt = useMemo(() => {
+    const mins = gameInfo?.settings?.time_limit_minutes;
+    const startedAt = myPlayer?.started_at;
+    if (!mins || !startedAt) return null;
+    return new Date(new Date(startedAt).getTime() + mins * 60000).toISOString();
+  }, [gameInfo?.settings?.time_limit_minutes, myPlayer?.started_at]);
+
+  // Effective timer: the earlier of the personal timer and the global session deadline
+  const effectiveEndsAt = useMemo(() => {
+    const candidates = [playerEndsAt, session?.ends_at].filter(
+      Boolean,
+    ) as string[];
+    if (candidates.length === 0) return null;
+    return candidates.reduce((a, b) => (new Date(a) < new Date(b) ? a : b));
+  }, [playerEndsAt, session?.ends_at]);
+
+  const showFeedback =
+    session?.show_feedback_after_answer ??
+    gameInfo?.settings?.show_feedback_after_answer ??
+    false;
+  const showFeedbackRef = useRef(showFeedback);
+  showFeedbackRef.current = showFeedback;
 
   // Load stored session data
   useEffect(() => {
@@ -113,8 +166,34 @@ export default function GamePage() {
     load();
   }, [stored, sessionId, locale, setProgress]);
 
+  // Show hint when a new active object is revealed
+  useEffect(() => {
+    if (!activeObjectId || !map) return;
+    if (shownHintObjects.current.has(activeObjectId)) return;
+    shownHintObjects.current.add(activeObjectId);
+
+    const obj = map.objects.find((o) => o.id === activeObjectId);
+    if (!obj) return;
+
+    const localized = obj.hints.filter((h) => h.language === locale);
+    const fallback = obj.hints.filter((h) => h.language === "uk");
+    const candidates =
+      localized.length > 0
+        ? localized
+        : fallback.length > 0
+          ? fallback
+          : obj.hints;
+    if (candidates.length === 0) return;
+
+    const hint = candidates[Math.floor(Math.random() * candidates.length)];
+    setPendingHint(hint.hint_text);
+  }, [activeObjectId, map, locale]);
+
   // WS
   const { messages, send: wsSend } = usePlayerWebSocket(sessionId, token);
+
+  const modalProgressIdRef = useRef<string | null>(null);
+  modalProgressIdRef.current = modalProgressId;
 
   const prevLen = useRef(0);
   useEffect(() => {
@@ -128,38 +207,48 @@ export default function GamePage() {
 
       if (data.type === "connected") {
         const sess = data.session as GameSession | undefined;
+        const players = Array.isArray(data.players)
+          ? (data.players as import("@/types/session").SessionPlayer[])
+          : [];
         if (sess) {
-          setSession(sess);
+          setSession({ ...sess, players });
           if (stored) {
-            const me = sess.players?.find((p) => p.id === stored.player_id);
-            if (me) setMyPlayer(me);
+            const me = players.find((p) => p.id === stored.player_id);
+            if (me) {
+              setMyPlayer(me);
+              // Already finished (e.g. reconnect after completing or time expiry)
+              if (me.status === "finished") {
+                router.push(`/session/${sessionId}/results`);
+              }
+            }
           }
         }
       }
 
-      if (data.type === "session_started") {
+      if (data.type === "session_started" || data.type === "team_started") {
         const prog = data.progress as SessionProgress[] | undefined;
         if (prog) setProgress(prog);
+        const playerStartedAt = data.player_started_at as
+          | string
+          | null
+          | undefined;
+        if (playerStartedAt && stored?.player_id) {
+          updatePlayer({ id: stored.player_id, started_at: playerStartedAt });
+        }
       }
 
       if (data.type === "answer_result") {
         const prog = data.progress as SessionProgress;
         if (prog) updateProgress(prog);
-        if (prog?.id === modalProgressId) {
+        if (
+          showFeedbackRef.current &&
+          prog?.id === modalProgressIdRef.current
+        ) {
           setAnswerResult({
             correct: (data.correct as boolean | null) ?? null,
             score: (data.score as number | null) ?? null,
             requires_review: prog.requires_review,
           });
-        }
-      }
-
-      if (data.type === "object_updated") {
-        // Reload my progress to pick up new assignment
-        if (stored) {
-          getMyProgress(sessionId, stored.guest_token)
-            .then(setProgress)
-            .catch(() => {});
         }
       }
 
@@ -190,21 +279,10 @@ export default function GamePage() {
     stored,
     setProgress,
     updateProgress,
-    modalProgressId,
     showChat,
     sessionId,
     router,
   ]);
-
-  // Redirect when all progress completed
-  useEffect(() => {
-    if (
-      progress.length > 0 &&
-      progress.every((p) => p.status === "answered" || p.status === "viewed")
-    ) {
-      router.push(`/session/${sessionId}/results`);
-    }
-  }, [progress, sessionId, router]);
 
   // Reset unread when chat opens
   useEffect(() => {
@@ -212,7 +290,7 @@ export default function GamePage() {
   }, [showChat]);
 
   const handleObjectClick = useCallback(
-    async (mapObjectId: string, progressId: string) => {
+    async (_mapObjectId: string, progressId: string) => {
       if (!stored) return;
       setModalProgressId(progressId);
       setModalResource(null);
@@ -237,6 +315,10 @@ export default function GamePage() {
       const updated = await markViewed(modalProgressId, stored.guest_token);
       updateProgress(updated);
       setModalProgressId(null);
+      // Reload progress to pick up any queue advances
+      getMyProgress(sessionId, stored.guest_token)
+        .then(setProgress)
+        .catch(() => {});
     } catch {
       // ignore
     } finally {
@@ -248,8 +330,26 @@ export default function GamePage() {
     if (!modalProgressId || !stored) return;
     setIsSubmitting(true);
     try {
-      await submitAnswer(modalProgressId, answer, stored.guest_token);
-      // result will arrive via WS answer_result
+      const updated = await submitAnswer(
+        modalProgressId,
+        answer,
+        stored.guest_token,
+      );
+      updateProgress(updated);
+      if (showFeedback) {
+        setAnswerResult({
+          correct: updated.score !== null ? updated.score >= 1 : null,
+          score: updated.score ?? null,
+          requires_review: updated.requires_review,
+        });
+      } else {
+        setModalProgressId(null);
+        setAnswerResult(null);
+      }
+      // Reload progress to pick up any queue advances (next object)
+      getMyProgress(sessionId, stored.guest_token)
+        .then(setProgress)
+        .catch(() => {});
     } catch {
       // ignore
     } finally {
@@ -269,7 +369,17 @@ export default function GamePage() {
   const completedCount = progress.filter(
     (p) => p.status === "answered" || p.status === "viewed",
   ).length;
+  // totalCount = all quest resources, including queued ones not yet on the map
   const totalCount = progress.length;
+
+  const isAllCompleted = totalCount > 0 && completedCount === totalCount;
+
+  // Redirect to results when all materials are completed (during gameplay or after reload)
+  useEffect(() => {
+    if (isAllCompleted) {
+      router.push(`/session/${sessionId}/results`);
+    }
+  }, [isAllCompleted, sessionId, router]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-900">
@@ -281,39 +391,73 @@ export default function GamePage() {
 
         <div className="flex items-center gap-3">
           {/* Timer */}
-          {session?.ends_at && <TimerDisplay ends_at={session.ends_at} />}
+          {effectiveEndsAt && (
+            <TimerDisplay
+              ends_at={effectiveEndsAt}
+              onExpire={async () => {
+                if (playerEndsAt && stored) {
+                  try {
+                    await playerTimeout(sessionId, stored.guest_token);
+                  } catch {
+                    // ignore — backend may already have finished the player
+                  }
+                }
+                router.push(`/session/${sessionId}/results`);
+              }}
+            />
+          )}
 
           {/* Progress */}
           <span className="text-xs text-gray-400 font-mono">
             {completedCount}/{totalCount}
           </span>
 
-          {/* Chat toggle */}
-          <button
-            onClick={() => {
-              setShowChat((v) => !v);
-              setShowMaterials(false);
-            }}
-            className="relative p-1.5 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <MessageSquare size={18} />
-            {unreadChat > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                {unreadChat > 9 ? "9+" : unreadChat}
-              </span>
-            )}
-          </button>
+          {/* Hint flash button */}
+          {activeObjectId && (
+            <button
+              type="button"
+              onClick={handleHintFlash}
+              className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-yellow-400"
+              title={t("hintTitle")}
+            >
+              <Lightbulb size={18} />
+            </button>
+          )}
 
-          {/* Materials toggle */}
-          <button
-            onClick={() => {
-              setShowMaterials((v) => !v);
-              setShowChat(false);
-            }}
-            className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <BookOpen size={18} />
-          </button>
+          {/* Chat toggle — hidden in solo mode */}
+          {(session?.max_players ?? 0) > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowChat((v) => !v);
+                setShowMaterials(false);
+              }}
+              className="relative p-1.5 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <MessageSquare size={18} />
+              {unreadChat > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {unreadChat > 9 ? "9+" : unreadChat}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Materials toggle — hidden when keep_completed_in_materials is off */}
+          {(session?.keep_completed_in_materials ??
+            gameInfo?.settings?.keep_completed_in_materials ??
+            true) && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowMaterials((v) => !v);
+                setShowChat(false);
+              }}
+              className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <BookOpen size={18} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -332,6 +476,8 @@ export default function GamePage() {
               map={map}
               progress={progress}
               onObjectClick={handleObjectClick}
+              activeObjectId={pendingHint ? null : activeObjectId}
+              highlightObjectId={highlightObjectId}
               className="rounded-xl shadow-lg max-h-full"
             />
           )}
@@ -340,14 +486,15 @@ export default function GamePage() {
           )}
         </div>
 
-        {/* Chat panel */}
-        {showChat && (
+        {/* Chat panel — only in team mode */}
+        {showChat && (session?.max_players ?? 0) > 1 && (
           <div className="w-72 flex-shrink-0 border-l border-gray-700 flex flex-col">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700 flex-shrink-0">
               <span className="text-sm font-medium text-white">
                 {t("chat")}
               </span>
               <button
+                type="button"
                 onClick={() => setShowChat(false)}
                 className="text-gray-400 hover:text-white"
               >
@@ -372,6 +519,7 @@ export default function GamePage() {
                 {t("materials")}
               </span>
               <button
+                type="button"
                 onClick={() => setShowMaterials(false)}
                 className="text-gray-400 hover:text-white"
               >
@@ -381,6 +529,8 @@ export default function GamePage() {
             <div className="p-3 space-y-2">
               {progress
                 .filter((p) => {
+                  // Only show items that have been revealed on the map
+                  if (!p.map_object_id) return false;
                   const keep =
                     session?.keep_completed_in_materials ??
                     gameInfo?.settings?.keep_completed_in_materials ??
@@ -394,6 +544,7 @@ export default function GamePage() {
                 })
                 .map((p) => (
                   <button
+                    type="button"
                     key={p.id}
                     onClick={() => {
                       handleObjectClick(p.map_object_id ?? "", p.id);
@@ -430,6 +581,55 @@ export default function GamePage() {
           </div>
         )}
       </div>
+
+      {/* Completion overlay */}
+      {isAllCompleted && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col items-center gap-4 text-center">
+            <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center text-3xl">
+              🎉
+            </div>
+            <p className="text-lg font-bold text-gray-900">{t("completed")}</p>
+            <button
+              type="button"
+              onClick={() => router.push(`/session/${sessionId}/results`)}
+              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors"
+            >
+              {t("viewResults")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hint overlay */}
+      {pendingHint && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col items-center gap-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-2xl">
+              🗺️
+            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+              {t("hintTitle")}
+            </p>
+            <p className="text-gray-800 text-base leading-relaxed">
+              {pendingHint}
+            </p>
+            <button
+              type="button"
+              onClick={() => setPendingHint(null)}
+              className="mt-2 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
+            >
+              {t("hintGo")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Resource modal */}
       {modalProgressId && modalProgress && (
