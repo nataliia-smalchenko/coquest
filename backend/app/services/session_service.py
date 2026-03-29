@@ -1479,9 +1479,9 @@ class SessionService:
                 else None
             )
             grade_val = (
-                round(total_score_val / monitor_total_q_points * monitor_max_grade, 1)
+                round(total_score_val / max_score_val * monitor_max_grade, 1)
                 if total_score_val is not None
-                and monitor_total_q_points
+                and max_score_val
                 and monitor_max_grade
                 else None
             )
