@@ -1349,6 +1349,18 @@ class SessionService:
         quest_settings = settings_res2.scalar_one_or_none()
         result_max_grade = quest_settings.max_grade if quest_settings else None
 
+        # Total question points across the whole quest (for grade denominator)
+        seen_resource_ids: set = set()
+        total_question_points = 0
+        for p in session.progress:
+            if (
+                p.resource
+                and p.resource.question
+                and p.resource_id not in seen_resource_ids
+            ):
+                seen_resource_ids.add(p.resource_id)
+                total_question_points += p.resource.question.points
+
         return GameSessionResultResponse(
             id=session.id,
             quest_id=session.quest_id,
@@ -1369,6 +1381,9 @@ class SessionService:
             progress=enriched_progress,
             chat_messages=chat_messages,
             max_grade=result_max_grade,
+            total_question_points=total_question_points
+            if total_question_points > 0
+            else None,
         )
 
     @staticmethod
@@ -1404,6 +1419,9 @@ class SessionService:
                 )
             )
             points_map = {str(row.resource_id): row.points for row in pts_result}
+
+        # Total quest question points (unique resources) — used as grade denominator
+        monitor_total_q_points = sum(points_map.values()) if points_map else None
 
         players_progress: List[PlayerProgressSummary] = []
         for player in session.players:
@@ -1461,8 +1479,10 @@ class SessionService:
                 else None
             )
             grade_val = (
-                round(total_score_val / max_score_val * monitor_max_grade, 1)
-                if total_score_val is not None and max_score_val and monitor_max_grade
+                round(total_score_val / monitor_total_q_points * monitor_max_grade, 1)
+                if total_score_val is not None
+                and monitor_total_q_points
+                and monitor_max_grade
                 else None
             )
 
@@ -1635,9 +1655,21 @@ class SessionService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Progress not found"
             )
         if progress.player_id != player.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
+            # Allow team members to view each other's completed progress
+            if not player.team_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
+                )
+            teammate_result = await db.execute(
+                select(SessionPlayer).where(
+                    SessionPlayer.id == progress.player_id,
+                    SessionPlayer.team_id == player.team_id,
+                )
             )
+            if not teammate_result.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
+                )
         if not progress.resource_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

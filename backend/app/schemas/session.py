@@ -165,6 +165,7 @@ class GameSessionResultResponse(GameSessionResponse):
     progress: List[SessionProgressResultResponse] = []
     chat_messages: List[SessionChatMessage] = []
     max_grade: Optional[int] = None
+    total_question_points: Optional[int] = None
 
 
 class PlayerProgressSummary(BaseModel):

@@ -9,6 +9,7 @@ from app.models.game_session import GameSession, SessionStatus
 from app.models.session_chat import SessionChat
 from app.models.session_player import PlayerStatus, SessionPlayer
 from app.models.session_progress import ProgressStatus, SessionProgress
+from app.models.session_team import SessionTeam, TeamStatus
 from app.schemas.session import ReviewAnswerRequest, SubmitAnswerRequest
 from app.services import session_service as svc
 from app.services.websocket_manager import manager
@@ -153,6 +154,21 @@ async def _handle_submit_answer(session_id: str, player_id: str, data: dict) -> 
                 },
             )
 
+        if player_finished and player.team_id:
+            async with AsyncSessionLocal() as db2:
+                team_result = await db2.execute(
+                    select(SessionTeam).where(SessionTeam.id == player.team_id)
+                )
+                team = team_result.scalar_one_or_none()
+                if team and team.status == TeamStatus.COMPLETED:
+                    await manager.broadcast_to_all(
+                        session_id,
+                        {
+                            "type": "team_completed",
+                            "team_id": str(player.team_id),
+                        },
+                    )
+
         # Check session completed
         session_result = await db.execute(
             select(GameSession).where(GameSession.id == uuid.UUID(session_id))
@@ -224,7 +240,8 @@ async def _handle_mark_viewed(session_id: str, player_id: str, data: dict) -> No
             },
         )
 
-        if player.status == PlayerStatus.FINISHED:
+        player_finished = player.status == PlayerStatus.FINISHED
+        if player_finished:
             await manager.broadcast_to_all(
                 session_id,
                 {
@@ -232,6 +249,21 @@ async def _handle_mark_viewed(session_id: str, player_id: str, data: dict) -> No
                     "player_id": player_id,
                 },
             )
+
+        if player_finished and player.team_id:
+            async with AsyncSessionLocal() as db2:
+                team_result = await db2.execute(
+                    select(SessionTeam).where(SessionTeam.id == player.team_id)
+                )
+                team = team_result.scalar_one_or_none()
+                if team and team.status == TeamStatus.COMPLETED:
+                    await manager.broadcast_to_all(
+                        session_id,
+                        {
+                            "type": "team_completed",
+                            "team_id": str(player.team_id),
+                        },
+                    )
 
         session_result = await db.execute(
             select(GameSession).where(GameSession.id == uuid.UUID(session_id))

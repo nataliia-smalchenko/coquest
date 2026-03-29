@@ -206,6 +206,19 @@ async def get_team(
     return await SessionService.get_team(db, session_id, team_id, player)
 
 
+@router.get("/{session_id}/teams/{team_id}/step-info")
+async def get_team_step_info(
+    session_id: uuid.UUID,
+    team_id: uuid.UUID,
+    player: SessionPlayer = Depends(_get_player_by_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return current active step info for the team (hint player, active player, map object)."""
+    if player.team_id != team_id or player.session_id != session_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return await SessionService.get_team_step_info(db, session_id, team_id)
+
+
 @router.post("/{session_id}/teams/{team_id}/start", response_model=TeamResponse)
 async def start_team(
     session_id: uuid.UUID,
