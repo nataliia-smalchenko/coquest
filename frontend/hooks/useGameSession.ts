@@ -106,7 +106,24 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
         break;
       }
       case "player_left": {
-        updatePlayer({ id: data.player_id as string, status: "waiting" });
+        set((state) => {
+          if (!state.session) return {};
+          return {
+            session: {
+              ...state.session,
+              players: (state.session.players ?? []).map((p) =>
+                p.id === (data.player_id as string) && p.status !== "finished"
+                  ? { ...p, status: "waiting" }
+                  : p,
+              ),
+            },
+            myPlayer:
+              state.myPlayer?.id === (data.player_id as string) &&
+              state.myPlayer.status !== "finished"
+                ? { ...state.myPlayer, status: "waiting" }
+                : state.myPlayer,
+          };
+        });
         break;
       }
       case "session_started": {

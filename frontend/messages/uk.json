@@ -284,7 +284,8 @@
       "teamHintDismiss": "Зрозуміло!",
       "teamWaitingViewers": "Очікуємо поки всі ознайомляться ({count}/{total})",
       "teamAnsweredBy": "Відповів(ла): {name}",
-      "teamViewedBy": "Переглянув(ла): {name}"
+      "teamViewedBy": "Переглянув(ла): {name}",
+      "yourAnswer": "Ваша відповідь"
     },
     "results": {
       "title": "Результати",
@@ -303,7 +304,9 @@
       "tokenSubmit": "Переглянути",
       "yourAnswer": "Ваша відповідь",
       "correctAnswer": "Правильна відповідь",
-      "pointsUnit": "б"
+      "pointsUnit": "б",
+      "myQuestions": "Мої питання",
+      "answeredBy": "Відповів(ла) {name}"
     },
     "monitor": {
       "title": "Моніторинг сесії",

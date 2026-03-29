@@ -17,6 +17,7 @@ import {
   getMyProgress,
   getProgressResource,
   getTeamProgress,
+  getTeamStepInfo,
   markViewed,
   playerTimeout,
   submitAnswer,
@@ -222,6 +223,34 @@ export default function GamePage() {
       .catch(() => {});
   }, [stored, sessionId, isTeamMode]);
 
+  // In team mode: load initial step info (hint/active player) for reconnect/page-load case
+  useEffect(() => {
+    if (!stored || !isTeamMode || !myPlayer?.team_id || !map) return;
+    getTeamStepInfo(sessionId, myPlayer.team_id, stored.guest_token).then(
+      (si) => {
+        if (!si) return;
+        setTeamStepInfo(si as TeamStepInfo);
+        // Show hint if I am the hint player
+        if (si.hint_player_id === stored.player_id && si.map_object_id) {
+          const obj = map.objects.find((o) => o.id === si.map_object_id);
+          if (obj) {
+            const hints =
+              obj.hints.filter((h) => h.language === locale).length > 0
+                ? obj.hints.filter((h) => h.language === locale)
+                : obj.hints.filter((h) => h.language === "uk").length > 0
+                  ? obj.hints.filter((h) => h.language === "uk")
+                  : obj.hints;
+            if (hints.length > 0) {
+              const hint = hints[Math.floor(Math.random() * hints.length)];
+              setPendingHint(hint.hint_text);
+              setPendingHintIsTeam(si.resource_type === "question");
+            }
+          }
+        }
+      },
+    );
+  }, [stored, sessionId, isTeamMode, myPlayer?.team_id, map, locale]);
+
   // Show hint when a new active object is revealed
   // Solo mode only — team mode uses WS team_step events
   useEffect(() => {
@@ -400,7 +429,8 @@ export default function GamePage() {
       if (data.type === "player_finished") {
         const finishedId = data.player_id as string;
         const myId = stored?.player_id;
-        if (finishedId === myId) {
+        // Solo mode: redirect immediately. Team mode: isTeamDone derived state handles the overlay.
+        if (finishedId === myId && !isTeamMode) {
           router.push(`/session/${sessionId}/results`);
         }
       }
@@ -436,14 +466,21 @@ export default function GamePage() {
   const handleObjectClick = useCallback(
     async (_mapObjectId: string, progressId: string) => {
       if (!stored) return;
-      // In team mode: only active player (or text step) can interact
+      // Check if this is a completed item (own or teammate's)
+      const ownItem = progress.find((p) => p.id === progressId);
+      const teamItem = teamProgress.find((p) => p.id === progressId);
+      const isCompleted =
+        ownItem?.status === "answered" ||
+        ownItem?.status === "viewed" ||
+        !!teamItem;
+      // In team mode: block interaction on active (assigned) items for non-active players
       if (
         isTeamMode &&
+        !isCompleted &&
         teamStepInfo &&
         teamStepInfo.resource_type === "question"
       ) {
-        const myProgress = progress.find((p) => p.id === progressId);
-        if (!myProgress) return;
+        if (!ownItem) return;
       }
       setModalProgressId(progressId);
       setModalResource(null);
@@ -453,7 +490,9 @@ export default function GamePage() {
         const res = await getProgressResource(progressId, stored.guest_token);
         setModalResource(res);
         // Cache the title for the materials panel
-        const prog = progress.find((p) => p.id === progressId);
+        const prog =
+          progress.find((p) => p.id === progressId) ??
+          teamProgress.find((p) => p.id === progressId);
         if (prog?.resource_id && res.title) {
           setResourceTitles((prev) => ({
             ...prev,
@@ -466,7 +505,7 @@ export default function GamePage() {
         setModalResourceLoading(false);
       }
     },
-    [stored, isTeamMode, teamStepInfo, progress],
+    [stored, isTeamMode, teamStepInfo, progress, teamProgress],
   );
 
   const handleMarkViewed = async () => {
@@ -523,7 +562,10 @@ export default function GamePage() {
     [wsSend],
   );
 
-  const modalProgress = progress.find((p) => p.id === modalProgressId) ?? null;
+  const modalProgress =
+    progress.find((p) => p.id === modalProgressId) ??
+    teamProgress.find((p) => p.id === modalProgressId) ??
+    null;
 
   const completedCount = progress.filter(
     (p) => p.status === "answered" || p.status === "viewed",
@@ -532,7 +574,19 @@ export default function GamePage() {
 
   const isAllCompleted = totalCount > 0 && completedCount === totalCount;
 
-  // Solo-mode fallback redirect (team mode uses player_finished WS event instead)
+  // Team done: every player on my team has status "finished"
+  const isTeamDone = useMemo(() => {
+    if (!isTeamMode || !myPlayer?.team_id) return false;
+    const teamPlayers = (session?.players ?? []).filter(
+      (p) => p.team_id === myPlayer.team_id,
+    );
+    return (
+      teamPlayers.length > 0 &&
+      teamPlayers.every((p) => p.status === "finished")
+    );
+  }, [isTeamMode, myPlayer?.team_id, session?.players]);
+
+  // Solo redirect when own items are all done
   useEffect(() => {
     if (!isTeamMode && isAllCompleted) {
       router.push(`/session/${sessionId}/results`);
@@ -662,7 +716,7 @@ export default function GamePage() {
 
         {/* Chat panel */}
         {showChat && isTeamMode && (
-          <div className="w-72 flex-shrink-0 border-l border-gray-700 flex flex-col">
+          <div className="fixed right-0 top-14 bottom-0 z-30 w-72 bg-gray-800 flex flex-col border-l border-gray-700 sm:relative sm:top-auto sm:bottom-auto sm:inset-x-auto sm:z-auto sm:flex-shrink-0">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700 flex-shrink-0">
               <span className="text-sm font-medium text-white">
                 {t("chat")}
@@ -687,7 +741,7 @@ export default function GamePage() {
 
         {/* Materials panel */}
         {showMaterials && keepCompleted && (
-          <div className="w-72 flex-shrink-0 border-l border-gray-700 bg-gray-800 overflow-y-auto">
+          <div className="fixed right-0 top-14 bottom-0 z-30 w-72 bg-gray-800 overflow-y-auto border-l border-gray-700 sm:relative sm:top-auto sm:bottom-auto sm:inset-x-auto sm:z-auto sm:flex-shrink-0">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
               <span className="text-sm font-medium text-white">
                 {t("materials")}
@@ -703,35 +757,21 @@ export default function GamePage() {
             <div className="p-3 space-y-2">
               {/* Own completed items */}
               {progress
-                .filter((p) => {
-                  if (!p.map_object_id) return false;
-                  return true;
-                })
+                .filter((p) => p.status === "answered" || p.status === "viewed")
                 .map((p) => (
                   <button
                     type="button"
                     key={p.id}
                     onClick={() => {
-                      // In team mode only allow clicking own assigned items
-                      if (iAmActivePlayer || p.status !== "assigned") {
-                        handleObjectClick(p.map_object_id ?? "", p.id);
-                        setShowMaterials(false);
-                      }
+                      handleObjectClick(p.map_object_id ?? "", p.id);
+                      setShowMaterials(false);
                     }}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                      p.status === "assigned"
-                        ? "bg-blue-900/50 text-blue-200 hover:bg-blue-900"
-                        : "bg-gray-700/50 text-gray-300 hover:bg-gray-700"
-                    }`}
+                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors bg-gray-700/50 text-gray-300 hover:bg-gray-700"
                   >
                     <span className="flex items-center gap-2">
                       <span
                         className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          p.status === "assigned"
-                            ? "bg-blue-400"
-                            : p.status === "viewed"
-                              ? "bg-green-400"
-                              : "bg-gray-400"
+                          p.status === "viewed" ? "bg-green-400" : "bg-gray-400"
                         }`}
                       />
                       <span className="truncate">
@@ -750,9 +790,14 @@ export default function GamePage() {
                       (pl) => pl.id === p.player_id,
                     );
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={p.id}
-                        className="w-full text-left px-3 py-2.5 rounded-lg text-sm bg-purple-900/30 text-purple-200"
+                        onClick={() => {
+                          handleObjectClick(p.map_object_id ?? "", p.id);
+                          setShowMaterials(false);
+                        }}
+                        className="w-full text-left px-3 py-2.5 rounded-lg text-sm bg-purple-900/30 text-purple-200 hover:bg-purple-900/50 transition-colors"
                       >
                         <span className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full flex-shrink-0 bg-purple-400" />
@@ -761,10 +806,10 @@ export default function GamePage() {
                               ? t("teamAnsweredBy", {
                                   name: teammate.display_name,
                                 })
-                              : "Ресурс"}
+                              : t("resource")}
                           </span>
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
               {progress.length === 0 && (
@@ -778,7 +823,7 @@ export default function GamePage() {
       </div>
 
       {/* Completion overlay */}
-      {isAllCompleted && (
+      {(isTeamMode ? isTeamDone : isAllCompleted) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ backgroundColor: "rgba(0,0,0,0.75)" }}

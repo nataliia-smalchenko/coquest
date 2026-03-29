@@ -39,8 +39,7 @@ import type {
   TeacherMonitorResponse,
 } from "@/types/session";
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
+// helpers
 function formatDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale, {
     day: "2-digit",
@@ -247,9 +246,9 @@ function PlayerDetailDrawer({
             <p className="text-xs text-gray-400">
               {pp.completed}/{pp.total}
               {pp.grade != null
-                ? ` · ${pp.grade}/${pp.max_grade} · ${pp.total_score ?? 0}/${pp.max_score} ${t("scoreLabel")}`
+                ? ` · ${t("numberOfPoints")}: ${pp.total_score ?? 0}/${pp.max_score} · ${t("scoreLabel")}: ${pp.grade}/${pp.max_grade}`
                 : pp.max_score != null && pp.max_score > 0
-                  ? ` · ${pp.total_score ?? 0}/${pp.max_score} ${t("scoreLabel")}`
+                  ? ` · ${t("numberOfPoints")}: ${pp.total_score ?? 0}/${pp.max_score}`
                   : pp.score !== null
                     ? ` · ${Math.round(pp.score * 100)}%`
                     : ""}
@@ -985,7 +984,7 @@ export default function MonitorPage() {
                     </span>
                     {pp.player.team_id && (
                       <span
-                        className="text-xs px-1.5 py-0.5 rounded font-mono font-semibold text-white flex-shrink-0"
+                        className="text-xs px-2 py-0.5 rounded-full block font-mono font-semibold text-white flex-shrink-0"
                         style={{
                           backgroundColor: teamColorMap[pp.player.team_id],
                         }}
@@ -1006,7 +1005,7 @@ export default function MonitorPage() {
                     total: pp.total,
                   })}
                   {pp.grade != null
-                    ? ` · ${pp.grade}/${pp.max_grade} · ${pp.total_score ?? 0}/${pp.max_score} ${t("scoreLabel")}`
+                    ? ` · ${t("numberOfPoints")}: ${pp.total_score ?? 0}/${pp.max_score} · ${t("scoreLabel")}: ${pp.grade}/${pp.max_grade}`
                     : pp.max_score != null && pp.max_score > 0
                       ? ` · ${t("numberOfPoints")}: ${pp.total_score ?? 0}/${pp.max_score}`
                       : pp.score !== null

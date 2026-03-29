@@ -29,6 +29,24 @@ interface ResourceModalProps {
   isSubmitting?: boolean;
 }
 
+function getSelectedIds(answer: unknown, questionType: string): string[] {
+  if (!answer || typeof answer !== "object") return [];
+  const a = answer as Record<string, unknown>;
+  if (questionType === "single")
+    return a.option_id ? [String(a.option_id)] : [];
+  if (questionType === "multiple")
+    return Array.isArray(a.option_ids)
+      ? (a.option_ids as unknown[]).map(String)
+      : [];
+  return [];
+}
+
+function getAnswerText(answer: unknown): string {
+  if (!answer || typeof answer !== "object") return "";
+  const a = answer as Record<string, unknown>;
+  return typeof a.text === "string" ? a.text : "";
+}
+
 function renderTiptap(body: Record<string, unknown>): string {
   try {
     return generateHTML(body as Parameters<typeof generateHTML>[0], [
@@ -191,9 +209,55 @@ export default function ResourceModal({
                   )}
                 </div>
               ) : isAnswered ? (
-                <div className="flex items-center gap-2 text-gray-600 text-sm">
-                  <CheckCircle size={16} className="text-green-500" />
-                  {t("alreadyAnswered")}
+                <div className="space-y-3">
+                  <div
+                    className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(resource.question.body),
+                    }}
+                  />
+                  {(resource.question.question_type === "single" ||
+                    resource.question.question_type === "multiple") && (
+                    <ul className="space-y-1.5">
+                      {resource.question.options.map((opt) => {
+                        const selected = getSelectedIds(
+                          progress.answer,
+                          resource.question!.question_type,
+                        ).includes(opt.id);
+                        return (
+                          <li
+                            key={opt.id}
+                            className={`flex items-center gap-2 border rounded-lg px-3 py-2 text-sm ${
+                              selected
+                                ? "bg-blue-50 border-blue-300 font-medium"
+                                : "bg-gray-50 border-gray-200 text-gray-600"
+                            }`}
+                          >
+                            <span className="flex-1">{opt.text}</span>
+                            {selected && (
+                              <CheckCircle
+                                size={14}
+                                className="text-blue-500 flex-shrink-0"
+                              />
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {resource.question.question_type !== "single" &&
+                    resource.question.question_type !== "multiple" && (
+                      <div className="border border-blue-200 bg-blue-50 rounded-lg px-3 py-2 text-sm text-gray-800">
+                        <span className="block text-xs text-blue-500 font-medium mb-0.5">
+                          {t("yourAnswer")}
+                        </span>
+                        {getAnswerText(progress.answer) || "—"}
+                      </div>
+                    )}
+                  <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg px-3 py-2 text-sm font-medium">
+                    <CheckCircle size={14} />
+                    {t("alreadyAnswered")}
+                  </div>
                 </div>
               ) : (
                 <QuestionForm

@@ -158,6 +158,7 @@ export interface GameSessionResultResponse extends GameSession {
   progress: SessionProgressResult[];
   chat_messages: ChatMessage[];
   max_grade: number | null;
+  total_question_points: number | null;
 }
 
 export interface SessionStorageData {

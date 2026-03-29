@@ -205,6 +205,24 @@ export default function ResultsPage() {
       )
     : [];
 
+  const isTeamMode = (results?.max_players ?? 1) > 1;
+  const myTeamId = myPlayer?.team_id ?? null;
+
+  // Teammates (same team, not me)
+  const teammates =
+    isTeamMode && myTeamId && results
+      ? results.players.filter(
+          (p) => p.team_id === myTeamId && p.id !== myPlayer?.id,
+        )
+      : [];
+
+  // Each teammate's answered questions
+  const teammateProgress = (pid: string): SessionProgressResult[] =>
+    (results?.progress ?? []).filter(
+      (p) =>
+        p.player_id === pid && p.question !== null && p.status === "answered",
+    );
+
   const answeredProgress = myProgress.filter((p) => p.status === "answered");
   const totalQuestions = myProgress.length;
   const scores = answeredProgress.map((p) => p.score ?? 0);
@@ -213,12 +231,12 @@ export default function ResultsPage() {
       ? scores.reduce((a, b) => a + b, 0) / scores.length
       : null;
 
-  const maxPoints = myProgress.reduce(
-    (sum, p) => sum + (p.question?.points ?? 1),
-    0,
-  );
   const earnedPoints = myProgress.reduce(
     (sum, p) => sum + (p.score ?? 0) * (p.question?.points ?? 1),
+    0,
+  );
+  const maxPoints = myProgress.reduce(
+    (sum, p) => sum + (p.question?.points ?? 1),
     0,
   );
   const maxGrade = results?.max_grade ?? null;
@@ -227,7 +245,7 @@ export default function ResultsPage() {
       ? +((earnedPoints / maxPoints) * maxGrade).toFixed(1)
       : null;
 
-  const startTime = results?.started_at ? new Date(results.started_at) : null;
+  const startTime = myPlayer?.started_at ? new Date(myPlayer.started_at) : null;
   const endTime = myPlayer?.finished_at ? new Date(myPlayer.finished_at) : null;
   const durationMin =
     startTime && endTime
@@ -350,98 +368,202 @@ export default function ResultsPage() {
 
         {/* Progress breakdown */}
         {myProgress.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
-            {myProgress.map((p, i) => {
-              const isCorrect = p.score !== null && p.score >= 1;
-              const isPending = p.requires_review && p.score === null;
-              const isWrong =
-                p.status === "answered" && !isCorrect && !isPending;
-              const isExpanded = expandedIds.has(p.id);
-              const hasDetail = !!p.question;
+          <>
+            {isTeamMode && (
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">
+                {t("myQuestions")}
+              </p>
+            )}
+            <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
+              {myProgress.map((p, i) => {
+                const isCorrect = p.score !== null && p.score >= 1;
+                const isPending = p.requires_review && p.score === null;
+                const isWrong =
+                  p.status === "answered" && !isCorrect && !isPending;
+                const isExpanded = expandedIds.has(p.id);
+                const hasDetail = !!p.question;
 
-              return (
-                <div
-                  key={p.id}
-                  className={
-                    isCorrect
-                      ? "bg-green-50"
-                      : isPending
-                        ? "bg-yellow-50"
-                        : isWrong
-                          ? "bg-red-50"
-                          : ""
-                  }
-                >
-                  {/* Row header */}
+                return (
                   <div
-                    className={`px-5 py-4 flex items-center gap-3 ${hasDetail ? "cursor-pointer select-none" : ""}`}
-                    onClick={() => hasDetail && toggleExpand(p.id)}
+                    key={p.id}
+                    className={
+                      isCorrect
+                        ? "bg-green-50"
+                        : isPending
+                          ? "bg-yellow-50"
+                          : isWrong
+                            ? "bg-red-50"
+                            : ""
+                    }
                   >
-                    {isCorrect ? (
-                      <CheckCircle
-                        size={18}
-                        className="text-green-500 flex-shrink-0"
-                      />
-                    ) : isPending ? (
-                      <Clock
-                        size={18}
-                        className="text-yellow-500 flex-shrink-0"
-                      />
-                    ) : isWrong ? (
-                      <XCircle
-                        size={18}
-                        className="text-red-400 flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-300 flex-shrink-0" />
-                    )}
-
-                    <span className="text-sm text-gray-700 flex-1">
-                      {p.resource_title
-                        ? p.resource_title
-                        : t("question", { n: i + 1 })}
-                      {showScore && p.score !== null && (
-                        <span className="ml-2 text-xs text-gray-400">
-                          {p.question
-                            ? `${+((p.score ?? 0) * p.question.points).toFixed(1)}/${p.question.points} ${t("pointsUnit")}`
-                            : `${Math.round(p.score * 100)}%`}
-                        </span>
-                      )}
-                    </span>
-
-                    {isPending && (
-                      <span className="text-xs text-yellow-600 font-medium">
-                        {t("pendingReview")}
-                      </span>
-                    )}
-
-                    {hasDetail &&
-                      (isExpanded ? (
-                        <ChevronUp
-                          size={16}
-                          className="text-gray-400 flex-shrink-0"
+                    {/* Row header */}
+                    <div
+                      className={`px-5 py-4 flex items-center gap-3 ${hasDetail ? "cursor-pointer select-none" : ""}`}
+                      onClick={() => hasDetail && toggleExpand(p.id)}
+                    >
+                      {isCorrect ? (
+                        <CheckCircle
+                          size={18}
+                          className="text-green-500 flex-shrink-0"
+                        />
+                      ) : isPending ? (
+                        <Clock
+                          size={18}
+                          className="text-yellow-500 flex-shrink-0"
+                        />
+                      ) : isWrong ? (
+                        <XCircle
+                          size={18}
+                          className="text-red-400 flex-shrink-0"
                         />
                       ) : (
-                        <ChevronDown
-                          size={16}
-                          className="text-gray-400 flex-shrink-0"
-                        />
-                      ))}
-                  </div>
+                        <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                      )}
 
-                  {/* Expanded detail */}
-                  {isExpanded && hasDetail && (
-                    <QuestionDetail
-                      progress={p}
-                      showCorrectAnswers={showCorrect}
-                      t={t}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                      <span className="text-sm text-gray-700 flex-1">
+                        {p.resource_title
+                          ? p.resource_title
+                          : t("question", { n: i + 1 })}
+                        {showScore && p.score !== null && (
+                          <span className="ml-2 text-xs text-gray-400">
+                            {p.question
+                              ? `${+((p.score ?? 0) * p.question.points).toFixed(1)}/${p.question.points} ${t("pointsUnit")}`
+                              : `${Math.round(p.score * 100)}%`}
+                          </span>
+                        )}
+                      </span>
+
+                      {isPending && (
+                        <span className="text-xs text-yellow-600 font-medium">
+                          {t("pendingReview")}
+                        </span>
+                      )}
+
+                      {hasDetail &&
+                        (isExpanded ? (
+                          <ChevronUp
+                            size={16}
+                            className="text-gray-400 flex-shrink-0"
+                          />
+                        ) : (
+                          <ChevronDown
+                            size={16}
+                            className="text-gray-400 flex-shrink-0"
+                          />
+                        ))}
+                    </div>
+
+                    {/* Expanded detail */}
+                    {isExpanded && hasDetail && (
+                      <QuestionDetail
+                        progress={p}
+                        showCorrectAnswers={showCorrect}
+                        t={t}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
+
+        {/* Team mode: teammates' questions */}
+        {isTeamMode &&
+          teammates.map((teammate) => {
+            const tProgress = teammateProgress(teammate.id);
+            if (tProgress.length === 0) return null;
+            return (
+              <div key={teammate.id}>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">
+                  {t("answeredBy", { name: teammate.display_name })}
+                </p>
+                <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
+                  {tProgress.map((p, i) => {
+                    const isCorrect = p.score !== null && p.score >= 1;
+                    const isPending = p.requires_review && p.score === null;
+                    const isWrong =
+                      p.status === "answered" && !isCorrect && !isPending;
+                    const isExpanded = expandedIds.has(p.id);
+                    const hasDetail = !!p.question;
+
+                    return (
+                      <div
+                        key={p.id}
+                        className={
+                          isCorrect
+                            ? "bg-green-50"
+                            : isPending
+                              ? "bg-yellow-50"
+                              : isWrong
+                                ? "bg-red-50"
+                                : ""
+                        }
+                      >
+                        <div
+                          className={`px-5 py-4 flex items-center gap-3 ${hasDetail ? "cursor-pointer select-none" : ""}`}
+                          onClick={() => hasDetail && toggleExpand(p.id)}
+                        >
+                          {isCorrect ? (
+                            <CheckCircle
+                              size={18}
+                              className="text-green-500 flex-shrink-0"
+                            />
+                          ) : isPending ? (
+                            <Clock
+                              size={18}
+                              className="text-yellow-500 flex-shrink-0"
+                            />
+                          ) : isWrong ? (
+                            <XCircle
+                              size={18}
+                              className="text-red-400 flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                          )}
+                          <span className="text-sm text-gray-700 flex-1">
+                            {p.resource_title ?? t("question", { n: i + 1 })}
+                            {showScore && p.score !== null && (
+                              <span className="ml-2 text-xs text-gray-400">
+                                {p.question
+                                  ? `${+((p.score ?? 0) * p.question.points).toFixed(1)}/${p.question.points} ${t("pointsUnit")}`
+                                  : `${Math.round(p.score * 100)}%`}
+                              </span>
+                            )}
+                          </span>
+                          {isPending && (
+                            <span className="text-xs text-yellow-600 font-medium">
+                              {t("pendingReview")}
+                            </span>
+                          )}
+                          {hasDetail &&
+                            (isExpanded ? (
+                              <ChevronUp
+                                size={16}
+                                className="text-gray-400 flex-shrink-0"
+                              />
+                            ) : (
+                              <ChevronDown
+                                size={16}
+                                className="text-gray-400 flex-shrink-0"
+                              />
+                            ))}
+                        </div>
+                        {isExpanded && hasDetail && (
+                          <QuestionDetail
+                            progress={p}
+                            showCorrectAnswers={showCorrect}
+                            t={t}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
 
         {/* Back home */}
         <button

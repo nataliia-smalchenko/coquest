@@ -284,7 +284,8 @@
       "teamHintDismiss": "Got it!",
       "teamWaitingViewers": "Waiting for teammates to view ({count}/{total})",
       "teamAnsweredBy": "Answered by {name}",
-      "teamViewedBy": "Viewed by {name}"
+      "teamViewedBy": "Viewed by {name}",
+      "yourAnswer": "Your answer"
     },
     "results": {
       "title": "Results",
@@ -303,7 +304,9 @@
       "tokenSubmit": "View results",
       "yourAnswer": "Your answer",
       "correctAnswer": "Correct answer",
-      "pointsUnit": "pt"
+      "pointsUnit": "pt",
+      "myQuestions": "My questions",
+      "answeredBy": "Answered by {name}"
     },
     "monitor": {
       "title": "Session Monitor",

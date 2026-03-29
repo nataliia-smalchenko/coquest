@@ -75,6 +75,28 @@ export async function startTeam(
   return data;
 }
 
+export async function getTeamStepInfo(
+  sessionId: string,
+  teamId: string,
+  guestToken: string,
+): Promise<{
+  resource_type: string;
+  active_player_id: string | null;
+  hint_player_id: string | null;
+  map_object_id: string | null;
+  step_order: number | null;
+} | null> {
+  try {
+    const { data } = await api.get(
+      `/api/sessions/${sessionId}/teams/${teamId}/step-info`,
+      { headers: { "X-Guest-Token": guestToken } },
+    );
+    return data && Object.keys(data).length > 0 ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function playerTimeout(
   id: string,
   guestToken: string,
