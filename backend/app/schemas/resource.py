@@ -104,6 +104,7 @@ class QuestionCreate(BaseModel):
     correct_answers: List[str] = Field(default_factory=list)
     requires_review: bool = False
     difficulty: Optional[DifficultyLevel] = None
+    points: int = Field(default=1, ge=1)
 
 
 class QuestionResponse(BaseModel):
@@ -116,6 +117,7 @@ class QuestionResponse(BaseModel):
     correct_answers: List[str]
     requires_review: bool
     difficulty: Optional[DifficultyLevel] = None
+    points: int = 1
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -136,6 +138,7 @@ class QuestionPublicResponse(BaseModel):
     options: List[QuestionPublicOption]
     requires_review: bool
     difficulty: Optional[DifficultyLevel] = None
+    points: int = 1
 
     model_config = ConfigDict(from_attributes=True)
 

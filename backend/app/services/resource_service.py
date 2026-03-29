@@ -358,6 +358,7 @@ class ResourceService:
                 question.correct_answers = data.correct_answers
                 question.requires_review = data.requires_review
                 question.difficulty = data.difficulty
+                question.points = data.points
             else:
                 question = Question(
                     resource_id=resource_id,
@@ -368,6 +369,7 @@ class ResourceService:
                     correct_answers=data.correct_answers,
                     requires_review=data.requires_review,
                     difficulty=data.difficulty,
+                    points=data.points,
                 )
                 db.add(question)
 

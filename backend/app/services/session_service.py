@@ -1110,6 +1110,7 @@ class SessionService:
                     question_type=q.question_type,
                     options=options,
                     correct_answers=correct_answers,
+                    points=q.points if hasattr(q, "points") else 1,
                 )
             enriched_progress.append(
                 SessionProgressResultResponse(
@@ -1118,6 +1119,12 @@ class SessionService:
                     question=question_data,
                 )
             )
+
+        settings_res2 = await db.execute(
+            select(QuestSettings).where(QuestSettings.quest_id == session.quest_id)
+        )
+        quest_settings = settings_res2.scalar_one_or_none()
+        result_max_grade = quest_settings.max_grade if quest_settings else None
 
         return GameSessionResultResponse(
             id=session.id,
@@ -1138,6 +1145,7 @@ class SessionService:
             players=[_player_response(p) for p in session.players],
             progress=enriched_progress,
             chat_messages=chat_messages,
+            max_grade=result_max_grade,
         )
 
     @staticmethod
@@ -1148,10 +1156,31 @@ class SessionService:
         if await _maybe_expire_session(db, session):
             await db.commit()
 
+        from app.models.question import Question as QuestionModel
+
+        monitor_settings_res = await db.execute(
+            select(QuestSettings).where(QuestSettings.quest_id == session.quest_id)
+        )
+        monitor_quest_settings = monitor_settings_res.scalar_one_or_none()
+        monitor_max_grade = (
+            monitor_quest_settings.max_grade if monitor_quest_settings else None
+        )
+
         progress_result = await db.execute(
             select(SessionProgress).where(SessionProgress.session_id == session_id)
         )
         all_progress = list(progress_result.scalars().all())
+
+        # Load points for all question resources referenced by this session's progress
+        resource_ids = list({p.resource_id for p in all_progress if p.resource_id})
+        points_map: Dict[str, int] = {}
+        if resource_ids:
+            pts_result = await db.execute(
+                select(QuestionModel.resource_id, QuestionModel.points).where(
+                    QuestionModel.resource_id.in_(resource_ids)
+                )
+            )
+            points_map = {str(row.resource_id): row.points for row in pts_result}
 
         players_progress: List[PlayerProgressSummary] = []
         for player in session.players:
@@ -1181,14 +1210,49 @@ class SessionService:
                 and not (p.requires_review and p.score is None)
             )
             viewed = sum(1 for p in p_items if p.status == ProgressStatus.VIEWED)
-            scores = [p.score for p in p_items if p.score is not None]
-            avg_score = round(sum(scores) / len(scores), 2) if scores else None
+
+            # Points-weighted scoring
+            q_items = [
+                p for p in p_items if p.resource_id and str(p.resource_id) in points_map
+            ]
+            max_score_val = (
+                sum(points_map[str(p.resource_id)] for p in q_items)
+                if q_items
+                else None
+            )
+            total_score_val = (
+                round(
+                    sum(
+                        (p.score or 0) * points_map[str(p.resource_id)]
+                        for p in q_items
+                        if p.score is not None
+                    ),
+                    2,
+                )
+                if q_items
+                else None
+            )
+            avg_score = (
+                round(total_score_val / max_score_val, 2)
+                if total_score_val is not None and max_score_val
+                else None
+            )
+            grade_val = (
+                round(total_score_val / max_score_val * monitor_max_grade, 1)
+                if total_score_val is not None and max_score_val and monitor_max_grade
+                else None
+            )
+
             players_progress.append(
                 PlayerProgressSummary(
                     player=_player_response(player),
                     completed=completed,
                     total=total,
                     score=avg_score,
+                    total_score=total_score_val,
+                    max_score=max_score_val,
+                    grade=grade_val,
+                    max_grade=monitor_max_grade,
                     pending_review=pending_review,
                     correct=correct,
                     incorrect=incorrect,
@@ -1251,6 +1315,7 @@ class SessionService:
                     question_type=q.question_type,
                     options=options,
                     correct_answers=[str(a) for a in (q.correct_answers or [])],
+                    points=q.points if hasattr(q, "points") else 1,
                 )
             elif p.resource:
                 resource_title = p.resource.title

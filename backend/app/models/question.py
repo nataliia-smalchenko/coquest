@@ -3,7 +3,7 @@ import enum
 from datetime import datetime
 from typing import Optional, List, Any, TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Text, func, Uuid
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Text, func, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -57,6 +57,10 @@ class Question(Base):
     )
 
     difficulty: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    points: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="1", default=1
+    )
 
     requires_review: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False

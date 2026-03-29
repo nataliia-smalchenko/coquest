@@ -41,6 +41,7 @@ class TeamPlayerResponse(BaseModel):
     display_name: str
     avatar_color: str
     status: PlayerStatus
+    started_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -150,6 +151,7 @@ class QuestionResultData(BaseModel):
     question_type: str
     options: List[QuestionResultOption]
     correct_answers: List[str]
+    points: int = 1
 
 
 class SessionProgressResultResponse(SessionProgressResponse):
@@ -160,6 +162,7 @@ class SessionProgressResultResponse(SessionProgressResponse):
 class GameSessionResultResponse(GameSessionResponse):
     progress: List[SessionProgressResultResponse] = []
     chat_messages: List[SessionChatMessage] = []
+    max_grade: Optional[int] = None
 
 
 class PlayerProgressSummary(BaseModel):
@@ -167,6 +170,10 @@ class PlayerProgressSummary(BaseModel):
     completed: int
     total: int
     score: Optional[float] = None
+    total_score: Optional[float] = None
+    max_score: Optional[int] = None
+    grade: Optional[float] = None
+    max_grade: Optional[int] = None
     pending_review: int
     correct: int = 0
     incorrect: int = 0
