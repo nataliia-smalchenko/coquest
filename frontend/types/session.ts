@@ -98,6 +98,10 @@ export interface PlayerProgressSummary {
   completed: number;
   total: number;
   score: number | null;
+  total_score: number | null;
+  max_score: number | null;
+  grade: number | null;
+  max_grade: number | null;
   pending_review: number;
   correct: number;
   incorrect: number;
@@ -140,6 +144,7 @@ export interface QuestionResultData {
   question_type: string;
   options: QuestionResultOption[];
   correct_answers: string[];
+  points: number;
 }
 
 export interface SessionProgressResult extends SessionProgress {
@@ -150,6 +155,7 @@ export interface SessionProgressResult extends SessionProgress {
 export interface GameSessionResultResponse extends GameSession {
   progress: SessionProgressResult[];
   chat_messages: ChatMessage[];
+  max_grade: number | null;
 }
 
 export interface SessionStorageData {

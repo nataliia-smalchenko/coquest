@@ -102,7 +102,10 @@ function SortableResourceRow({
     ? folders.find((f) => f.id === resource.folder_id)?.name
     : null;
   const hasMeta =
-    folderName || (resource?.tags.length ?? 0) > 0 || resource?.difficulty;
+    folderName ||
+    (resource?.tags.length ?? 0) > 0 ||
+    resource?.difficulty ||
+    resource?.type === "question";
 
   return (
     <div ref={setNodeRef} style={wrapperStyle}>
@@ -220,6 +223,21 @@ function SortableResourceRow({
                   {tRes(`question.difficulties.${resource.difficulty}`)}
                 </span>
               )}
+              {resource?.type === "question" &&
+                detail?.question?.points != null && (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      padding: "1px 6px",
+                      borderRadius: "4px",
+                      backgroundColor: "#f5f3ff",
+                      color: "#7c3aed",
+                    }}
+                  >
+                    {detail.question.points} {tRes("question.pointsUnit")}
+                  </span>
+                )}
             </div>
           )}
         </div>
@@ -405,6 +423,16 @@ export default function MapAndResourcesStep({
       });
     }
   };
+
+  // Pre-fetch details for question-type resources so points are visible without expanding
+  useEffect(() => {
+    for (const item of resources) {
+      const res = resourceCache[item.resource_id];
+      if (res?.type === "question") {
+        fetchDetail(item.resource_id);
+      }
+    }
+  }, [resources, resourceCache]);
 
   const handleToggleExpand = (id: string) => {
     setExpandedIds((prev) => {

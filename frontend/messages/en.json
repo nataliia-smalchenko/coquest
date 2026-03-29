@@ -14,7 +14,6 @@
     "filter": "Filter",
     "loadMore": "Load more"
   },
-
   "nav": {
     "home": "Home",
     "dashboard": "Dashboard",
@@ -27,7 +26,6 @@
     "logout": "Logout",
     "sessions": "Sessions"
   },
-
   "auth": {
     "login": {
       "title": "Sign in to CoQuest",
@@ -43,7 +41,6 @@
       "verifyEmailMessage": "Please click the link in your email to activate your account.",
       "resendVerification": "Resend verification email"
     },
-
     "register": {
       "title": "Sign up for CoQuest",
       "fullName": "Full name",
@@ -62,7 +59,6 @@
         "backToLogin": "Back to login"
       }
     },
-
     "verify": {
       "loading": "Verifying email...",
       "success": "Success!",
@@ -71,7 +67,6 @@
       "redirecting": "Redirecting to login page...",
       "backToLogin": "Back to login"
     },
-
     "errors": {
       "invalidEmail": "Invalid email",
       "passwordMin": "Minimum 8 characters",
@@ -87,7 +82,6 @@
       "tokenExpired": "Link expired"
     }
   },
-
   "dashboard": {
     "teacher": {
       "title": "Dashboard",
@@ -103,7 +97,6 @@
       "noQuests": "No available quests"
     }
   },
-
   "quests": {
     "title": "My Quests",
     "new": "New Quest",
@@ -154,7 +147,10 @@
       "timeLimit": "Limit time",
       "minutes": "Minutes",
       "order": "Order",
-      "randomOrder": "Random resource order"
+      "randomOrder": "Random resource order",
+      "grade": "Grade",
+      "maxGrade": "Set maximum grade",
+      "maxGradeValue": "Maximum grade"
     },
     "preview": {
       "settings": "Settings",
@@ -178,10 +174,11 @@
       "settingCorrect": "Show answers",
       "settingTeam": "{n} players",
       "settingSolo": "Individual",
-      "settingDistribute": "Distribute texts"
+      "settingDistribute": "Distribute texts",
+      "pointsBadge": "{n} pt",
+      "totalPoints": "Total: {n} pts"
     }
   },
-
   "quest": {
     "title": "Quest title",
     "description": "Description",
@@ -198,7 +195,6 @@
       "archived": "Archived"
     }
   },
-
   "settings": {
     "title": "Settings",
     "profile": "Profile",
@@ -207,7 +203,6 @@
     "privacy": "Privacy",
     "account": "Account"
   },
-
   "game": {
     "session": {
       "newTitle": "New Session",
@@ -240,8 +235,8 @@
       "title": "Join a Quest",
       "code": "Session Code",
       "codePlaceholder": "XXXXXX",
-      "name": "Your Name",
-      "namePlaceholder": "Enter your name...",
+      "name": "Your full name",
+      "namePlaceholder": "Enter your full name...",
       "submit": "Join",
       "invalidCode": "Invalid session code",
       "sessionFull": "Session is full",
@@ -273,7 +268,14 @@
       "hintTitle": "Hint",
       "hintGo": "Let's go!",
       "completed": "Quest completed!",
-      "viewResults": "View results"
+      "viewResults": "View results",
+      "viewed": "Viewed",
+      "pointsUnit": "pt",
+      "resource": "Resource",
+      "alreadyAnswered": "Answer already submitted",
+      "pendingAnswer": "Answer sent — awaiting review",
+      "loadError": "Failed to load resource",
+      "explanation": "Explanation"
     },
     "results": {
       "title": "Results",
@@ -291,7 +293,8 @@
       "tokenPlaceholder": "Your guest_token...",
       "tokenSubmit": "View results",
       "yourAnswer": "Your answer",
-      "correctAnswer": "Correct answer"
+      "correctAnswer": "Correct answer",
+      "pointsUnit": "pt"
     },
     "monitor": {
       "title": "Session Monitor",
@@ -328,9 +331,11 @@
       "scheduleEndLabel": "End",
       "settingsTitle": "Session settings",
       "playerDetail": "Player answer",
+      "correctAnswer": "Correct answer",
       "viewedText": "Viewed",
       "notStarted": "Not started",
       "scoreLabel": "Score",
+      "numberOfPoints": "Number of points",
       "submitReview": "Submit",
       "reviewScore": "Score (0–100%)",
       "correct": "Correct",
@@ -339,10 +344,10 @@
       "finishedAt": "Finished",
       "durationLabel": "Duration",
       "sessionEndsAt": "Session ends at",
-      "timeLeft": "time left"
+      "timeLeft": "time left",
+      "pointsUnit": "pt"
     }
   },
-
   "resources": {
     "title": "Resource Library",
     "new": "New Resource",
@@ -409,6 +414,8 @@
       "correctAnswer": "Correct answer",
       "correctAnswers": "Correct answers",
       "requiresReview": "Requires teacher review",
+      "points": "Points",
+      "pointsHint": "Points for a correct answer",
       "addImage": "Add image",
       "difficulty": "Difficulty level",
       "difficultyNone": "Not specified",
@@ -423,7 +430,8 @@
         "intermediate": "Intermediate",
         "sufficient": "Sufficient",
         "advanced": "Advanced"
-      }
+      },
+      "pointsUnit": "pt"
     }
   }
 }

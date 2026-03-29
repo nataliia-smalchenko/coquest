@@ -14,7 +14,6 @@
     "filter": "Фільтр",
     "loadMore": "Завантажити ще"
   },
-
   "nav": {
     "home": "Головна",
     "dashboard": "Дашборд",
@@ -27,7 +26,6 @@
     "logout": "Вийти",
     "sessions": "Сесії"
   },
-
   "auth": {
     "login": {
       "title": "Вхід в CoQuest",
@@ -43,7 +41,6 @@
       "verifyEmailMessage": "Будь ласка, перейдіть за посиланням у листі для активації акаунту.",
       "resendVerification": "Надіслати лист знову"
     },
-
     "register": {
       "title": "Реєстрація в CoQuest",
       "fullName": "Повне ім'я",
@@ -62,7 +59,6 @@
         "backToLogin": "Повернутись до входу"
       }
     },
-
     "verify": {
       "loading": "Перевіряємо email...",
       "success": "Успішно!",
@@ -71,7 +67,6 @@
       "redirecting": "Перенаправляємо на сторінку входу...",
       "backToLogin": "Повернутись до входу"
     },
-
     "errors": {
       "invalidEmail": "Невірний email",
       "passwordMin": "Мінімум 8 символів",
@@ -87,7 +82,6 @@
       "tokenExpired": "Посилання застаріло"
     }
   },
-
   "dashboard": {
     "teacher": {
       "title": "Дашборд",
@@ -103,7 +97,6 @@
       "noQuests": "Немає доступних квестів"
     }
   },
-
   "quests": {
     "title": "Мої квести",
     "new": "Новий квест",
@@ -154,7 +147,10 @@
       "timeLimit": "Обмежити час",
       "minutes": "Хвилин",
       "order": "Порядок",
-      "randomOrder": "Випадковий порядок ресурсів"
+      "randomOrder": "Випадковий порядок ресурсів",
+      "grade": "Оцінка",
+      "maxGrade": "Вказати максимальну оцінку",
+      "maxGradeValue": "Максимальна оцінка"
     },
     "preview": {
       "settings": "Налаштування",
@@ -178,10 +174,11 @@
       "settingCorrect": "Показувати відповіді",
       "settingTeam": "{n} гравців",
       "settingSolo": "Індивідуально",
-      "settingDistribute": "Розподіл текстів"
+      "settingDistribute": "Розподіл текстів",
+      "pointsBadge": "{n} б",
+      "totalPoints": "Разом: {n} б"
     }
   },
-
   "quest": {
     "title": "Назва квесту",
     "description": "Опис",
@@ -198,7 +195,6 @@
       "archived": "Архівовано"
     }
   },
-
   "settings": {
     "title": "Налаштування",
     "profile": "Профіль",
@@ -207,7 +203,6 @@
     "privacy": "Приватність",
     "account": "Акаунт"
   },
-
   "game": {
     "session": {
       "newTitle": "Нова сесія",
@@ -240,8 +235,8 @@
       "title": "Приєднатись до квесту",
       "code": "Код сесії",
       "codePlaceholder": "XXXXXX",
-      "name": "Ваше ім'я",
-      "namePlaceholder": "Введіть ім'я...",
+      "name": "Ваше прізвище та ім'я",
+      "namePlaceholder": "Введіть прізвище та ім'я...",
       "submit": "Приєднатись",
       "invalidCode": "Невірний код сесії",
       "sessionFull": "Сесія заповнена",
@@ -273,7 +268,14 @@
       "hintTitle": "Підказка",
       "hintGo": "Вперед!",
       "completed": "Квест завершено!",
-      "viewResults": "Переглянути результати"
+      "viewResults": "Переглянути результати",
+      "viewed": "Переглянуто",
+      "pointsUnit": "б",
+      "resource": "Ресурс",
+      "alreadyAnswered": "Відповідь вже надана",
+      "pendingAnswer": "Відповідь надіслана — очікує перевірки",
+      "loadError": "Не вдалося завантажити ресурс",
+      "explanation": "Пояснення"
     },
     "results": {
       "title": "Результати",
@@ -291,7 +293,8 @@
       "tokenPlaceholder": "Ваш guest_token...",
       "tokenSubmit": "Переглянути",
       "yourAnswer": "Ваша відповідь",
-      "correctAnswer": "Правильна відповідь"
+      "correctAnswer": "Правильна відповідь",
+      "pointsUnit": "б"
     },
     "monitor": {
       "title": "Моніторинг сесії",
@@ -328,9 +331,11 @@
       "scheduleEndLabel": "Кінець",
       "settingsTitle": "Налаштування сесії",
       "playerDetail": "Відповідь учня",
+      "correctAnswer": "Правильна відповідь",
       "viewedText": "Переглянуто",
       "notStarted": "Не розпочато",
       "scoreLabel": "Оцінка",
+      "numberOfPoints": "Кількість балів",
       "submitReview": "Підтвердити",
       "reviewScore": "Балів (0–100%)",
       "correct": "Правильно",
@@ -339,10 +344,10 @@
       "finishedAt": "Завершив",
       "durationLabel": "Тривалість",
       "sessionEndsAt": "Сесія закінчується",
-      "timeLeft": "залишилось"
+      "timeLeft": "залишилось",
+      "pointsUnit": "б"
     }
   },
-
   "resources": {
     "title": "Бібліотека ресурсів",
     "new": "Новий ресурс",
@@ -409,6 +414,8 @@
       "correctAnswer": "Правильна відповідь",
       "correctAnswers": "Правильні відповіді",
       "requiresReview": "Потребує перевірки вчителем",
+      "points": "Балів",
+      "pointsHint": "Кількість балів за правильну відповідь",
       "addImage": "Додати зображення",
       "difficulty": "Рівень складності",
       "difficultyNone": "Не вказано",
@@ -423,7 +430,8 @@
         "intermediate": "Середній",
         "sufficient": "Достатній",
         "advanced": "Високий"
-      }
+      },
+      "pointsUnit": "б"
     }
   }
 }

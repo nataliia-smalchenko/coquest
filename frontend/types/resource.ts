@@ -64,6 +64,7 @@ export interface QuestionResponse {
   correct_answers: string[];
   requires_review: boolean;
   difficulty: DifficultyLevel | null;
+  points: number;
 }
 
 export interface ResourceDetailResponse extends ResourceResponse {
@@ -86,6 +87,7 @@ export interface QuestionPublicResponse {
   options: QuestionPublicOption[];
   requires_review: boolean;
   difficulty: DifficultyLevel | null;
+  points: number;
 }
 
 export interface ResourceDetailPublicResponse extends ResourceResponse {
@@ -139,4 +141,5 @@ export interface QuestionCreate {
   correct_answers: string[];
   requires_review?: boolean;
   difficulty?: DifficultyLevel | null;
+  points?: number;
 }

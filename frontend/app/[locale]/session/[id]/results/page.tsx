@@ -213,6 +213,20 @@ export default function ResultsPage() {
       ? scores.reduce((a, b) => a + b, 0) / scores.length
       : null;
 
+  const maxPoints = myProgress.reduce(
+    (sum, p) => sum + (p.question?.points ?? 1),
+    0,
+  );
+  const earnedPoints = myProgress.reduce(
+    (sum, p) => sum + (p.score ?? 0) * (p.question?.points ?? 1),
+    0,
+  );
+  const maxGrade = results?.max_grade ?? null;
+  const grade =
+    maxGrade != null && maxPoints > 0
+      ? +((earnedPoints / maxPoints) * maxGrade).toFixed(1)
+      : null;
+
   const startTime = results?.started_at ? new Date(results.started_at) : null;
   const endTime = myPlayer?.finished_at ? new Date(myPlayer.finished_at) : null;
   const durationMin =
@@ -277,10 +291,37 @@ export default function ResultsPage() {
             <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">
               {t("score")}
             </p>
-            <div className="text-6xl font-bold text-blue-600 mb-1">
-              {totalScore !== null ? `${Math.round(totalScore * 100)}%` : "—"}
-            </div>
-            <p className="text-sm text-gray-500">
+            {grade !== null ? (
+              <>
+                <div className="text-6xl font-bold text-blue-600 mb-1">
+                  {grade}
+                  <span className="text-3xl text-blue-400">/{maxGrade}</span>
+                </div>
+                {maxPoints > 0 && (
+                  <p className="text-sm text-gray-400 mt-1">
+                    {+earnedPoints.toFixed(1)}/{maxPoints} {t("pointsUnit")}
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="text-6xl font-bold text-blue-600 mb-1">
+                {totalScore !== null ? (
+                  maxPoints > 0 ? (
+                    <span>
+                      {+earnedPoints.toFixed(1)}
+                      <span className="text-3xl text-blue-400">
+                        /{maxPoints} {t("pointsUnit")}
+                      </span>
+                    </span>
+                  ) : (
+                    `${Math.round(totalScore * 100)}%`
+                  )
+                ) : (
+                  "—"
+                )}
+              </div>
+            )}
+            <p className="text-sm text-gray-500 mt-1">
               {myPlayer?.display_name ?? t("player")}
             </p>
           </div>
@@ -361,7 +402,9 @@ export default function ResultsPage() {
                         : t("question", { n: i + 1 })}
                       {showScore && p.score !== null && (
                         <span className="ml-2 text-xs text-gray-400">
-                          ({Math.round(p.score * 100)}%)
+                          {p.question
+                            ? `${+((p.score ?? 0) * p.question.points).toFixed(1)}/${p.question.points} ${t("pointsUnit")}`
+                            : `${Math.round(p.score * 100)}%`}
                         </span>
                       )}
                     </span>

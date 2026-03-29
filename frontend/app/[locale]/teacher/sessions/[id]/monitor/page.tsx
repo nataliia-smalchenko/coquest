@@ -241,7 +241,13 @@ function PlayerDetailDrawer({
             </p>
             <p className="text-xs text-gray-400">
               {pp.completed}/{pp.total}
-              {pp.score !== null && ` · ${Math.round(pp.score * 100)}%`}
+              {pp.grade != null
+                ? ` · ${pp.grade}/${pp.max_grade} · ${pp.total_score ?? 0}/${pp.max_score} ${t("scoreLabel")}`
+                : pp.max_score != null && pp.max_score > 0
+                  ? ` · ${pp.total_score ?? 0}/${pp.max_score} ${t("scoreLabel")}`
+                  : pp.score !== null
+                    ? ` · ${Math.round(pp.score * 100)}%`
+                    : ""}
             </p>
           </div>
           <button
@@ -352,7 +358,8 @@ function PlayerDetailDrawer({
                     {/* Score badge */}
                     {p.score !== null && (
                       <p className="text-xs text-gray-500 mb-2">
-                        {t("scoreLabel")}: {Math.round(p.score * 100)}%
+                        {t("scoreLabel")}:{" "}
+                        {`${+(p.score * q.points).toFixed(1)}/${q.points} ${t("pointsUnit")}`}
                       </p>
                     )}
 
@@ -364,18 +371,21 @@ function PlayerDetailDrawer({
                           let optBorder = "#e5e7eb";
                           let optBg = "#ffffff";
                           let optColor = "#374151";
+                          let optFontWeight = "normal";
                           if (opt.is_correct && sel) {
-                            optBorder = "#4ade80";
-                            optBg = "#f0fdf4";
-                            optColor = "#166534";
+                            optBorder = "#16a34a";
+                            optBg = "#dcfce7";
+                            optColor = "#14532d";
+                            optFontWeight = "600";
                           } else if (opt.is_correct) {
                             optBorder = "#86efac";
                             optBg = "#f0fdf4";
                             optColor = "#15803d";
                           } else if (sel) {
-                            optBorder = "#fca5a5";
-                            optBg = "#fef2f2";
-                            optColor = "#b91c1c";
+                            optBorder = "#ef4444";
+                            optBg = "#fee2e2";
+                            optColor = "#7f1d1d";
+                            optFontWeight = "600";
                           }
                           return (
                             <li
@@ -385,19 +395,20 @@ function PlayerDetailDrawer({
                                 border: `1px solid ${optBorder}`,
                                 backgroundColor: optBg,
                                 color: optColor,
+                                fontWeight: optFontWeight,
                               }}
                             >
                               <span className="flex-1">{opt.text}</span>
                               {opt.is_correct && (
                                 <CheckCircle
                                   size={12}
-                                  className="text-green-500 flex-shrink-0"
+                                  className="text-green-600 flex-shrink-0"
                                 />
                               )}
                               {sel && !opt.is_correct && (
                                 <X
                                   size={12}
-                                  className="text-red-400 flex-shrink-0"
+                                  className="text-red-500 flex-shrink-0"
                                 />
                               )}
                             </li>
@@ -408,7 +419,12 @@ function PlayerDetailDrawer({
 
                     {/* Text/open answer */}
                     {!isChoice && typedText && (
-                      <div className="border border-blue-200 bg-blue-50 rounded-lg px-3 py-2 text-xs text-gray-800 mb-2">
+                      <div
+                        className="border bg-blue-50 rounded-lg px-3 py-2 text-xs text-gray-800 mb-2"
+                        style={{
+                          border: "1px solid #8EC5FF",
+                        }}
+                      >
                         <span className="block text-blue-500 font-medium mb-0.5">
                           {t("playerDetail")}
                         </span>
@@ -418,7 +434,7 @@ function PlayerDetailDrawer({
                     {!isChoice && q.correct_answers.length > 0 && (
                       <div className="border border-green-200 bg-green-50 rounded-lg px-3 py-2 text-xs text-gray-800 mb-2">
                         <span className="block text-green-600 font-medium mb-0.5">
-                          {t("scoreLabel")}
+                          {t("correctAnswer")}
                         </span>
                         {q.correct_answers.join(" / ")}
                       </div>
@@ -948,7 +964,13 @@ export default function MonitorPage() {
                     completed: pp.completed,
                     total: pp.total,
                   })}
-                  {pp.score !== null && ` · ${Math.round(pp.score * 100)}%`}
+                  {pp.grade != null
+                    ? ` · ${pp.grade}/${pp.max_grade} · ${pp.total_score ?? 0}/${pp.max_score} ${t("scoreLabel")}`
+                    : pp.max_score != null && pp.max_score > 0
+                      ? ` · ${t("numberOfPoints")}: ${pp.total_score ?? 0}/${pp.max_score}`
+                      : pp.score !== null
+                        ? ` · ${Math.round(pp.score * 100)}%`
+                        : ""}
                 </p>
               </div>
 
