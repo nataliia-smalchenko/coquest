@@ -12,6 +12,7 @@ from app.models.session_team import TeamStatus
 
 class SessionCreate(BaseModel):
     quest_id: uuid.UUID
+    name: Optional[str] = None
     # Game mode
     max_players: int = Field(
         default=1, ge=1, le=30, description="1 = individual, 2+ = team"
@@ -105,6 +106,7 @@ class SessionListItem(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID
     session_code: str
+    name: Optional[str] = None
     status: SessionStatus
     started_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
@@ -120,6 +122,7 @@ class GameSessionResponse(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID
     session_code: str
+    name: Optional[str] = None
     status: SessionStatus
     started_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None

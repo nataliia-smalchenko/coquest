@@ -44,7 +44,11 @@ class SessionTeam(Base):
     )
     hint_player_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid,
-        ForeignKey("session_players.id", ondelete="SET NULL"),
+        ForeignKey(
+            "session_players.id",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
         nullable=True,
     )
 

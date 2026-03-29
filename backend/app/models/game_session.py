@@ -38,6 +38,7 @@ class GameSession(Base):
     session_code: Mapped[str] = mapped_column(
         String(6), nullable=False, unique=True, index=True
     )
+    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[SessionStatus] = mapped_column(
         Enum(SessionStatus, native_enum=False),
         default=SessionStatus.WAITING,

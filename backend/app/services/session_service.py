@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.game_session import GameSession, SessionStatus
 from app.models.map import MapObject
-from app.models.quest import Quest, QuestSettings
+from app.models.quest import Quest, QuestSettings, QuestTranslation
 from app.models.resource import Resource
 from app.models.session_chat import SessionChat
 from app.models.session_player import PlayerStatus, SessionPlayer
@@ -135,6 +135,7 @@ def _session_response(session: GameSession) -> GameSessionResponse:
         id=session.id,
         quest_id=session.quest_id,
         session_code=session.session_code,
+        name=session.name,
         status=session.status,
         started_at=session.started_at,
         ends_at=session.ends_at,
@@ -461,6 +462,7 @@ class SessionService:
                 id=s.id,
                 quest_id=s.quest_id,
                 session_code=s.session_code,
+                name=s.name,
                 status=s.status,
                 started_at=s.started_at,
                 ends_at=s.ends_at,
@@ -510,6 +512,18 @@ class SessionService:
                 detail="Could not generate a unique session code",
             )
 
+        # Resolve default name from quest title (prefer "uk", fallback to any)
+        session_name = data.name
+        if not session_name:
+            title_result = await db.execute(
+                select(QuestTranslation.title)
+                .where(QuestTranslation.quest_id == data.quest_id)
+                .order_by(QuestTranslation.language)
+            )
+            rows = title_result.scalars().all()
+            if rows:
+                session_name = rows[0]
+
         sess_status = (
             SessionStatus.SCHEDULED if data.scheduled_at else SessionStatus.WAITING
         )
@@ -517,6 +531,7 @@ class SessionService:
             quest_id=data.quest_id,
             teacher_id=teacher_id,
             session_code=code,
+            name=session_name,
             status=sess_status,
             scheduled_at=data.scheduled_at,
             ends_at=data.ends_at,
