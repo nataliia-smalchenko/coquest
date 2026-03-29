@@ -4,9 +4,27 @@ import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { ArrowLeft, Check, FileText, Folder, HelpCircle, Loader2, Plus, Save, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  FileText,
+  Folder,
+  HelpCircle,
+  Loader2,
+  Plus,
+  Save,
+  X,
+} from "lucide-react";
 
-import { createResource, deleteResource, getResource, updateResource } from "@/lib/api/resources";
+import {
+  createResource,
+  deleteResource,
+  getResource,
+  updateResource,
+  upsertTextContent,
+  upsertQuestion,
+} from "@/lib/api/resources";
 import { useResourceStore } from "@/hooks/useResourceStore";
 import { TextEditor } from "@/components/teacher/resources/editors/TextEditor";
 import { QuestionEditor } from "@/components/teacher/resources/editors/QuestionEditor";
@@ -25,7 +43,15 @@ export default function EditResourcePage({ params }: EditPageProps) {
   const tEditor = useTranslations("resources.editor");
   const tCommon = useTranslations("common");
   const router = useRouter();
-  const { folders, tags, fetchFolders, fetchTags, resources, selectedFolderId, selectedTagIds: storeTagIds } = useResourceStore();
+  const {
+    folders,
+    tags,
+    fetchFolders,
+    fetchTags,
+    resources,
+    selectedFolderId,
+    selectedTagIds: storeTagIds,
+  } = useResourceStore();
 
   const [resource, setResource] = useState<ResourceDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,9 +59,14 @@ export default function EditResourcePage({ params }: EditPageProps) {
   const [folderId, setFolderId] = useState<string>("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [metaSaving, setMetaSaving] = useState(false);
-  const [metaStatus, setMetaStatus] = useState<"idle" | "success" | "error">("idle");
+  const [metaStatus, setMetaStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  );
   const [cancelling, setCancelling] = useState(false);
-  const [creatingNext, setCreatingNext] = useState<"text" | "question" | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [creatingNext, setCreatingNext] = useState<"text" | "question" | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchFolders();
@@ -68,6 +99,40 @@ export default function EditResourcePage({ params }: EditPageProps) {
     router.push("/teacher/resources");
   };
 
+  const handleCopy = async () => {
+    if (!resource || copying) return;
+    setCopying(true);
+    try {
+      const copyTitle = tEditor("copyOf", { title: resource.title });
+      const newResource = await createResource({
+        type: resource.type,
+        title: copyTitle,
+        folder_id: resource.folder_id ?? null,
+        tag_ids: resource.tags.map((tag) => tag.id),
+      });
+      if (resource.type === "text" && resource.text_content) {
+        await upsertTextContent(newResource.id, {
+          body: resource.text_content.body as Record<string, unknown>,
+          images: resource.text_content.images ?? [],
+        });
+      } else if (resource.type === "question" && resource.question) {
+        const q = resource.question;
+        await upsertQuestion(newResource.id, {
+          question_type: q.question_type,
+          body: q.body,
+          explanation: q.explanation ?? null,
+          options: q.options ?? [],
+          correct_answers: q.correct_answers ?? [],
+          requires_review: q.requires_review,
+          difficulty: q.difficulty ?? null,
+        });
+      }
+      router.push(`/teacher/resources/${newResource.id}/edit`);
+    } catch {
+      setCopying(false);
+    }
+  };
+
   const isDefaultTitle = (value: string) =>
     new RegExp(`^${t("newText")} \\d+$`).test(value) ||
     new RegExp(`^${t("newQuestion")} \\d+$`).test(value);
@@ -77,13 +142,19 @@ export default function EditResourcePage({ params }: EditPageProps) {
     setCreatingNext(type);
     try {
       const count = resources.filter((r) => r.type === type).length + 1;
-      const defaultTitle = type === "text" ? `${t("newText")} ${count}` : `${t("newQuestion")} ${count}`;
-      const nextTitle = title.trim() && !isDefaultTitle(title.trim()) ? title.trim() : defaultTitle;
+      const defaultTitle =
+        type === "text"
+          ? `${t("newText")} ${count}`
+          : `${t("newQuestion")} ${count}`;
+      const nextTitle =
+        title.trim() && !isDefaultTitle(title.trim())
+          ? title.trim()
+          : defaultTitle;
       const newResource = await createResource({
         type,
         title: nextTitle,
-        folder_id: selectedFolderId ?? null,
-        tag_ids: storeTagIds,
+        folder_id: folderId || null,
+        tag_ids: selectedTagIds,
       });
       router.push(`/teacher/resources/${newResource.id}/edit?new=1`);
     } catch {
@@ -113,7 +184,14 @@ export default function EditResourcePage({ params }: EditPageProps) {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "50vh" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "50vh",
+        }}
+      >
         <Loader2 size={28} color="#9ca3af" className="animate-spin" />
       </div>
     );
@@ -127,79 +205,149 @@ export default function EditResourcePage({ params }: EditPageProps) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
-
       {/* Top bar */}
       <div
         style={{
           background: "white",
           borderBottom: "1px solid #e5e7eb",
-          padding: "0 16px",
-          height: "56px",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
           position: "sticky",
-          top: 0,
+          top: 64,
           zIndex: 10,
         }}
       >
-        <button
-          onClick={() => router.push("/teacher/resources")}
+        <div
           style={{
+            maxWidth: "1280px",
+            margin: "0 auto",
+            padding: "0 20px",
+            height: "56px",
             display: "flex",
             alignItems: "center",
-            gap: "6px",
-            fontSize: "14px",
-            color: "#6b7280",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#111827")}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")}
-        >
-          <ArrowLeft size={16} />
-          <span className="topbar-back-label">{tCommon("back")}</span>
-        </button>
-
-        <span style={{ width: "1px", height: "20px", background: "#e5e7eb", flexShrink: 0 }} />
-
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: accentColor,
-            backgroundColor: accentBg,
-            borderRadius: "20px",
-            padding: "3px 10px",
-            flexShrink: 0,
+            gap: "10px",
           }}
         >
-          {isText ? <FileText size={12} /> : <HelpCircle size={12} />}
-          <span className="topbar-type-label">{t(`type.${resource.type}`)}</span>
-        </span>
+          <button
+            onClick={() => router.push("/teacher/resources")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "14px",
+              color: "#6b7280",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLButtonElement).style.color = "#111827")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")
+            }
+          >
+            <ArrowLeft size={16} />
+            <span className="topbar-back-label">{tCommon("back")}</span>
+          </button>
 
-        <span
-          style={{
-            fontSize: "15px",
-            fontWeight: 600,
-            color: "#111827",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            flex: "1 1 0",
-            minWidth: 0,
-          }}
-        >
-          {resource.title}
-        </span>
+          <span
+            style={{
+              width: "1px",
+              height: "20px",
+              background: "#e5e7eb",
+              flexShrink: 0,
+            }}
+          />
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: accentColor,
+              backgroundColor: accentBg,
+              borderRadius: "20px",
+              padding: "3px 10px",
+              flexShrink: 0,
+            }}
+          >
+            {isText ? <FileText size={12} /> : <HelpCircle size={12} />}
+            <span className="topbar-type-label">
+              {t(`type.${resource.type}`)}
+            </span>
+          </span>
+
+          <span
+            style={{
+              fontSize: "15px",
+              fontWeight: 600,
+              color: "#111827",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flex: "1 1 0",
+              minWidth: 0,
+            }}
+          >
+            {resource.title}
+          </span>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flexShrink: 0,
+            }}
+          >
+            <button
+              onClick={handleCopy}
+              disabled={copying || !!creatingNext || cancelling}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 12px",
+                backgroundColor: "white",
+                color: "#374151",
+                border: "1.5px solid #e5e7eb",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor:
+                  copying || creatingNext || cancelling
+                    ? "not-allowed"
+                    : "pointer",
+                opacity: copying || creatingNext || cancelling ? 0.5 : 1,
+                transition: "background-color 0.15s, border-color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!copying && !creatingNext && !cancelling) {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#f9fafb";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor =
+                    "#d1d5db";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!copying && !creatingNext && !cancelling) {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "white";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor =
+                    "#e5e7eb";
+                }
+              }}
+            >
+              {copying ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Copy size={13} />
+              )}
+              <span className="topbar-btn-label">{tEditor("copy")}</span>
+            </button>
             <button
               onClick={() => handleCreateNext("text")}
               disabled={!!creatingNext || cancelling}
@@ -219,13 +367,21 @@ export default function EditResourcePage({ params }: EditPageProps) {
                 transition: "background-color 0.15s",
               }}
               onMouseEnter={(e) => {
-                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#eff6ff";
+                if (!creatingNext && !cancelling)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#eff6ff";
               }}
               onMouseLeave={(e) => {
-                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "white";
+                if (!creatingNext && !cancelling)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "white";
               }}
             >
-              {creatingNext === "text" ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              {creatingNext === "text" ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Plus size={13} />
+              )}
               <FileText size={13} />
               <span className="topbar-btn-label">{t("createNextText")}</span>
             </button>
@@ -248,15 +404,25 @@ export default function EditResourcePage({ params }: EditPageProps) {
                 transition: "background-color 0.15s",
               }}
               onMouseEnter={(e) => {
-                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8";
+                if (!creatingNext && !cancelling)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#1d4ed8";
               }}
               onMouseLeave={(e) => {
-                if (!creatingNext && !cancelling) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#2563eb";
+                if (!creatingNext && !cancelling)
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#2563eb";
               }}
             >
-              {creatingNext === "question" ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              {creatingNext === "question" ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Plus size={13} />
+              )}
               <HelpCircle size={13} />
-              <span className="topbar-btn-label">{t("createNextQuestion")}</span>
+              <span className="topbar-btn-label">
+                {t("createNextQuestion")}
+              </span>
             </button>
             {isNew && (
               <button
@@ -273,27 +439,39 @@ export default function EditResourcePage({ params }: EditPageProps) {
                   borderRadius: "8px",
                   fontSize: "12px",
                   fontWeight: 600,
-                  cursor: cancelling || creatingNext ? "not-allowed" : "pointer",
+                  cursor:
+                    cancelling || creatingNext ? "not-allowed" : "pointer",
                   opacity: cancelling || creatingNext ? 0.5 : 1,
                   transition: "background-color 0.15s, border-color 0.15s",
                 }}
                 onMouseEnter={(e) => {
                   if (!cancelling && !creatingNext) {
-                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#fef2f2";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "#ef4444";
+                    (
+                      e.currentTarget as HTMLButtonElement
+                    ).style.backgroundColor = "#fef2f2";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      "#ef4444";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!cancelling && !creatingNext) {
-                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = "white";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "#fca5a5";
+                    (
+                      e.currentTarget as HTMLButtonElement
+                    ).style.backgroundColor = "white";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor =
+                      "#fca5a5";
                   }
                 }}
               >
-                {cancelling ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                {cancelling ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <X size={13} />
+                )}
                 <span className="topbar-btn-label">{tCommon("cancel")}</span>
               </button>
             )}
+          </div>
         </div>
       </div>
 
@@ -306,8 +484,16 @@ export default function EditResourcePage({ params }: EditPageProps) {
       `}</style>
 
       {/* Body */}
-      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-
+      <div
+        style={{
+          maxWidth: "860px",
+          margin: "0 auto",
+          padding: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+        }}
+      >
         {/* Metadata card */}
         <div
           style={{
@@ -318,13 +504,24 @@ export default function EditResourcePage({ params }: EditPageProps) {
           }}
         >
           {/* Card header */}
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6" }}>
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "#374151" }}>
+          <div
+            style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6" }}
+          >
+            <span
+              style={{ fontSize: "13px", fontWeight: 600, color: "#374151" }}
+            >
               {tEditor("titleLabel")}
             </span>
           </div>
 
-          <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div
+            style={{
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
             {/* Title input */}
             <input
               value={title}
@@ -355,8 +552,16 @@ export default function EditResourcePage({ params }: EditPageProps) {
                   value={folderId}
                   onSelect={setFolderId}
                   options={[
-                    { value: "", label: tEditor("noFolder"), icon: <Folder size={13} /> },
-                    ...folders.map((f) => ({ value: f.id, label: f.name, icon: <Folder size={13} /> })),
+                    {
+                      value: "",
+                      label: tEditor("noFolder"),
+                      icon: <Folder size={13} />,
+                    },
+                    ...folders.map((f) => ({
+                      value: f.id,
+                      label: f.name,
+                      icon: <Folder size={13} />,
+                    })),
                   ]}
                   placeholder={tEditor("noFolder")}
                   triggerIcon={<Folder size={14} color="#9ca3af" />}
@@ -366,10 +571,22 @@ export default function EditResourcePage({ params }: EditPageProps) {
               {/* Tags */}
               {tags.length > 0 && (
                 <div style={{ flex: 1, minWidth: "200px" }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#6b7280", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#6b7280",
+                      marginBottom: "6px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
                     {tEditor("tags")}
                   </label>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                  <div
+                    style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}
+                  >
                     {tags.map((tag) => {
                       const active = selectedTagIds.includes(tag.id);
                       return (
@@ -398,7 +615,9 @@ export default function EditResourcePage({ params }: EditPageProps) {
                               width: "7px",
                               height: "7px",
                               borderRadius: "50%",
-                              backgroundColor: active ? "rgba(255,255,255,0.5)" : tag.color,
+                              backgroundColor: active
+                                ? "rgba(255,255,255,0.5)"
+                                : tag.color,
                               flexShrink: 0,
                             }}
                           />
@@ -412,7 +631,14 @@ export default function EditResourcePage({ params }: EditPageProps) {
             </div>
 
             {/* Save row */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingTop: "4px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                paddingTop: "4px",
+              }}
+            >
               <button
                 onClick={saveMeta}
                 disabled={metaSaving}
@@ -432,17 +658,35 @@ export default function EditResourcePage({ params }: EditPageProps) {
                   transition: "background-color 0.15s, opacity 0.15s",
                 }}
                 onMouseEnter={(e) => {
-                  if (!metaSaving) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#1d4ed8";
+                  if (!metaSaving)
+                    (
+                      e.currentTarget as HTMLButtonElement
+                    ).style.backgroundColor = "#1d4ed8";
                 }}
                 onMouseLeave={(e) => {
-                  if (!metaSaving) (e.currentTarget as HTMLButtonElement).style.backgroundColor = accentColor;
+                  if (!metaSaving)
+                    (
+                      e.currentTarget as HTMLButtonElement
+                    ).style.backgroundColor = accentColor;
                 }}
               >
-                {metaSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                {metaSaving ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Save size={15} />
+                )}
                 {metaSaving ? tCommon("loading") : tCommon("save")}
               </button>
               {metaStatus === "success" && (
-                <span style={{ fontSize: "13px", color: "#16a34a", display: "flex", alignItems: "center", gap: "4px" }}>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    color: "#16a34a",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
                   <Check size={14} />
                   {tEditor("saveSuccess")}
                 </span>
@@ -470,7 +714,9 @@ export default function EditResourcePage({ params }: EditPageProps) {
               resourceId={resource.id}
               initial={resource.text_content}
               onSaved={(content) =>
-                setResource((prev) => (prev ? { ...prev, text_content: content } : prev))
+                setResource((prev) =>
+                  prev ? { ...prev, text_content: content } : prev,
+                )
               }
             />
           ) : (

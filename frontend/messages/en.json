@@ -11,9 +11,9 @@
     "next": "Next",
     "submit": "Submit",
     "search": "Search",
-    "filter": "Filter"
+    "filter": "Filter",
+    "loadMore": "Load more"
   },
-
   "nav": {
     "home": "Home",
     "dashboard": "Dashboard",
@@ -23,9 +23,9 @@
     "create": "Create",
     "profile": "Profile",
     "settings": "Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "sessions": "Sessions"
   },
-
   "auth": {
     "login": {
       "title": "Sign in to CoQuest",
@@ -41,7 +41,6 @@
       "verifyEmailMessage": "Please click the link in your email to activate your account.",
       "resendVerification": "Resend verification email"
     },
-
     "register": {
       "title": "Sign up for CoQuest",
       "fullName": "Full name",
@@ -60,7 +59,6 @@
         "backToLogin": "Back to login"
       }
     },
-
     "verify": {
       "loading": "Verifying email...",
       "success": "Success!",
@@ -69,7 +67,6 @@
       "redirecting": "Redirecting to login page...",
       "backToLogin": "Back to login"
     },
-
     "errors": {
       "invalidEmail": "Invalid email",
       "passwordMin": "Minimum 8 characters",
@@ -85,7 +82,6 @@
       "tokenExpired": "Link expired"
     }
   },
-
   "dashboard": {
     "teacher": {
       "title": "Dashboard",
@@ -101,14 +97,88 @@
       "noQuests": "No available quests"
     }
   },
-
   "quests": {
-    "teacher": {
-      "title": "My Quests",
-      "comingSoon": "Quest creation is coming soon."
+    "title": "My Quests",
+    "new": "New Quest",
+    "empty": "No quests yet",
+    "emptyHint": "Create your first quest",
+    "delete": "Delete quest?",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "builder": {
+      "title": "New Quest",
+      "editTitle": "Edit Quest",
+      "saveDraft": "Save Draft",
+      "next": "Next",
+      "back": "Back",
+      "publish": "Publish",
+      "saved": "Saved",
+      "saveError": "Save error",
+      "steps": {
+        "basic": "Basic Info",
+        "map": "Map & Resources",
+        "settings": "Settings"
+      }
+    },
+    "basic": {
+      "title": "Quest title",
+      "titlePlaceholder": "Enter title...",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional...",
+      "language": "Quest language"
+    },
+    "map": {
+      "selectMap": "Select a map",
+      "resources": "Quest resources",
+      "addResources": "Add resources",
+      "noResources": "No resources added yet",
+      "resourceCount": "{count} resources",
+      "done": "Done",
+      "search": "Search...",
+      "allFolders": "All folders",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all"
+    },
+    "settings": {
+      "time": "Time limit",
+      "timeLimit": "Limit time",
+      "minutes": "Minutes",
+      "order": "Order",
+      "randomOrder": "Random resource order",
+      "grade": "Grade",
+      "maxGrade": "Set maximum grade",
+      "maxGradeValue": "Maximum grade"
+    },
+    "preview": {
+      "settings": "Settings",
+      "materials": "Materials",
+      "noMap": "No map selected",
+      "noMaterials": "No materials",
+      "noContent": "No content",
+      "textMaterial": "Text material",
+      "questionLabel": "Question",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "explanation": "Explanation",
+      "shortAnswer": "Short answer",
+      "openAnswer": "Open answer",
+      "startSession": "Start session",
+      "settingTime": "{n} min",
+      "settingRandom": "Random order",
+      "settingShowAll": "All texts at once",
+      "settingKeep": "Keep completed",
+      "settingScore": "Score after quest",
+      "settingCorrect": "Show answers",
+      "settingTeam": "{n} players",
+      "settingSolo": "Individual",
+      "settingDistribute": "Distribute texts",
+      "pointsBadge": "{n} pt",
+      "totalPoints": "Total: {n} pts"
     }
   },
-
   "quest": {
     "title": "Quest title",
     "description": "Description",
@@ -125,7 +195,6 @@
       "archived": "Archived"
     }
   },
-
   "settings": {
     "title": "Settings",
     "profile": "Profile",
@@ -134,7 +203,165 @@
     "privacy": "Privacy",
     "account": "Account"
   },
-
+  "game": {
+    "session": {
+      "newTitle": "New Session",
+      "quest": "Quest",
+      "mode": "Game mode",
+      "solo": "Individual",
+      "soloHint": "Each player completes the quest on their own",
+      "teamMode": "Team mode",
+      "teamModeHint": "Players complete the quest together",
+      "teamSize": "Players per team",
+      "allowSolo": "Allow individual play",
+      "allowSoloHint": "Players can start without waiting for a full team",
+      "gameplay": "Gameplay",
+      "showFeedback": "Show feedback after each answer",
+      "showFeedbackHint": "Players see whether their answer was correct immediately",
+      "keepCompleted": "Keep completed materials in list",
+      "keepCompletedHint": "Players can revisit previous materials during the quest",
+      "allowChangeAnswers": "Allow changing answers",
+      "allowChangeAnswersHint": "Players can change their answer after the first submission",
+      "results": "Results",
+      "showScore": "Show score after quest",
+      "showCorrect": "Show correct answers",
+      "schedule": "Schedule start time",
+      "scheduleEnd": "Schedule end time",
+      "sessionName": "Session name",
+      "create": "Create Session",
+      "createHint": "After creating, you'll get a code to share with students",
+      "createError": "Failed to create session"
+    },
+    "join": {
+      "title": "Join a Quest",
+      "code": "Session Code",
+      "codePlaceholder": "XXXXXX",
+      "name": "Your full name",
+      "namePlaceholder": "Enter your full name...",
+      "submit": "Join",
+      "invalidCode": "Invalid session code",
+      "sessionFull": "Session is full",
+      "sessionClosed": "Session is closed"
+    },
+    "lobby": {
+      "waiting": "Connecting...",
+      "players": "Players",
+      "team": "Your team",
+      "start": "Start",
+      "starting": "Starting...",
+      "startError": "Failed to start",
+      "sessionCode": "Session Code",
+      "minPlayers": "Waiting for teammates...",
+      "waitingOptional": "You can start alone or wait for teammates",
+      "waitingRequired": "Wait for teammates to join",
+      "sessionEndsAt": "Session ends at"
+    },
+    "game": {
+      "materials": "Materials",
+      "chat": "Chat",
+      "progress": "Progress",
+      "markRead": "Mark as read ✓",
+      "submit": "Submit",
+      "correct": "Correct!",
+      "incorrect": "Incorrect",
+      "pending": "Awaiting review",
+      "timeLeft": "Time left",
+      "hintTitle": "Hint",
+      "hintGo": "Let's go!",
+      "completed": "Quest completed!",
+      "viewResults": "View results",
+      "viewed": "Viewed",
+      "pointsUnit": "pt",
+      "resource": "Resource",
+      "alreadyAnswered": "Answer already submitted",
+      "pendingAnswer": "Answer sent — awaiting review",
+      "loadError": "Failed to load resource",
+      "explanation": "Explanation",
+      "loadingMap": "Loading map...",
+      "mapUnavailable": "Map unavailable",
+      "waitingStart": "Waiting for start...",
+      "teamHintForTeammate": "Hint for your teammate",
+      "teamHintForText": "Checkpoint",
+      "teamHintDismiss": "Got it!",
+      "teamWaitingViewers": "Waiting for teammates to view ({count}/{total})",
+      "teamAnsweredBy": "Answered by {name}",
+      "teamViewedBy": "Viewed by {name}",
+      "yourAnswer": "Your answer"
+    },
+    "results": {
+      "title": "Results",
+      "score": "Score",
+      "correct": "Correct answers",
+      "time": "Time spent",
+      "minutes": "min",
+      "home": "Back to home",
+      "player": "Player",
+      "question": "Question {n}",
+      "pendingReview": "Awaiting review",
+      "unavailable": "Results unavailable",
+      "errorToken": "Results unavailable or invalid token",
+      "tokenTitle": "Enter player token",
+      "tokenPlaceholder": "Your guest_token...",
+      "tokenSubmit": "View results",
+      "yourAnswer": "Your answer",
+      "correctAnswer": "Correct answer",
+      "pointsUnit": "pt",
+      "myQuestions": "My questions",
+      "answeredBy": "Answered by {name}"
+    },
+    "monitor": {
+      "title": "Session Monitor",
+      "stop": "Stop Session",
+      "stopConfirm": "Stop the session for all players?",
+      "pendingReview": "pending review",
+      "participants": "Participants",
+      "finished": "Finished",
+      "pendingReviewCount": "Pending review",
+      "start": "Start",
+      "copyLink": "Copy link",
+      "copied": "Copied",
+      "finishedBadge": "Finished",
+      "noParticipants": "No participants yet",
+      "scheduleStart": "Start",
+      "scheduleEnd": "End",
+      "completedOf": "{completed}/{total} completed",
+      "statusWaiting": "Waiting",
+      "statusActive": "Active",
+      "statusCompleted": "Completed",
+      "statusStopped": "Stopped",
+      "statusScheduled": "Scheduled",
+      "deleteSession": "Delete session",
+      "deleteSessionConfirm": "Delete this session? All participant data will be lost.",
+      "deletePlayer": "Delete participant",
+      "deletePlayerConfirm": "Remove this participant from the session?",
+      "renamePlayer": "Rename",
+      "renamePlaceholder": "Participant name",
+      "monitoring": "Monitor",
+      "results": "Results",
+      "sessionsCount": "{count} sessions",
+      "noSessions": "No sessions yet",
+      "scheduleStartLabel": "Start",
+      "scheduleEndLabel": "End",
+      "settingsTitle": "Session settings",
+      "playerDetail": "Player answer",
+      "correctAnswer": "Correct answer",
+      "viewedText": "Viewed",
+      "notStarted": "Not started",
+      "scoreLabel": "Score",
+      "numberOfPoints": "Number of points",
+      "submitReview": "Submit",
+      "reviewScore": "Score (0–100%)",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "joinedAt": "Joined",
+      "finishedAt": "Finished",
+      "durationLabel": "Duration",
+      "sessionEndsAt": "Session ends at",
+      "timeLeft": "time left",
+      "pointsUnit": "pt",
+      "questPreview": "Quest preview"
+    }
+  },
   "resources": {
     "title": "Resource Library",
     "new": "New Resource",
@@ -176,7 +403,10 @@
       "noFolder": "No folder",
       "tags": "Tags",
       "saveSuccess": "Saved",
-      "saveError": "Save error"
+      "saveError": "Save error",
+      "wordCount": "{count} words",
+      "copy": "Duplicate",
+      "copyOf": "Copy of {title}"
     },
     "text": {
       "title": "Text Material",
@@ -198,12 +428,24 @@
       "correctAnswer": "Correct answer",
       "correctAnswers": "Correct answers",
       "requiresReview": "Requires teacher review",
+      "points": "Points",
+      "pointsHint": "Points for a correct answer",
+      "addImage": "Add image",
+      "difficulty": "Difficulty level",
+      "difficultyNone": "Not specified",
       "types": {
         "single": "Single correct",
         "multiple": "Multiple correct",
         "short": "Short answer",
         "open": "Open answer"
-      }
+      },
+      "difficulties": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "sufficient": "Sufficient",
+        "advanced": "Advanced"
+      },
+      "pointsUnit": "pt"
     }
   }
 }

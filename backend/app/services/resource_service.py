@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.models.question import Question
+from app.models.question import Question, DifficultyLevel
 from app.models.resource import Resource, ResourceType
 from app.models.resource_folder import ResourceFolder
 from app.models.resource_tag import ResourceTag
@@ -152,6 +152,7 @@ class ResourceService:
         type: Optional[ResourceType] = None,
         tag_ids: Optional[List[uuid.UUID]] = None,
         search: Optional[str] = None,
+        difficulty: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> List[Resource]:
@@ -174,6 +175,9 @@ class ResourceService:
                 stmt = stmt.where(Resource.tags.any(Tag.id == tid))
         if search:
             stmt = stmt.where(Resource.title.ilike(f"%{search}%"))
+        if difficulty is not None:
+            subq = select(Question.resource_id).where(Question.difficulty == difficulty)
+            stmt = stmt.where(Resource.id.in_(subq))
 
         stmt = stmt.order_by(Resource.created_at.desc()).limit(limit).offset(offset)
 
@@ -181,6 +185,7 @@ class ResourceService:
         resources = list(result.scalars().all())
         for r in resources:
             r.has_content = bool(r.text_content or r.question)
+            r.difficulty = r.question.difficulty if r.question else None
         return resources
 
     @staticmethod
@@ -352,6 +357,8 @@ class ResourceService:
                 question.options = options_dict
                 question.correct_answers = data.correct_answers
                 question.requires_review = data.requires_review
+                question.difficulty = data.difficulty
+                question.points = data.points
             else:
                 question = Question(
                     resource_id=resource_id,
@@ -361,6 +368,8 @@ class ResourceService:
                     options=options_dict,
                     correct_answers=data.correct_answers,
                     requires_review=data.requires_review,
+                    difficulty=data.difficulty,
+                    points=data.points,
                 )
                 db.add(question)
 

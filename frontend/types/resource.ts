@@ -1,5 +1,10 @@
 export type ResourceType = "text" | "question";
 export type QuestionType = "single" | "multiple" | "short" | "open";
+export type DifficultyLevel =
+  | "beginner"
+  | "intermediate"
+  | "sufficient"
+  | "advanced";
 
 export interface FolderResponse {
   id: string;
@@ -22,6 +27,7 @@ export interface ResourceResponse {
   folder_id: string | null;
   tags: TagResponse[];
   has_content: boolean;
+  difficulty: DifficultyLevel | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +35,7 @@ export interface ResourceResponse {
 export interface QuestionOption {
   id: string;
   text: string;
+  image_url?: string | null;
   is_correct: boolean;
 }
 
@@ -56,11 +63,36 @@ export interface QuestionResponse {
   options: QuestionOption[];
   correct_answers: string[];
   requires_review: boolean;
+  difficulty: DifficultyLevel | null;
+  points: number;
 }
 
 export interface ResourceDetailResponse extends ResourceResponse {
   text_content: TextContentResponse | null;
   question: QuestionResponse | null;
+}
+
+export interface QuestionPublicOption {
+  id: string;
+  text: string;
+  image_url?: string | null;
+}
+
+export interface QuestionPublicResponse {
+  id: string;
+  resource_id: string;
+  question_type: QuestionType;
+  body: string;
+  explanation: string | null;
+  options: QuestionPublicOption[];
+  requires_review: boolean;
+  difficulty: DifficultyLevel | null;
+  points: number;
+}
+
+export interface ResourceDetailPublicResponse extends ResourceResponse {
+  text_content: TextContentResponse | null;
+  question: QuestionPublicResponse | null;
 }
 
 export interface CloudinarySignatureResponse {
@@ -108,4 +140,6 @@ export interface QuestionCreate {
   options: QuestionOption[];
   correct_answers: string[];
   requires_review?: boolean;
+  difficulty?: DifficultyLevel | null;
+  points?: number;
 }

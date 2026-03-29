@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.question import QuestionType
+from app.models.question import DifficultyLevel, QuestionType
 from app.models.resource import ResourceType
 
 
@@ -60,6 +60,7 @@ class ResourceResponse(BaseModel):
     folder_id: Optional[uuid.UUID] = None
     tags: List[TagResponse] = []
     has_content: bool = False
+    difficulty: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -82,8 +83,17 @@ class TextContentResponse(BaseModel):
 
 class QuestionOption(BaseModel):
     id: str = Field(..., description="Unique ID for the option within the question")
-    text: str = Field(..., min_length=1)
+    text: str = Field(default="")
+    image_url: Optional[str] = None
     is_correct: bool = False
+
+
+class QuestionPublicOption(BaseModel):
+    """Option without correctness info — sent to players during a game."""
+
+    id: str
+    text: str = ""
+    image_url: Optional[str] = None
 
 
 class QuestionCreate(BaseModel):
@@ -93,6 +103,8 @@ class QuestionCreate(BaseModel):
     options: List[QuestionOption] = Field(default_factory=list)
     correct_answers: List[str] = Field(default_factory=list)
     requires_review: bool = False
+    difficulty: Optional[DifficultyLevel] = None
+    points: int = Field(default=1, ge=1)
 
 
 class QuestionResponse(BaseModel):
@@ -104,6 +116,8 @@ class QuestionResponse(BaseModel):
     options: List[QuestionOption]
     correct_answers: List[str]
     requires_review: bool
+    difficulty: Optional[DifficultyLevel] = None
+    points: int = 1
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -113,7 +127,30 @@ class ResourceDetailResponse(ResourceResponse):
     question: Optional[QuestionResponse] = None
 
 
-# ─── Cloudinary ───────────────────────────────────────────────────────────────
+class QuestionPublicResponse(BaseModel):
+    """Question without correct answers — sent to players during a game."""
+
+    id: uuid.UUID
+    resource_id: uuid.UUID
+    question_type: QuestionType
+    body: str
+    explanation: Optional[str] = None
+    options: List[QuestionPublicOption]
+    requires_review: bool
+    difficulty: Optional[DifficultyLevel] = None
+    points: int = 1
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ResourceDetailPublicResponse(ResourceResponse):
+    """Resource detail without correct answers — sent to players during a game."""
+
+    text_content: Optional[TextContentResponse] = None
+    question: Optional[QuestionPublicResponse] = None
+
+
+# Cloudinary
 
 
 class CloudinarySignatureRequest(BaseModel):

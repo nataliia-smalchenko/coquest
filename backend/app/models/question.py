@@ -3,7 +3,7 @@ import enum
 from datetime import datetime
 from typing import Optional, List, Any, TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Text, func, Uuid
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Text, func, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +18,13 @@ class QuestionType(str, enum.Enum):
     MULTIPLE = "multiple"
     SHORT = "short"
     OPEN = "open"
+
+
+class DifficultyLevel(str, enum.Enum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    SUFFICIENT = "sufficient"
+    ADVANCED = "advanced"
 
 
 class Question(Base):
@@ -47,6 +54,12 @@ class Question(Base):
 
     correct_answers: Mapped[List[Any]] = mapped_column(
         JSONB, nullable=False, server_default="[]", default=list
+    )
+
+    difficulty: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    points: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="1", default=1
     )
 
     requires_review: Mapped[bool] = mapped_column(
