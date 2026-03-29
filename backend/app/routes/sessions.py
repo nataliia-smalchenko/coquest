@@ -227,7 +227,10 @@ async def start_team(
         "ends_at": _iso(started_session.ends_at) if started_session else None,
     }
 
-    # Notify all team members to start
+    # Get current step info for hint/active player broadcast
+    step_info = await SessionService.get_team_step_info(db, session_id, team_id)
+
+    # Notify all team members with their visible progress + step info
     for p in team.players:
         pid = str(p.id)
         progress_result = await db.execute(
@@ -246,6 +249,7 @@ async def start_team(
                 "team_id": tid,
                 "session": session_timing,
                 "player_started_at": _iso(p.started_at),
+                "step_info": step_info,
                 "progress": [
                     {
                         "id": str(pr.id),
@@ -255,6 +259,7 @@ async def start_team(
                         "map_object_id": str(pr.map_object_id)
                         if pr.map_object_id
                         else None,
+                        "step_order": pr.step_order,
                         "status": pr.status.value
                         if hasattr(pr.status, "value")
                         else pr.status,
@@ -337,7 +342,9 @@ async def submit_answer(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    result = await SessionService.submit_answer(db, progress_id, player, data)
+    result, team_step_info = await SessionService.submit_answer(
+        db, progress_id, player, data
+    )
     sid = str(player.session_id)
     pid = str(player.id)
 
@@ -345,42 +352,69 @@ async def submit_answer(
     if result.score is not None:
         correct = result.score >= 1.0
 
-    await manager.send_to_player(
-        sid,
-        pid,
-        {
-            "type": "answer_result",
-            "progress": result.model_dump(mode="json"),
-            "correct": correct,
-            "score": result.score,
-        },
-    )
-
-    # New resource on same map object
-    if result.map_object_id:
-        new_prog = await db.execute(
-            select(SessionProgress)
-            .where(
-                SessionProgress.session_id == player.session_id,
-                SessionProgress.player_id == player.id,
-                SessionProgress.map_object_id == result.map_object_id,
-                SessionProgress.id != progress_id,
-            )
-            .order_by(SessionProgress.assigned_at.desc())
-            .limit(1)
+    if player.team_id:
+        # Team mode: send answer_result to answering player
+        await manager.send_to_player(
+            sid,
+            pid,
+            {
+                "type": "answer_result",
+                "progress": result.model_dump(mode="json"),
+                "correct": correct,
+                "score": result.score,
+            },
         )
-        new_p = new_prog.scalar_one_or_none()
-        if new_p:
-            await manager.send_to_player(
-                sid,
-                pid,
-                {
-                    "type": "object_updated",
-                    "map_object_id": str(result.map_object_id),
-                    "new_progress_id": str(new_p.id),
-                    "resource_type": None,
-                },
+
+        # Broadcast step advance to all team members
+        if team_step_info:
+            team_players_q = await db.execute(
+                select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
             )
+            team_players = team_players_q.scalars().all()
+            step_event = {
+                "type": "team_step_advanced",
+                **team_step_info,
+                "completed_by_progress": result.model_dump(mode="json"),
+            }
+            for tp in team_players:
+                await manager.send_to_player(sid, str(tp.id), step_event)
+    else:
+        # Solo mode: existing behavior
+        await manager.send_to_player(
+            sid,
+            pid,
+            {
+                "type": "answer_result",
+                "progress": result.model_dump(mode="json"),
+                "correct": correct,
+                "score": result.score,
+            },
+        )
+        # New resource on same map object
+        if result.map_object_id:
+            new_prog = await db.execute(
+                select(SessionProgress)
+                .where(
+                    SessionProgress.session_id == player.session_id,
+                    SessionProgress.player_id == player.id,
+                    SessionProgress.map_object_id == result.map_object_id,
+                    SessionProgress.id != progress_id,
+                )
+                .order_by(SessionProgress.assigned_at.desc())
+                .limit(1)
+            )
+            new_p = new_prog.scalar_one_or_none()
+            if new_p:
+                await manager.send_to_player(
+                    sid,
+                    pid,
+                    {
+                        "type": "object_updated",
+                        "map_object_id": str(result.map_object_id),
+                        "new_progress_id": str(new_p.id),
+                        "resource_type": None,
+                    },
+                )
 
     await manager.send_to_teacher(
         sid,
@@ -406,15 +440,44 @@ async def mark_text_viewed(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    result = await SessionService.mark_text_viewed(db, progress_id, player)
+    result, team_step_info, viewers = await SessionService.mark_text_viewed(
+        db, progress_id, player
+    )
     sid = str(player.session_id)
     pid = str(player.id)
 
-    await manager.send_to_player(
-        sid,
-        pid,
-        {"type": "text_viewed", "progress_id": str(result.id)},
-    )
+    if player.team_id:
+        # Team mode: broadcast who has viewed to all team members
+        team_players_q = await db.execute(
+            select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
+        )
+        team_players = team_players_q.scalars().all()
+
+        viewed_event = {
+            "type": "team_text_viewed",
+            "viewer_id": pid,
+            "viewers": viewers or [pid],
+        }
+        for tp in team_players:
+            await manager.send_to_player(sid, str(tp.id), viewed_event)
+
+        # If all viewed, broadcast step advance
+        if team_step_info:
+            step_event = {
+                "type": "team_step_advanced",
+                **team_step_info,
+                "completed_by_progress": None,
+            }
+            for tp in team_players:
+                await manager.send_to_player(sid, str(tp.id), step_event)
+    else:
+        # Solo mode
+        await manager.send_to_player(
+            sid,
+            pid,
+            {"type": "text_viewed", "progress_id": str(result.id)},
+        )
+
     await manager.send_to_teacher(
         sid,
         {"type": "player_viewed_text", "player_id": pid, "progress_id": str(result.id)},
@@ -493,6 +556,16 @@ async def get_my_progress(
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
     return await SessionService.get_my_progress(db, session_id, player)
+
+
+@router.get("/{session_id}/team-progress", response_model=List[SessionProgressResponse])
+async def get_team_progress(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    player: SessionPlayer = Depends(_get_player_by_token),
+):
+    """Team mode: return all teammates' completed progress items for materials panel."""
+    return await SessionService.get_team_progress(db, session_id, player)
 
 
 @router.get(

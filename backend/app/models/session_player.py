@@ -72,7 +72,9 @@ class SessionPlayer(Base):
         "GameSession", back_populates="players"
     )
     team: Mapped[Optional["SessionTeam"]] = relationship(
-        "SessionTeam", back_populates="players"
+        "SessionTeam",
+        back_populates="players",
+        foreign_keys="[SessionPlayer.team_id]",
     )
     user: Mapped[Optional["User"]] = relationship(
         "User", back_populates="game_sessions", foreign_keys=[user_id]

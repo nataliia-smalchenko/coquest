@@ -53,6 +53,7 @@ class TeamResponse(BaseModel):
     players: List[TeamPlayerResponse]
     created_at: datetime
     started_at: Optional[datetime] = None
+    hint_player_id: Optional[uuid.UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -81,6 +82,7 @@ class SessionProgressResponse(BaseModel):
     resource_id: Optional[uuid.UUID] = None
     map_object_id: Optional[uuid.UUID] = None
     status: ProgressStatus
+    step_order: Optional[int] = None
     score: Optional[float] = None
     answer: Optional[Dict[str, Any]] = None
     requires_review: bool

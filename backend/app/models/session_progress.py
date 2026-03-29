@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Uuid, func
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,6 +56,7 @@ class SessionProgress(Base):
         default=ProgressStatus.ASSIGNED,
         nullable=False,
     )
+    step_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     answer: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     requires_review: Mapped[bool] = mapped_column(

@@ -321,6 +321,123 @@ async def _advance_queue(
     await db.flush()
 
 
+async def _advance_team_step(
+    db: AsyncSession,
+    session_id: uuid.UUID,
+    team_id: uuid.UUID,
+    completed_by_player_id: uuid.UUID,
+) -> Optional[Dict]:
+    """Advance the team to its next queued step.
+
+    Returns a dict with WS broadcast data, or None if no more steps.
+    """
+    from app.models.resource import Resource
+
+    # Find the minimum step_order among queued (no map_object_id) ASSIGNED records
+    min_order_result = await db.execute(
+        select(func.min(SessionProgress.step_order)).where(
+            SessionProgress.session_id == session_id,
+            SessionProgress.team_id == team_id,
+            SessionProgress.map_object_id == None,  # noqa: E711
+            SessionProgress.status == ProgressStatus.ASSIGNED,
+        )
+    )
+    min_step_order = min_order_result.scalar_one_or_none()
+    if min_step_order is None:
+        return None  # no more steps
+
+    # Get all records for that step
+    step_result = await db.execute(
+        select(SessionProgress).where(
+            SessionProgress.session_id == session_id,
+            SessionProgress.team_id == team_id,
+            SessionProgress.step_order == min_step_order,
+            SessionProgress.status == ProgressStatus.ASSIGNED,
+            SessionProgress.map_object_id == None,  # noqa: E711
+        )
+    )
+    step_records = list(step_result.scalars().all())
+    if not step_records:
+        return None
+
+    # Load resource type
+    resource_id = step_records[0].resource_id
+    resource = await db.get(Resource, resource_id)
+    resource_type = resource.type if resource else "question"
+
+    # Get session quest map_id
+    session_result = await db.execute(
+        select(GameSession)
+        .where(GameSession.id == session_id)
+        .options(selectinload(GameSession.quest))
+    )
+    session_obj = session_result.scalar_one_or_none()
+    if not session_obj or not session_obj.quest or not session_obj.quest.map_id:
+        return None
+
+    # Find an available map object (not yet used by this team)
+    used_result = await db.execute(
+        select(SessionProgress.map_object_id)
+        .where(
+            SessionProgress.team_id == team_id,
+            SessionProgress.session_id == session_id,
+            SessionProgress.map_object_id != None,  # noqa: E711
+        )
+        .distinct()
+    )
+    used_ids = {row[0] for row in used_result.all()}
+
+    objects_result = await db.execute(
+        select(MapObject)
+        .where(
+            MapObject.map_id == session_obj.quest.map_id,
+            MapObject.is_interactive == True,  # noqa: E712
+        )
+        .order_by(MapObject.order_index)
+    )
+    all_objs = list(objects_result.scalars().all())
+    available = [o for o in all_objs if o.id not in used_ids] or all_objs
+    if not available:
+        return None
+    next_obj = random.choice(available)
+
+    # Activate the next step records
+    for rec in step_records:
+        rec.map_object_id = next_obj.id
+
+    # Update team hint player to whoever just completed the previous step
+    team_result = await db.execute(select(SessionTeam).where(SessionTeam.id == team_id))
+    team_obj = team_result.scalar_one_or_none()
+    if team_obj:
+        team_obj.hint_player_id = completed_by_player_id
+
+    await db.flush()
+
+    active_player_id: Optional[str] = None
+    if resource_type == "text":
+        active_player_id = None  # all players are active
+    else:
+        active_player_id = str(step_records[0].player_id)
+
+    return {
+        "resource_type": resource_type.value
+        if hasattr(resource_type, "value")
+        else resource_type,
+        "active_player_id": active_player_id,
+        "hint_player_id": str(completed_by_player_id),
+        "map_object_id": str(next_obj.id),
+        "progress_updates": [
+            {
+                "player_id": str(r.player_id),
+                "progress_id": str(r.id),
+                "map_object_id": str(next_obj.id),
+                "step_order": r.step_order,
+            }
+            for r in step_records
+        ],
+    }
+
+
 class SessionService:
     @staticmethod
     async def list_sessions(
@@ -763,7 +880,9 @@ class SessionService:
     async def _distribute_resources_for_team(
         db: AsyncSession, session: GameSession, team: SessionTeam
     ) -> None:
-        """Team mode: distribute resources round-robin among team members."""
+        """Team mode: texts go to ALL players, questions balanced by points among players."""
+        from app.models.resource import Resource
+
         quest_result = await db.execute(
             select(Quest)
             .where(Quest.id == session.quest_id)
@@ -781,7 +900,7 @@ class SessionService:
         )
         interactive_objects = list(objects_result.scalars().all())
 
-        players = team.players
+        players = list(team.players)
         if not players:
             return
 
@@ -789,34 +908,84 @@ class SessionService:
         if quest.settings and quest.settings.random_order:
             random.shuffle(resources)
 
-        # Each player gets a random starting object (no two players share the same initial object)
-        available_starts = list(interactive_objects)
-        random.shuffle(available_starts)
-        player_first_obj: Dict[uuid.UUID, Optional[MapObject]] = {}
-        for idx, p in enumerate(players):
-            player_first_obj[p.id] = (
-                available_starts[idx] if idx < len(available_starts) else None
-            )
+        # Load resource types and question points
+        resource_ids = [qr.resource_id for qr in resources]
+        if not resource_ids:
+            return
+        res_result = await db.execute(
+            select(Resource)
+            .where(Resource.id.in_(resource_ids))
+            .options(selectinload(Resource.question))
+        )
+        resource_map: Dict[uuid.UUID, Resource] = {
+            r.id: r for r in res_result.scalars().all()
+        }
 
-        # Track how many resources each player has received (to know which is "first")
-        player_count: Dict[uuid.UUID, int] = {p.id: 0 for p in players}
-
+        # Greedy balance: assign questions to players with fewest total points
+        player_points: Dict[uuid.UUID, float] = {p.id: 0.0 for p in players}
+        # question_assignment[original_index] = player_id
+        question_assignment: Dict[int, uuid.UUID] = {}
         for i, qr in enumerate(resources):
-            player = players[i % len(players)]
-            is_first = player_count[player.id] == 0
-            player_count[player.id] += 1
-            first_obj = player_first_obj.get(player.id)
-            db.add(
-                SessionProgress(
-                    session_id=session.id,
-                    team_id=team.id,
-                    player_id=player.id,
-                    resource_id=qr.resource_id,
-                    map_object_id=first_obj.id if is_first and first_obj else None,
-                    status=ProgressStatus.ASSIGNED,
-                )
-            )
+            res = resource_map.get(qr.resource_id)
+            if res and res.type == "question":
+                points = float(res.question.points if res and res.question else 1)
+                min_pid = min(player_points, key=lambda pid: player_points[pid])
+                player_points[min_pid] += points
+                question_assignment[i] = min_pid
+
+        # First map object for step 0
+        first_obj = random.choice(interactive_objects) if interactive_objects else None
+
+        # Create progress records (step_order = position in quest resource list)
+        for step_order, qr in enumerate(resources):
+            res = resource_map.get(qr.resource_id)
+            if not res:
+                continue
+            is_first_step = step_order == 0
+            obj_id = first_obj.id if is_first_step and first_obj else None
+
+            if res.type == "text":
+                for player in players:
+                    db.add(
+                        SessionProgress(
+                            session_id=session.id,
+                            team_id=team.id,
+                            player_id=player.id,
+                            resource_id=qr.resource_id,
+                            step_order=step_order,
+                            map_object_id=obj_id,
+                            status=ProgressStatus.ASSIGNED,
+                        )
+                    )
+            else:
+                assigned_pid = question_assignment.get(step_order)
+                if assigned_pid:
+                    db.add(
+                        SessionProgress(
+                            session_id=session.id,
+                            team_id=team.id,
+                            player_id=assigned_pid,
+                            resource_id=qr.resource_id,
+                            step_order=step_order,
+                            map_object_id=obj_id,
+                            status=ProgressStatus.ASSIGNED,
+                        )
+                    )
+
         await db.flush()
+
+        # Determine hint player for step 0
+        if resources:
+            res0 = resource_map.get(resources[0].resource_id)
+            if res0 and res0.type == "question":
+                active_pid = question_assignment.get(0)
+                other = [p for p in players if p.id != active_pid]
+                hint_pid = random.choice(other).id if other else active_pid
+            else:
+                hint_pid = random.choice(players).id
+
+            team.hint_player_id = hint_pid
+            await db.flush()
 
     @staticmethod
     async def player_timeout(
@@ -873,7 +1042,7 @@ class SessionService:
         progress_id: uuid.UUID,
         player: SessionPlayer,
         data: SubmitAnswerRequest,
-    ) -> SessionProgressResponse:
+    ) -> Tuple[SessionProgressResponse, Optional[Dict]]:
         result = await db.execute(
             select(SessionProgress)
             .where(SessionProgress.id == progress_id)
@@ -894,6 +1063,12 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Already answered"
             )
+        # Team mode: only allow answering an activated (has map_object_id) item
+        if player.team_id and progress.map_object_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This resource is not yet active",
+            )
 
         score: Optional[float] = None
         requires_review = False
@@ -909,7 +1084,12 @@ class SessionService:
         progress.completed_at = _now()
         await db.flush()
 
-        if progress.map_object_id:
+        team_step_info: Optional[Dict] = None
+        if player.team_id and progress.map_object_id:
+            team_step_info = await _advance_team_step(
+                db, progress.session_id, player.team_id, player.id
+            )
+        elif not player.team_id and progress.map_object_id:
             await _advance_queue(
                 db, progress.session_id, player.id, progress.map_object_id
             )
@@ -917,14 +1097,19 @@ class SessionService:
         await _check_player_completion(db, progress.session_id, player)
         await db.commit()
         await db.refresh(progress)
-        return SessionProgressResponse.model_validate(progress)
+        return SessionProgressResponse.model_validate(progress), team_step_info
 
     @staticmethod
     async def mark_text_viewed(
         db: AsyncSession,
         progress_id: uuid.UUID,
         player: SessionPlayer,
-    ) -> SessionProgressResponse:
+    ) -> Tuple[SessionProgressResponse, Optional[Dict], Optional[List[str]]]:
+        """Returns (progress, team_step_info | None, viewers_list | None).
+
+        viewers_list is set in team mode: list of player_ids who have viewed this step so far.
+        team_step_info is set when the team is ready to advance to the next step.
+        """
         result = await db.execute(
             select(SessionProgress).where(SessionProgress.id == progress_id)
         )
@@ -937,12 +1122,50 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
             )
+        # Team mode: only allow viewing an activated item
+        if player.team_id and progress.map_object_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This resource is not yet active",
+            )
 
         progress.status = ProgressStatus.VIEWED
         progress.completed_at = _now()
         await db.flush()
 
-        if progress.map_object_id:
+        team_step_info: Optional[Dict] = None
+        viewers: Optional[List[str]] = None
+
+        if player.team_id and progress.map_object_id:
+            # Count team members
+            total_result = await db.execute(
+                select(func.count()).where(
+                    SessionPlayer.team_id == player.team_id,
+                    SessionPlayer.session_id == progress.session_id,
+                )
+            )
+            total_in_team = total_result.scalar_one()
+
+            # Count who has already viewed/answered this step
+            viewed_result = await db.execute(
+                select(SessionProgress).where(
+                    SessionProgress.team_id == player.team_id,
+                    SessionProgress.session_id == progress.session_id,
+                    SessionProgress.step_order == progress.step_order,
+                    SessionProgress.status.in_(
+                        [ProgressStatus.VIEWED, ProgressStatus.ANSWERED]
+                    ),
+                )
+            )
+            viewed_records = list(viewed_result.scalars().all())
+            viewers = [str(r.player_id) for r in viewed_records]
+            all_viewed = len(viewed_records) >= total_in_team
+
+            if all_viewed:
+                team_step_info = await _advance_team_step(
+                    db, progress.session_id, player.team_id, player.id
+                )
+        elif not player.team_id and progress.map_object_id:
             await _advance_queue(
                 db, progress.session_id, player.id, progress.map_object_id
             )
@@ -950,7 +1173,7 @@ class SessionService:
         await _check_player_completion(db, progress.session_id, player)
         await db.commit()
         await db.refresh(progress)
-        return SessionProgressResponse.model_validate(progress)
+        return SessionProgressResponse.model_validate(progress), team_step_info, viewers
 
     @staticmethod
     async def review_answer(
@@ -1456,10 +1679,93 @@ class SessionService:
                 SessionProgress.session_id == session_id,
                 SessionProgress.player_id == player.id,
             )
-            .order_by(SessionProgress.assigned_at)
+            .order_by(SessionProgress.step_order, SessionProgress.assigned_at)
         )
         items = result.scalars().all()
         return [SessionProgressResponse.model_validate(p) for p in items]
+
+    @staticmethod
+    async def get_team_progress(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        player: SessionPlayer,
+    ) -> List[SessionProgressResponse]:
+        """Return teammates' completed progress items (team mode, for materials panel)."""
+        if player.session_id != session_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
+            )
+        if not player.team_id:
+            return []
+        result = await db.execute(
+            select(SessionProgress)
+            .where(
+                SessionProgress.session_id == session_id,
+                SessionProgress.team_id == player.team_id,
+                SessionProgress.player_id != player.id,
+                SessionProgress.status.in_(
+                    [ProgressStatus.ANSWERED, ProgressStatus.VIEWED]
+                ),
+                SessionProgress.map_object_id != None,  # noqa: E711
+            )
+            .order_by(SessionProgress.step_order, SessionProgress.assigned_at)
+        )
+        items = result.scalars().all()
+        return [SessionProgressResponse.model_validate(p) for p in items]
+
+    @staticmethod
+    async def get_team_step_info(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        team_id: uuid.UUID,
+    ) -> Dict:
+        """Return current active step info for a team (for WS events on start)."""
+        from app.models.resource import Resource
+
+        # Find first ASSIGNED record with map_object_id (current active step)
+        active_result = await db.execute(
+            select(SessionProgress)
+            .where(
+                SessionProgress.session_id == session_id,
+                SessionProgress.team_id == team_id,
+                SessionProgress.map_object_id != None,  # noqa: E711
+                SessionProgress.status == ProgressStatus.ASSIGNED,
+            )
+            .order_by(SessionProgress.step_order)
+            .limit(1)
+        )
+        active_rec = active_result.scalar_one_or_none()
+        if not active_rec:
+            return {}
+
+        step_order = active_rec.step_order
+        resource_id = active_rec.resource_id
+        resource = await db.get(Resource, resource_id)
+        resource_type = resource.type if resource else "question"
+
+        team_obj = await db.get(SessionTeam, team_id)
+        hint_pid = (
+            str(team_obj.hint_player_id)
+            if team_obj and team_obj.hint_player_id
+            else None
+        )
+
+        if resource_type == "text" or (
+            hasattr(resource_type, "value") and resource_type.value == "text"
+        ):
+            active_pid = None
+        else:
+            active_pid = str(active_rec.player_id)
+
+        return {
+            "resource_type": resource_type.value
+            if hasattr(resource_type, "value")
+            else resource_type,
+            "active_player_id": active_pid,
+            "hint_player_id": hint_pid,
+            "map_object_id": str(active_rec.map_object_id),
+            "step_order": step_order,
+        }
 
     @staticmethod
     async def update_player_guest_name(

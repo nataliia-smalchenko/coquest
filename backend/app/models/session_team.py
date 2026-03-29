@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Uuid, func
+from sqlalchemy import Integer  # noqa: F401 (imported for type consistency)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -41,11 +42,18 @@ class SessionTeam(Base):
     started_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    hint_player_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("session_players.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Relationships
     session: Mapped["GameSession"] = relationship("GameSession", back_populates="teams")
     players: Mapped[List["SessionPlayer"]] = relationship(
-        "SessionPlayer", back_populates="team"
+        "SessionPlayer",
+        back_populates="team",
+        foreign_keys="[SessionPlayer.team_id]",
     )
     progress: Mapped[List["SessionProgress"]] = relationship(
         "SessionProgress", back_populates="team"
