@@ -122,6 +122,11 @@ export default function TeacherSessionsPage() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
+                {s.name && (
+                  <p className="text-sm font-semibold text-gray-800 truncate mb-0.5">
+                    {s.name}
+                  </p>
+                )}
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-mono font-bold text-gray-900 text-lg tracking-widest">
                     {s.session_code}

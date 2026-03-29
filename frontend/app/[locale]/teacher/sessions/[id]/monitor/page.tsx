@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Clock,
   Copy,
+  ExternalLink,
   Pencil,
   Play,
   Square,
@@ -20,7 +21,7 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTeacherWebSocket } from "@/hooks/useWebSocket";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
   deletePlayer,
   deleteSession,
@@ -761,7 +762,18 @@ export default function MonitorPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("title")}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {session?.name ?? t("title")}
+            </h1>
+            <Link
+              href={`/teacher/quests/${session?.quest_id}`}
+              className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+            >
+              <ExternalLink size={13} />
+              {t("questPreview")}
+            </Link>
+          </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="font-mono text-gray-500 text-sm">
               {session?.session_code}

@@ -227,6 +227,7 @@
       "showCorrect": "Show correct answers",
       "schedule": "Schedule start time",
       "scheduleEnd": "Schedule end time",
+      "sessionName": "Session name",
       "create": "Create Session",
       "createHint": "After creating, you'll get a code to share with students",
       "createError": "Failed to create session"
@@ -357,7 +358,8 @@
       "durationLabel": "Duration",
       "sessionEndsAt": "Session ends at",
       "timeLeft": "time left",
-      "pointsUnit": "pt"
+      "pointsUnit": "pt",
+      "questPreview": "Quest preview"
     }
   },
   "resources": {

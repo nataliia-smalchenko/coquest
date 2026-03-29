@@ -67,6 +67,7 @@ export interface GameSession {
   id: string;
   quest_id: string;
   session_code: string;
+  name: string | null;
   status: SessionStatus;
   started_at: string | null;
   ends_at: string | null;
@@ -86,6 +87,7 @@ export interface SessionListItem {
   id: string;
   quest_id: string;
   session_code: string;
+  name: string | null;
   status: SessionStatus;
   started_at: string | null;
   ends_at: string | null;
@@ -168,6 +170,7 @@ export interface SessionStorageData {
 
 export interface SessionCreate {
   quest_id: string;
+  name?: string;
   max_players?: number;
   allow_solo_in_team?: boolean;
   show_feedback_after_answer?: boolean;

@@ -21,6 +21,9 @@ export default function NewSessionPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Session name
+  const [sessionName, setSessionName] = useState("");
+
   // Game mode
   const [maxPlayers, setMaxPlayers] = useState(1);
   const [allowSoloInTeam, setAllowSoloInTeam] = useState(true);
@@ -44,7 +47,11 @@ export default function NewSessionPage() {
       return;
     }
     getQuest(questId)
-      .then(setQuest)
+      .then((q) => {
+        setQuest(q);
+        const title = q.translations?.[0]?.title;
+        if (title) setSessionName(title);
+      })
       .catch(() => router.push("/teacher/quests"))
       .finally(() => setLoadingQuest(false));
   }, [questId, router]);
@@ -56,6 +63,7 @@ export default function NewSessionPage() {
     try {
       const session = await createSession({
         quest_id: questId,
+        name: sessionName || undefined,
         max_players: maxPlayers,
         allow_solo_in_team: maxPlayers > 1 ? allowSoloInTeam : true,
         show_feedback_after_answer: showFeedbackAfterAnswer,
@@ -160,6 +168,18 @@ export default function NewSessionPage() {
           <p className="text-base font-semibold text-gray-900">
             {translation?.title ?? "—"}
           </p>
+        </div>
+
+        {/* Session name */}
+        <div className={cardStyle}>
+          <p className={sectionLabel}>{t("sessionName")}</p>
+          <input
+            type="text"
+            value={sessionName}
+            onChange={(e) => setSessionName(e.target.value)}
+            placeholder={translation?.title ?? ""}
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         {/* Game mode */}

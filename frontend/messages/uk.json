@@ -227,6 +227,7 @@
       "showCorrect": "Показувати правильні відповіді",
       "schedule": "Запланувати час початку",
       "scheduleEnd": "Запланувати час закінчення",
+      "sessionName": "Назва сесії",
       "create": "Створити сесію",
       "createHint": "Після створення отримаєте код для учнів",
       "createError": "Помилка створення сесії"
@@ -357,7 +358,8 @@
       "durationLabel": "Тривалість",
       "sessionEndsAt": "Сесія закінчується",
       "timeLeft": "залишилось",
-      "pointsUnit": "б"
+      "pointsUnit": "б",
+      "questPreview": "Перегляд квесту"
     }
   },
   "resources": {
