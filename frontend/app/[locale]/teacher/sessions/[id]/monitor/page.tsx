@@ -18,7 +18,7 @@ import {
 import TimerDisplay from "@/components/game/TimerDisplay";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTeacherWebSocket } from "@/hooks/useWebSocket";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -202,10 +202,15 @@ function PlayerDetailDrawer({
     }
   };
 
-  // Filter: only question items (skip text-only)
-  const questionItems = (items ?? []).filter((p) => p.question !== null);
+  // Only show items this player actually answered/viewed (skip unstarted)
+  const questionItems = (items ?? []).filter(
+    (p) => p.question !== null && p.status !== "assigned",
+  );
   const textItems = (items ?? []).filter(
-    (p) => p.question === null && p.resource_title !== null,
+    (p) =>
+      p.question === null &&
+      p.resource_title !== null &&
+      p.status !== "assigned",
   );
 
   return (
@@ -516,6 +521,17 @@ function PlayerDetailDrawer({
   );
 }
 
+const TEAM_PALETTE = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#f97316",
+  "#84cc16",
+];
+
 // main page
 
 export default function MonitorPage() {
@@ -700,6 +716,21 @@ export default function MonitorPage() {
     }
   };
 
+  const players = monitor?.players_progress ?? [];
+
+  // Map unique team_ids to stable colors
+  const teamColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    let i = 0;
+    for (const pp of players) {
+      if (pp.player.team_id && !(pp.player.team_id in map)) {
+        map[pp.player.team_id] = TEAM_PALETTE[i % TEAM_PALETTE.length];
+        i++;
+      }
+    }
+    return map;
+  }, [players]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -716,7 +747,6 @@ export default function MonitorPage() {
     scheduled: t("statusScheduled"),
   };
 
-  const players = monitor?.players_progress ?? [];
   const sessionStatus =
     session?.status === "active" &&
     session.ends_at &&
@@ -874,12 +904,13 @@ export default function MonitorPage() {
               on={session.keep_completed_in_materials}
               label={tSession("keepCompleted")}
             />
-            {session.keep_completed_in_materials && (
-              <SettingChip
-                on={session.allow_change_answers}
-                label={tSession("allowChangeAnswers")}
-              />
-            )}
+            {session.keep_completed_in_materials &&
+              session.max_players === 1 && (
+                <SettingChip
+                  on={session.allow_change_answers}
+                  label={tSession("allowChangeAnswers")}
+                />
+              )}
             <SettingChip
               on={session.show_score_after}
               label={tSession("showScore")}
@@ -948,10 +979,20 @@ export default function MonitorPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-gray-900 truncate">
                       {pp.player.display_name}
                     </span>
+                    {pp.player.team_id && (
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded font-mono font-semibold text-white flex-shrink-0"
+                        style={{
+                          backgroundColor: teamColorMap[pp.player.team_id],
+                        }}
+                      >
+                        #{pp.player.team_id.slice(0, 4)}
+                      </span>
+                    )}
                     {pp.player.status === "finished" && (
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                         {t("finishedBadge")}

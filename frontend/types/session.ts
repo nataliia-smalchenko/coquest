@@ -36,6 +36,7 @@ export interface Team {
   players: TeamPlayer[];
   created_at: string;
   started_at: string | null;
+  hint_player_id: string | null;
 }
 
 export interface SessionProgress {
@@ -45,6 +46,7 @@ export interface SessionProgress {
   resource_id: string | null;
   map_object_id: string | null;
   status: ProgressStatus;
+  step_order: number | null;
   score: number | null;
   answer: unknown | null;
   requires_review: boolean;

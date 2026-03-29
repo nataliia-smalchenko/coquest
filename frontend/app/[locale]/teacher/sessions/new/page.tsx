@@ -62,7 +62,11 @@ export default function NewSessionPage() {
         show_score_after: showScoreAfter,
         show_correct_answers: showCorrectAnswers,
         keep_completed_in_materials: keepCompleted,
-        allow_change_answers: keepCompleted ? allowChangeAnswers : false,
+        allow_change_answers: isTeam
+          ? false
+          : keepCompleted
+            ? allowChangeAnswers
+            : false,
         scheduled_at:
           useScheduled && scheduledAt
             ? new Date(scheduledAt).toISOString()
@@ -255,6 +259,7 @@ export default function NewSessionPage() {
             setKeepCompleted,
           )}
           {keepCompleted &&
+            !isTeam &&
             checkRow(
               t("allowChangeAnswers"),
               t("allowChangeAnswersHint"),

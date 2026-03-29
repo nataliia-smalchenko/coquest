@@ -275,7 +275,16 @@
       "alreadyAnswered": "Відповідь вже надана",
       "pendingAnswer": "Відповідь надіслана — очікує перевірки",
       "loadError": "Не вдалося завантажити ресурс",
-      "explanation": "Пояснення"
+      "explanation": "Пояснення",
+      "loadingMap": "Завантаження карти...",
+      "mapUnavailable": "Карта недоступна",
+      "waitingStart": "Очікування початку...",
+      "teamHintForTeammate": "Підказка для товариша по команді",
+      "teamHintForText": "Контрольна точка",
+      "teamHintDismiss": "Зрозуміло!",
+      "teamWaitingViewers": "Очікуємо поки всі ознайомляться ({count}/{total})",
+      "teamAnsweredBy": "Відповів(ла): {name}",
+      "teamViewedBy": "Переглянув(ла): {name}"
     },
     "results": {
       "title": "Результати",

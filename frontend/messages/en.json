@@ -275,7 +275,16 @@
       "alreadyAnswered": "Answer already submitted",
       "pendingAnswer": "Answer sent — awaiting review",
       "loadError": "Failed to load resource",
-      "explanation": "Explanation"
+      "explanation": "Explanation",
+      "loadingMap": "Loading map...",
+      "mapUnavailable": "Map unavailable",
+      "waitingStart": "Waiting for start...",
+      "teamHintForTeammate": "Hint for your teammate",
+      "teamHintForText": "Checkpoint",
+      "teamHintDismiss": "Got it!",
+      "teamWaitingViewers": "Waiting for teammates to view ({count}/{total})",
+      "teamAnsweredBy": "Answered by {name}",
+      "teamViewedBy": "Viewed by {name}"
     },
     "results": {
       "title": "Results",

@@ -122,6 +122,16 @@ export async function getMyProgress(
   return data;
 }
 
+export async function getTeamProgress(
+  session_id: string,
+  guest_token: string,
+): Promise<SessionProgress[]> {
+  const { data } = await api.get(`/api/sessions/${session_id}/team-progress`, {
+    headers: { "X-Guest-Token": guest_token },
+  });
+  return data;
+}
+
 export async function getProgressResource(
   progress_id: string,
   guest_token: string,

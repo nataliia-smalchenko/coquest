@@ -16,6 +16,7 @@ import {
   getGameInfo,
   getMyProgress,
   getProgressResource,
+  getTeamProgress,
   markViewed,
   playerTimeout,
   submitAnswer,
@@ -32,6 +33,19 @@ interface AnswerResult {
   correct: boolean | null;
   score: number | null;
   requires_review: boolean;
+}
+
+interface TeamStepInfo {
+  resource_type: "question" | "text";
+  active_player_id: string | null;
+  hint_player_id: string | null;
+  map_object_id: string | null;
+  progress_updates?: Array<{
+    player_id: string;
+    progress_id: string;
+    map_object_id: string;
+    step_order: number | null;
+  }>;
 }
 
 export default function GamePage() {
@@ -63,6 +77,14 @@ export default function GamePage() {
   const [map, setMap] = useState<MapResponse | null>(null);
   const [loadingMap, setLoadingMap] = useState(true);
 
+  // Teammates' completed progress (for team materials panel)
+  const [teamProgress, setTeamProgress] = useState<SessionProgress[]>([]);
+
+  // Cache resource titles by resource_id (populated when a resource is loaded)
+  const [resourceTitles, setResourceTitles] = useState<Record<string, string>>(
+    {},
+  );
+
   // Modal state
   const [modalProgressId, setModalProgressId] = useState<string | null>(null);
   const [modalResource, setModalResource] =
@@ -76,15 +98,45 @@ export default function GamePage() {
   const [showMaterials, setShowMaterials] = useState(false);
   const [unreadChat, setUnreadChat] = useState(0);
 
-  // Hint overlay — shown when a new active object is revealed
+  // Hint overlay
   const [pendingHint, setPendingHint] = useState<string | null>(null);
+  const [pendingHintIsTeam, setPendingHintIsTeam] = useState(false); // is hint for-a-teammate
   const shownHintObjects = useRef<Set<string>>(new Set());
+
+  // Team step state: who has active object, who has hint
+  const [teamStepInfo, setTeamStepInfo] = useState<TeamStepInfo | null>(null);
+
+  // Viewers of current text step (team mode)
+  const [textViewers, setTextViewers] = useState<string[]>([]);
 
   // Temporary highlight on the active object when user presses the hint button
   const [highlightObjectId, setHighlightObjectId] = useState<string | null>(
     null,
   );
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isTeamMode = (session?.max_players ?? 1) > 1;
+  const myPlayerId = stored?.player_id ?? "";
+
+  // The one currently assigned (and not yet completed) map object in MY progress
+  const activeObjectId = useMemo(
+    () =>
+      progress.find((p) => p.status === "assigned" && p.map_object_id)
+        ?.map_object_id ?? null,
+    [progress],
+  );
+
+  // In team mode: am I the hint player for the current step?
+  const iAmHintPlayer =
+    isTeamMode && teamStepInfo?.hint_player_id === myPlayerId;
+
+  // In team mode: am I the active player for current question step?
+  const iAmActivePlayer =
+    !isTeamMode ||
+    !teamStepInfo ||
+    teamStepInfo.resource_type === "text" ||
+    teamStepInfo.active_player_id === myPlayerId ||
+    teamStepInfo.active_player_id === null;
 
   const handleHintFlash = () => {
     if (!activeObjectId) return;
@@ -98,15 +150,7 @@ export default function GamePage() {
 
   const token = stored?.guest_token ?? "";
 
-  // The one currently assigned (and not yet completed) object
-  const activeObjectId = useMemo(
-    () =>
-      progress.find((p) => p.status === "assigned" && p.map_object_id)
-        ?.map_object_id ?? null,
-    [progress],
-  );
-
-  // Personal timer: based on when THIS player started + quest time limit
+  // Personal timer
   const playerEndsAt = useMemo(() => {
     const mins = gameInfo?.settings?.time_limit_minutes;
     const startedAt = myPlayer?.started_at;
@@ -114,7 +158,6 @@ export default function GamePage() {
     return new Date(new Date(startedAt).getTime() + mins * 60000).toISOString();
   }, [gameInfo?.settings?.time_limit_minutes, myPlayer?.started_at]);
 
-  // Effective timer: the earlier of the personal timer and the global session deadline
   const effectiveEndsAt = useMemo(() => {
     const candidates = [playerEndsAt, session?.ends_at].filter(
       Boolean,
@@ -129,6 +172,11 @@ export default function GamePage() {
     false;
   const showFeedbackRef = useRef(showFeedback);
   showFeedbackRef.current = showFeedback;
+
+  const keepCompleted =
+    session?.keep_completed_in_materials ??
+    gameInfo?.settings?.keep_completed_in_materials ??
+    true;
 
   // Load stored session data
   useEffect(() => {
@@ -159,15 +207,25 @@ export default function GamePage() {
         const prog = await getMyProgress(sessionId, stored.guest_token);
         setProgress(prog);
       } catch {
-        // ignore — will be set via WS session_started
+        // ignore
       }
       setLoadingMap(false);
     };
     load();
   }, [stored, sessionId, locale, setProgress]);
 
-  // Show hint when a new active object is revealed
+  // In team mode: load team progress for materials panel (reconnect case)
   useEffect(() => {
+    if (!stored || !isTeamMode) return;
+    getTeamProgress(sessionId, stored.guest_token)
+      .then(setTeamProgress)
+      .catch(() => {});
+  }, [stored, sessionId, isTeamMode]);
+
+  // Show hint when a new active object is revealed
+  // Solo mode only — team mode uses WS team_step events
+  useEffect(() => {
+    if (isTeamMode) return;
     if (!activeObjectId || !map) return;
     if (shownHintObjects.current.has(activeObjectId)) return;
     shownHintObjects.current.add(activeObjectId);
@@ -187,7 +245,42 @@ export default function GamePage() {
 
     const hint = candidates[Math.floor(Math.random() * candidates.length)];
     setPendingHint(hint.hint_text);
-  }, [activeObjectId, map, locale]);
+    setPendingHintIsTeam(false);
+  }, [activeObjectId, map, locale, isTeamMode]);
+
+  // Handle team_step event: show hint to hint player
+  const handleTeamStepEvent = useCallback(
+    (stepInfo: TeamStepInfo) => {
+      setTeamStepInfo(stepInfo);
+      setTextViewers([]);
+
+      // Show hint to hint player
+      if (
+        stepInfo.hint_player_id === myPlayerId &&
+        stepInfo.map_object_id &&
+        map
+      ) {
+        const obj = map.objects.find((o) => o.id === stepInfo.map_object_id);
+        if (obj) {
+          const localized = obj.hints.filter((h) => h.language === locale);
+          const fallback = obj.hints.filter((h) => h.language === "uk");
+          const candidates =
+            localized.length > 0
+              ? localized
+              : fallback.length > 0
+                ? fallback
+                : obj.hints;
+          if (candidates.length > 0) {
+            const hint =
+              candidates[Math.floor(Math.random() * candidates.length)];
+            setPendingHint(hint.hint_text);
+            setPendingHintIsTeam(stepInfo.resource_type === "question");
+          }
+        }
+      }
+    },
+    [myPlayerId, map, locale],
+  );
 
   // WS
   const { messages, send: wsSend } = usePlayerWebSocket(sessionId, token);
@@ -216,7 +309,6 @@ export default function GamePage() {
             const me = players.find((p) => p.id === stored.player_id);
             if (me) {
               setMyPlayer(me);
-              // Already finished (e.g. reconnect after completing or time expiry)
               if (me.status === "finished") {
                 router.push(`/session/${sessionId}/results`);
               }
@@ -225,7 +317,7 @@ export default function GamePage() {
         }
       }
 
-      if (data.type === "session_started" || data.type === "team_started") {
+      if (data.type === "session_started") {
         const prog = data.progress as SessionProgress[] | undefined;
         if (prog) setProgress(prog);
         const playerStartedAt = data.player_started_at as
@@ -234,6 +326,26 @@ export default function GamePage() {
           | undefined;
         if (playerStartedAt && stored?.player_id) {
           updatePlayer({ id: stored.player_id, started_at: playerStartedAt });
+        }
+      }
+
+      if (data.type === "team_started") {
+        const prog = data.progress as SessionProgress[] | undefined;
+        if (prog) setProgress(prog);
+        const playerStartedAt = data.player_started_at as
+          | string
+          | null
+          | undefined;
+        if (playerStartedAt && stored?.player_id) {
+          updatePlayer({ id: stored.player_id, started_at: playerStartedAt });
+        }
+        // Apply initial step info for hint/active player
+        const si = data.step_info as TeamStepInfo | undefined;
+        if (si && si.hint_player_id) {
+          handleTeamStepEvent({
+            ...si,
+            progress_updates: [],
+          });
         }
       }
 
@@ -250,6 +362,35 @@ export default function GamePage() {
             requires_review: prog.requires_review,
           });
         }
+      }
+
+      if (data.type === "team_step_advanced") {
+        const si = data as unknown as TeamStepInfo & {
+          completed_by_progress?: SessionProgress | null;
+        };
+        handleTeamStepEvent(si);
+
+        // Add teammate's completed question to team materials
+        if (si.completed_by_progress && si.resource_type === "question") {
+          const cp = si.completed_by_progress;
+          if (cp.player_id !== myPlayerId) {
+            setTeamProgress((prev) => {
+              const exists = prev.some((p) => p.id === cp.id);
+              return exists ? prev : [...prev, cp];
+            });
+          }
+        }
+        // Reload own progress to pick up newly activated items
+        if (stored) {
+          getMyProgress(sessionId, stored.guest_token)
+            .then(setProgress)
+            .catch(() => {});
+        }
+      }
+
+      if (data.type === "team_text_viewed") {
+        const viewers = data.viewers as string[] | undefined;
+        if (viewers) setTextViewers(viewers);
       }
 
       if (data.type === "chat_message" && !showChat) {
@@ -282,6 +423,9 @@ export default function GamePage() {
     showChat,
     sessionId,
     router,
+    handleTeamStepEvent,
+    myPlayerId,
+    updatePlayer,
   ]);
 
   // Reset unread when chat opens
@@ -292,6 +436,15 @@ export default function GamePage() {
   const handleObjectClick = useCallback(
     async (_mapObjectId: string, progressId: string) => {
       if (!stored) return;
+      // In team mode: only active player (or text step) can interact
+      if (
+        isTeamMode &&
+        teamStepInfo &&
+        teamStepInfo.resource_type === "question"
+      ) {
+        const myProgress = progress.find((p) => p.id === progressId);
+        if (!myProgress) return;
+      }
       setModalProgressId(progressId);
       setModalResource(null);
       setAnswerResult(null);
@@ -299,13 +452,21 @@ export default function GamePage() {
       try {
         const res = await getProgressResource(progressId, stored.guest_token);
         setModalResource(res);
+        // Cache the title for the materials panel
+        const prog = progress.find((p) => p.id === progressId);
+        if (prog?.resource_id && res.title) {
+          setResourceTitles((prev) => ({
+            ...prev,
+            [prog.resource_id!]: res.title,
+          }));
+        }
       } catch {
         setModalResource(null);
       } finally {
         setModalResourceLoading(false);
       }
     },
-    [stored],
+    [stored, isTeamMode, teamStepInfo, progress],
   );
 
   const handleMarkViewed = async () => {
@@ -315,7 +476,6 @@ export default function GamePage() {
       const updated = await markViewed(modalProgressId, stored.guest_token);
       updateProgress(updated);
       setModalProgressId(null);
-      // Reload progress to pick up any queue advances
       getMyProgress(sessionId, stored.guest_token)
         .then(setProgress)
         .catch(() => {});
@@ -346,7 +506,6 @@ export default function GamePage() {
         setModalProgressId(null);
         setAnswerResult(null);
       }
-      // Reload progress to pick up any queue advances (next object)
       getMyProgress(sessionId, stored.guest_token)
         .then(setProgress)
         .catch(() => {});
@@ -369,17 +528,35 @@ export default function GamePage() {
   const completedCount = progress.filter(
     (p) => p.status === "answered" || p.status === "viewed",
   ).length;
-  // totalCount = all quest resources, including queued ones not yet on the map
   const totalCount = progress.length;
 
   const isAllCompleted = totalCount > 0 && completedCount === totalCount;
 
-  // Redirect to results when all materials are completed (during gameplay or after reload)
+  // Solo-mode fallback redirect (team mode uses player_finished WS event instead)
   useEffect(() => {
-    if (isAllCompleted) {
+    if (!isTeamMode && isAllCompleted) {
       router.push(`/session/${sessionId}/results`);
     }
-  }, [isAllCompleted, sessionId, router]);
+  }, [isTeamMode, isAllCompleted, sessionId, router]);
+
+  // Team text step: waiting info
+  const totalTeamMembers =
+    session?.players?.filter((p) => p.team_id === myPlayer?.team_id).length ??
+    0;
+  const currentTextStepId = useMemo(() => {
+    if (!isTeamMode) return null;
+    const active = progress.find(
+      (p) => p.status === "assigned" && p.map_object_id,
+    );
+    return active ? active.step_order : null;
+  }, [isTeamMode, progress]);
+
+  const isWaitingForTeammates =
+    isTeamMode &&
+    teamStepInfo?.resource_type === "text" &&
+    textViewers.length > 0 &&
+    textViewers.length < totalTeamMembers &&
+    textViewers.includes(myPlayerId);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-900">
@@ -390,7 +567,6 @@ export default function GamePage() {
         </span>
 
         <div className="flex items-center gap-3">
-          {/* Timer */}
           {effectiveEndsAt && (
             <TimerDisplay
               ends_at={effectiveEndsAt}
@@ -399,7 +575,7 @@ export default function GamePage() {
                   try {
                     await playerTimeout(sessionId, stored.guest_token);
                   } catch {
-                    // ignore — backend may already have finished the player
+                    // ignore
                   }
                 }
                 router.push(`/session/${sessionId}/results`);
@@ -407,13 +583,12 @@ export default function GamePage() {
             />
           )}
 
-          {/* Progress */}
           <span className="text-xs text-gray-400 font-mono">
             {completedCount}/{totalCount}
           </span>
 
-          {/* Hint flash button */}
-          {activeObjectId && (
+          {/* Hint flash button — solo or active player in team */}
+          {activeObjectId && iAmActivePlayer && (
             <button
               type="button"
               onClick={handleHintFlash}
@@ -424,8 +599,8 @@ export default function GamePage() {
             </button>
           )}
 
-          {/* Chat toggle — hidden in solo mode */}
-          {(session?.max_players ?? 0) > 1 && (
+          {/* Chat toggle — only in team mode */}
+          {isTeamMode && (
             <button
               type="button"
               onClick={() => {
@@ -443,10 +618,7 @@ export default function GamePage() {
             </button>
           )}
 
-          {/* Materials toggle — hidden when keep_completed_in_materials is off */}
-          {(session?.keep_completed_in_materials ??
-            gameInfo?.settings?.keep_completed_in_materials ??
-            true) && (
+          {keepCompleted && (
             <button
               type="button"
               onClick={() => {
@@ -468,7 +640,7 @@ export default function GamePage() {
           {loadingMap && (
             <div className="flex flex-col items-center gap-3 text-gray-400">
               <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">Завантаження карти...</span>
+              <span className="text-sm">{t("loadingMap")}</span>
             </div>
           )}
           {!loadingMap && map && (
@@ -476,18 +648,20 @@ export default function GamePage() {
               map={map}
               progress={progress}
               onObjectClick={handleObjectClick}
-              activeObjectId={pendingHint ? null : activeObjectId}
+              activeObjectId={
+                pendingHint ? null : iAmActivePlayer ? activeObjectId : null
+              }
               highlightObjectId={highlightObjectId}
               className="rounded-xl shadow-lg max-h-full"
             />
           )}
           {!loadingMap && !map && (
-            <p className="text-gray-500 text-sm">Карта недоступна</p>
+            <p className="text-gray-500 text-sm">{t("mapUnavailable")}</p>
           )}
         </div>
 
-        {/* Chat panel — only in team mode */}
-        {showChat && (session?.max_players ?? 0) > 1 && (
+        {/* Chat panel */}
+        {showChat && isTeamMode && (
           <div className="w-72 flex-shrink-0 border-l border-gray-700 flex flex-col">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700 flex-shrink-0">
               <span className="text-sm font-medium text-white">
@@ -512,7 +686,7 @@ export default function GamePage() {
         )}
 
         {/* Materials panel */}
-        {showMaterials && (
+        {showMaterials && keepCompleted && (
           <div className="w-72 flex-shrink-0 border-l border-gray-700 bg-gray-800 overflow-y-auto">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
               <span className="text-sm font-medium text-white">
@@ -527,19 +701,10 @@ export default function GamePage() {
               </button>
             </div>
             <div className="p-3 space-y-2">
+              {/* Own completed items */}
               {progress
                 .filter((p) => {
-                  // Only show items that have been revealed on the map
                   if (!p.map_object_id) return false;
-                  const keep =
-                    session?.keep_completed_in_materials ??
-                    gameInfo?.settings?.keep_completed_in_materials ??
-                    true;
-                  if (
-                    !keep &&
-                    (p.status === "viewed" || p.status === "answered")
-                  )
-                    return false;
                   return true;
                 })
                 .map((p) => (
@@ -547,8 +712,11 @@ export default function GamePage() {
                     type="button"
                     key={p.id}
                     onClick={() => {
-                      handleObjectClick(p.map_object_id ?? "", p.id);
-                      setShowMaterials(false);
+                      // In team mode only allow clicking own assigned items
+                      if (iAmActivePlayer || p.status !== "assigned") {
+                        handleObjectClick(p.map_object_id ?? "", p.id);
+                        setShowMaterials(false);
+                      }
                     }}
                     className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                       p.status === "assigned"
@@ -567,14 +735,41 @@ export default function GamePage() {
                         }`}
                       />
                       <span className="truncate">
-                        {p.resource_id ? "Ресурс" : "—"}
+                        {(p.resource_id && resourceTitles[p.resource_id]) ||
+                          (p.resource_id ? t("resource") : "—")}
                       </span>
                     </span>
                   </button>
                 ))}
+              {/* Team mode: show teammates' completed questions */}
+              {isTeamMode &&
+                teamProgress
+                  .filter((p) => p.status === "answered")
+                  .map((p) => {
+                    const teammate = session?.players.find(
+                      (pl) => pl.id === p.player_id,
+                    );
+                    return (
+                      <div
+                        key={p.id}
+                        className="w-full text-left px-3 py-2.5 rounded-lg text-sm bg-purple-900/30 text-purple-200"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0 bg-purple-400" />
+                          <span className="truncate">
+                            {teammate
+                              ? t("teamAnsweredBy", {
+                                  name: teammate.display_name,
+                                })
+                              : "Ресурс"}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
               {progress.length === 0 && (
                 <p className="text-gray-500 text-xs text-center py-4">
-                  Очікування початку...
+                  {t("waitingStart")}
                 </p>
               )}
             </div>
@@ -604,6 +799,19 @@ export default function GamePage() {
         </div>
       )}
 
+      {/* Team text step: waiting for teammates overlay */}
+      {isWaitingForTeammates && !pendingHint && (
+        <div
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-4 py-3 rounded-2xl shadow-lg text-sm font-medium text-white"
+          style={{ backgroundColor: "rgba(30,30,50,0.9)", maxWidth: "320px" }}
+        >
+          {t("teamWaitingViewers", {
+            count: textViewers.length,
+            total: totalTeamMembers,
+          })}
+        </div>
+      )}
+
       {/* Hint overlay */}
       {pendingHint && (
         <div
@@ -615,7 +823,11 @@ export default function GamePage() {
               🗺️
             </div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-              {t("hintTitle")}
+              {pendingHintIsTeam
+                ? t("teamHintForTeammate")
+                : teamStepInfo?.resource_type === "text"
+                  ? t("teamHintForText")
+                  : t("hintTitle")}
             </p>
             <p className="text-gray-800 text-base leading-relaxed">
               {pendingHint}
@@ -625,7 +837,7 @@ export default function GamePage() {
               onClick={() => setPendingHint(null)}
               className="mt-2 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
             >
-              {t("hintGo")}
+              {pendingHintIsTeam ? t("teamHintDismiss") : t("hintGo")}
             </button>
           </div>
         </div>
