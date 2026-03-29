@@ -153,8 +153,8 @@ export default function EditResourcePage({ params }: EditPageProps) {
       const newResource = await createResource({
         type,
         title: nextTitle,
-        folder_id: selectedFolderId ?? null,
-        tag_ids: storeTagIds,
+        folder_id: folderId || null,
+        tag_ids: selectedTagIds,
       });
       router.push(`/teacher/resources/${newResource.id}/edit?new=1`);
     } catch {

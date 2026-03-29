@@ -6,9 +6,10 @@ import type {
   SessionListItem,
   SessionPlayer,
   SessionProgress,
+  Team,
   TeacherMonitorResponse,
 } from "@/types/session";
-import type { ResourceDetailResponse } from "@/types/resource";
+import type { ResourceDetailPublicResponse } from "@/types/resource";
 
 export async function listSessions(): Promise<SessionListItem[]> {
   const { data } = await api.get("/api/sessions/");
@@ -50,6 +51,63 @@ export async function playerStartSession(
   return data;
 }
 
+export async function getTeam(
+  sessionId: string,
+  teamId: string,
+  guestToken: string,
+): Promise<Team> {
+  const { data } = await api.get(`/api/sessions/${sessionId}/teams/${teamId}`, {
+    headers: { "X-Guest-Token": guestToken },
+  });
+  return data;
+}
+
+export async function startTeam(
+  sessionId: string,
+  teamId: string,
+  guestToken: string,
+): Promise<Team> {
+  const { data } = await api.post(
+    `/api/sessions/${sessionId}/teams/${teamId}/start`,
+    {},
+    { headers: { "X-Guest-Token": guestToken } },
+  );
+  return data;
+}
+
+export async function getTeamStepInfo(
+  sessionId: string,
+  teamId: string,
+  guestToken: string,
+): Promise<{
+  resource_type: string;
+  active_player_id: string | null;
+  hint_player_id: string | null;
+  map_object_id: string | null;
+  step_order: number | null;
+} | null> {
+  try {
+    const { data } = await api.get(
+      `/api/sessions/${sessionId}/teams/${teamId}/step-info`,
+      { headers: { "X-Guest-Token": guestToken } },
+    );
+    return data && Object.keys(data).length > 0 ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function playerTimeout(
+  id: string,
+  guestToken: string,
+): Promise<void> {
+  await api.post(
+    `/api/sessions/${id}/player-timeout`,
+    {},
+    { headers: { "X-Guest-Token": guestToken } },
+  );
+}
+
 export async function stopSession(id: string): Promise<GameSession> {
   const { data } = await api.post(`/api/sessions/${id}/stop`);
   return data;
@@ -86,10 +144,20 @@ export async function getMyProgress(
   return data;
 }
 
+export async function getTeamProgress(
+  session_id: string,
+  guest_token: string,
+): Promise<SessionProgress[]> {
+  const { data } = await api.get(`/api/sessions/${session_id}/team-progress`, {
+    headers: { "X-Guest-Token": guest_token },
+  });
+  return data;
+}
+
 export async function getProgressResource(
   progress_id: string,
   guest_token: string,
-): Promise<ResourceDetailResponse> {
+): Promise<ResourceDetailPublicResponse> {
   const { data } = await api.get(
     `/api/sessions/progress/${progress_id}/resource`,
     {
@@ -139,10 +207,20 @@ export async function reviewAnswer(
   return data;
 }
 
+export async function getPlayerProgressDetail(
+  session_id: string,
+  player_id: string,
+): Promise<import("@/types/session").SessionProgressResult[]> {
+  const { data } = await api.get(
+    `/api/sessions/${session_id}/players/${player_id}/progress`,
+  );
+  return data;
+}
+
 export async function getResults(
   session_id: string,
   guest_token: string,
-): Promise<unknown> {
+): Promise<import("@/types/session").GameSessionResultResponse> {
   const { data } = await api.get(`/api/sessions/${session_id}/results`, {
     params: { guest_token },
   });

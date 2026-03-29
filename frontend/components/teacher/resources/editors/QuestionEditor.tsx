@@ -63,6 +63,7 @@ const schema = z.object({
   options: z.array(optionSchema),
   short_answers: z.array(shortAnswerSchema),
   requires_review: z.boolean(),
+  points: z.number().int().min(1),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -181,6 +182,12 @@ export function QuestionEditor({
           ? initial.correct_answers.map((a) => ({ text: a }))
           : [{ text: "" }],
       requires_review: initial?.requires_review ?? false,
+      points:
+        initial?.points ??
+        (initial?.difficulty === "sufficient" ||
+        initial?.difficulty === "advanced"
+          ? 2
+          : 1),
     },
   });
 
@@ -196,6 +203,25 @@ export function QuestionEditor({
 
   const questionType = watch("question_type");
   const difficulty = watch("difficulty");
+  const points = watch("points");
+
+  const difficultyDefault = (d: DifficultyLevel | null | undefined) =>
+    d === "sufficient" || d === "advanced" ? 2 : 1;
+
+  const prevDifficultyRef = useRef<DifficultyLevel | null | undefined>(
+    (initial?.difficulty as DifficultyLevel | null | undefined) ?? null,
+  );
+
+  // Auto-update points when difficulty changes, unless user has customized points
+  useEffect(() => {
+    const prev = prevDifficultyRef.current;
+    if (difficulty !== prev) {
+      if (points === difficultyDefault(prev)) {
+        setValue("points", difficultyDefault(difficulty));
+      }
+      prevDifficultyRef.current = difficulty;
+    }
+  }, [difficulty, points, setValue]);
 
   // Body Tiptap editor
   const bodyEditor = useEditor({
@@ -328,6 +354,7 @@ export function QuestionEditor({
         correct_answers: correctAnswers,
         requires_review: values.requires_review,
         difficulty: values.difficulty ?? null,
+        points: values.points,
       });
       setSaveStatus("success");
       onSaved?.(result);
@@ -361,6 +388,38 @@ export function QuestionEditor({
           label: t(`types.${qt}`),
         }))}
       />
+
+      {/* Points */}
+      <div>
+        <label style={labelStyle}>{t("points")}</label>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            {...register("points", { valueAsNumber: true })}
+            style={{
+              width: "80px",
+              border: "1.5px solid #e5e7eb",
+              borderRadius: "8px",
+              padding: "6px 10px",
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "#111827",
+              outline: "none",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "#2563eb";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "#e5e7eb";
+            }}
+          />
+          <span style={{ fontSize: "12px", color: "#9ca3af" }}>
+            {t("pointsHint")}
+          </span>
+        </div>
+      </div>
 
       {/* Difficulty — chip selector */}
       <div>
@@ -548,7 +607,13 @@ export function QuestionEditor({
                     ) : (
                       <input
                         type="checkbox"
-                        {...register(`options.${idx}.is_correct`)}
+                        checked={!!watch(`options.${idx}.is_correct`)}
+                        onChange={(e) =>
+                          setValue(
+                            `options.${idx}.is_correct`,
+                            e.target.checked,
+                          )
+                        }
                         style={{
                           width: "16px",
                           height: "16px",

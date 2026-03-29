@@ -11,11 +11,13 @@ from app.models.quest import QuestStatus
 class QuestSettingsCreate(BaseModel):
     time_limit_minutes: Optional[int] = None
     random_order: bool = False
+    max_grade: Optional[int] = None
 
 
 class QuestSettingsResponse(BaseModel):
     time_limit_minutes: Optional[int] = None
     random_order: bool
+    max_grade: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

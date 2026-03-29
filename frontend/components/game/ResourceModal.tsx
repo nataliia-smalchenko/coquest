@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { X, CheckCircle, XCircle, Clock } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
+import { useTranslations } from "next-intl";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import { sanitizeHtml } from "@/lib/sanitize";
-import type { ResourceDetailResponse } from "@/types/resource";
+import type { ResourceDetailPublicResponse } from "@/types/resource";
 import type { SessionProgress } from "@/types/session";
 import QuestionForm from "./QuestionForm";
 
@@ -19,13 +20,31 @@ interface AnswerResult {
 
 interface ResourceModalProps {
   progress: SessionProgress;
-  resource: ResourceDetailResponse | null;
+  resource: ResourceDetailPublicResponse | null;
   loading?: boolean;
   answerResult?: AnswerResult | null;
   onClose: () => void;
   onMarkViewed: () => void;
   onSubmitAnswer: (answer: Record<string, unknown>) => void;
   isSubmitting?: boolean;
+}
+
+function getSelectedIds(answer: unknown, questionType: string): string[] {
+  if (!answer || typeof answer !== "object") return [];
+  const a = answer as Record<string, unknown>;
+  if (questionType === "single")
+    return a.option_id ? [String(a.option_id)] : [];
+  if (questionType === "multiple")
+    return Array.isArray(a.option_ids)
+      ? (a.option_ids as unknown[]).map(String)
+      : [];
+  return [];
+}
+
+function getAnswerText(answer: unknown): string {
+  if (!answer || typeof answer !== "object") return "";
+  const a = answer as Record<string, unknown>;
+  return typeof a.text === "string" ? a.text : "";
 }
 
 function renderTiptap(body: Record<string, unknown>): string {
@@ -50,6 +69,7 @@ export default function ResourceModal({
   onSubmitAnswer,
   isSubmitting,
 }: ResourceModalProps) {
+  const t = useTranslations("game.game");
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -88,9 +108,14 @@ export default function ResourceModal({
       {/* Modal */}
       <div className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl shadow-2xl max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
-          <h3 className="font-semibold text-gray-800 text-base truncate pr-2">
-            {resource?.title ?? "Ресурс"}
+        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          {resource?.type === "question" && resource.question && (
+            <span className="text-xs font-semibold text-violet-600 bg-violet-50 border border-violet-200 rounded-full px-2.5 py-0.5 flex-shrink-0">
+              {resource.question.points} {t("pointsUnit")}
+            </span>
+          )}
+          <h3 className="font-semibold text-gray-800 text-base truncate flex-1">
+            {resource?.title ?? t("resource")}
           </h3>
           <button
             onClick={onClose}
@@ -130,13 +155,13 @@ export default function ResourceModal({
                   className="mt-5 w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
                 >
                   <CheckCircle size={16} />
-                  Ознайомився ✓
+                  {t("markRead")}
                 </button>
               )}
               {isAnswered && (
                 <div className="mt-4 flex items-center gap-2 text-green-700 bg-green-50 rounded-lg px-4 py-2.5 text-sm font-medium">
                   <CheckCircle size={16} />
-                  Переглянуто
+                  {t("viewed")}
                 </div>
               )}
             </>
@@ -155,36 +180,84 @@ export default function ResourceModal({
                   {answerResult.requires_review ? (
                     <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3 text-sm">
                       <Clock size={16} />
-                      Відповідь надіслана — очікує перевірки
+                      {t("pendingAnswer")}
                     </div>
                   ) : answerResult.correct ? (
                     <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm font-medium">
                       <CheckCircle size={16} />
-                      Правильно!
-                      {answerResult.score !== null &&
-                        answerResult.score < 1 && (
-                          <span className="ml-auto text-xs">
-                            {Math.round((answerResult.score ?? 0) * 100)}%
-                          </span>
-                        )}
+                      {t("correct")}
+                      <span className="ml-auto text-xs font-semibold">
+                        {answerResult.score !== null
+                          ? `+${+(answerResult.score * resource.question.points).toFixed(1)} / ${resource.question.points} ${t("pointsUnit")}`
+                          : `+${resource.question.points} / ${resource.question.points} ${t("pointsUnit")}`}
+                      </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm font-medium">
                       <XCircle size={16} />
-                      Неправильно
+                      {t("incorrect")}
+                      <span className="ml-auto text-xs font-semibold">
+                        0 / {resource.question.points} {t("pointsUnit")}
+                      </span>
                     </div>
                   )}
                   {resource.question.explanation && (
                     <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
-                      <span className="font-medium">Пояснення: </span>
+                      <span className="font-medium">{t("explanation")}: </span>
                       {resource.question.explanation}
                     </div>
                   )}
                 </div>
               ) : isAnswered ? (
-                <div className="flex items-center gap-2 text-gray-600 text-sm">
-                  <CheckCircle size={16} className="text-green-500" />
-                  Відповідь вже надана
+                <div className="space-y-3">
+                  <div
+                    className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(resource.question.body),
+                    }}
+                  />
+                  {(resource.question.question_type === "single" ||
+                    resource.question.question_type === "multiple") && (
+                    <ul className="space-y-1.5">
+                      {resource.question.options.map((opt) => {
+                        const selected = getSelectedIds(
+                          progress.answer,
+                          resource.question!.question_type,
+                        ).includes(opt.id);
+                        return (
+                          <li
+                            key={opt.id}
+                            className={`flex items-center gap-2 border rounded-lg px-3 py-2 text-sm ${
+                              selected
+                                ? "bg-blue-50 border-blue-300 font-medium"
+                                : "bg-gray-50 border-gray-200 text-gray-600"
+                            }`}
+                          >
+                            <span className="flex-1">{opt.text}</span>
+                            {selected && (
+                              <CheckCircle
+                                size={14}
+                                className="text-blue-500 flex-shrink-0"
+                              />
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {resource.question.question_type !== "single" &&
+                    resource.question.question_type !== "multiple" && (
+                      <div className="border border-blue-200 bg-blue-50 rounded-lg px-3 py-2 text-sm text-gray-800">
+                        <span className="block text-xs text-blue-500 font-medium mb-0.5">
+                          {t("yourAnswer")}
+                        </span>
+                        {getAnswerText(progress.answer) || "—"}
+                      </div>
+                    )}
+                  <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg px-3 py-2 text-sm font-medium">
+                    <CheckCircle size={14} />
+                    {t("alreadyAnswered")}
+                  </div>
                 </div>
               ) : (
                 <QuestionForm
@@ -198,7 +271,7 @@ export default function ResourceModal({
 
           {!loading && !resource && (
             <p className="text-center text-gray-400 py-8 text-sm">
-              Не вдалося завантажити ресурс
+              {t("loadError")}
             </p>
           )}
         </div>

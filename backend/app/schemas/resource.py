@@ -88,6 +88,14 @@ class QuestionOption(BaseModel):
     is_correct: bool = False
 
 
+class QuestionPublicOption(BaseModel):
+    """Option without correctness info — sent to players during a game."""
+
+    id: str
+    text: str = ""
+    image_url: Optional[str] = None
+
+
 class QuestionCreate(BaseModel):
     question_type: QuestionType
     body: str = Field(..., min_length=1)
@@ -96,6 +104,7 @@ class QuestionCreate(BaseModel):
     correct_answers: List[str] = Field(default_factory=list)
     requires_review: bool = False
     difficulty: Optional[DifficultyLevel] = None
+    points: int = Field(default=1, ge=1)
 
 
 class QuestionResponse(BaseModel):
@@ -108,6 +117,7 @@ class QuestionResponse(BaseModel):
     correct_answers: List[str]
     requires_review: bool
     difficulty: Optional[DifficultyLevel] = None
+    points: int = 1
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -117,7 +127,30 @@ class ResourceDetailResponse(ResourceResponse):
     question: Optional[QuestionResponse] = None
 
 
-# ─── Cloudinary ───────────────────────────────────────────────────────────────
+class QuestionPublicResponse(BaseModel):
+    """Question without correct answers — sent to players during a game."""
+
+    id: uuid.UUID
+    resource_id: uuid.UUID
+    question_type: QuestionType
+    body: str
+    explanation: Optional[str] = None
+    options: List[QuestionPublicOption]
+    requires_review: bool
+    difficulty: Optional[DifficultyLevel] = None
+    points: int = 1
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ResourceDetailPublicResponse(ResourceResponse):
+    """Resource detail without correct answers — sent to players during a game."""
+
+    text_content: Optional[TextContentResponse] = None
+    question: Optional[QuestionPublicResponse] = None
+
+
+# Cloudinary
 
 
 class CloudinarySignatureRequest(BaseModel):

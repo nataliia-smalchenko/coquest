@@ -1,30 +1,30 @@
-"use client"
+"use client";
 
-import { create } from "zustand"
+import { create } from "zustand";
 import type {
   ChatMessage,
   GameSession,
   SessionPlayer,
   SessionProgress,
-} from "@/types/session"
+} from "@/types/session";
 
 interface GameSessionStore {
-  session: GameSession | null
-  myPlayer: SessionPlayer | null
-  progress: SessionProgress[]
-  chatMessages: ChatMessage[]
-  guestToken: string | null
+  session: GameSession | null;
+  myPlayer: SessionPlayer | null;
+  progress: SessionProgress[];
+  chatMessages: ChatMessage[];
+  guestToken: string | null;
 
-  setSession: (session: GameSession) => void
-  setMyPlayer: (player: SessionPlayer) => void
-  setGuestToken: (token: string) => void
-  setProgress: (progress: SessionProgress[]) => void
-  updateProgress: (progress: SessionProgress) => void
-  addChatMessage: (msg: ChatMessage) => void
-  updatePlayer: (partial: Partial<SessionPlayer> & { id: string }) => void
-  reset: () => void
+  setSession: (session: GameSession) => void;
+  setMyPlayer: (player: SessionPlayer) => void;
+  setGuestToken: (token: string) => void;
+  setProgress: (progress: SessionProgress[]) => void;
+  updateProgress: (progress: SessionProgress) => void;
+  addChatMessage: (msg: ChatMessage) => void;
+  updatePlayer: (partial: Partial<SessionPlayer> & { id: string }) => void;
+  reset: () => void;
 
-  handleWsMessage: (data: Record<string, unknown>) => void
+  handleWsMessage: (data: Record<string, unknown>) => void;
 }
 
 export const useGameSession = create<GameSessionStore>((set, get) => ({
@@ -51,7 +51,7 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
 
   updatePlayer: (partial) =>
     set((state) => {
-      if (!state.session) return {}
+      if (!state.session) return {};
       return {
         session: {
           ...state.session,
@@ -63,7 +63,7 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
           state.myPlayer?.id === partial.id
             ? { ...state.myPlayer, ...partial }
             : state.myPlayer,
-      }
+      };
     }),
 
   reset: () =>
@@ -76,78 +76,102 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
     }),
 
   handleWsMessage: (data) => {
-    const { setSession, updateProgress, addChatMessage, updatePlayer } = get()
-    const type = data.type as string
+    const { setSession, updateProgress, addChatMessage, updatePlayer } = get();
+    const type = data.type as string;
 
     switch (type) {
       case "connected": {
         if (data.session) {
-          const sess = data.session as GameSession
-          setSession({ ...sess, players: sess.players ?? [] })
+          const sess = data.session as GameSession;
+          const players = Array.isArray(data.players)
+            ? (data.players as SessionPlayer[])
+            : (sess.players ?? []);
+          setSession({ ...sess, players });
         }
-        break
+        break;
       }
       case "player_joined": {
         set((state) => {
-          if (!state.session) return {}
-          const player = data.player as SessionPlayer
-          const existing = state.session.players ?? []
-          if (existing.some((p) => p.id === player.id)) return {}
+          if (!state.session) return {};
+          const player = data.player as SessionPlayer;
+          const existing = state.session.players ?? [];
+          if (existing.some((p) => p.id === player.id)) return {};
           return {
             session: {
               ...state.session,
               players: [...existing, player],
             },
-          }
-        })
-        break
+          };
+        });
+        break;
       }
       case "player_left": {
-        updatePlayer({ id: data.player_id as string, status: "waiting" })
-        break
+        set((state) => {
+          if (!state.session) return {};
+          return {
+            session: {
+              ...state.session,
+              players: (state.session.players ?? []).map((p) =>
+                p.id === (data.player_id as string) && p.status !== "finished"
+                  ? { ...p, status: "waiting" }
+                  : p,
+              ),
+            },
+            myPlayer:
+              state.myPlayer?.id === (data.player_id as string) &&
+              state.myPlayer.status !== "finished"
+                ? { ...state.myPlayer, status: "waiting" }
+                : state.myPlayer,
+          };
+        });
+        break;
       }
       case "session_started": {
         set((state) => ({
           session: state.session
-            ? { ...state.session, status: "active", ...(data.session as Partial<GameSession> ?? {}) }
+            ? {
+                ...state.session,
+                status: "active",
+                ...((data.session as Partial<GameSession>) ?? {}),
+              }
             : state.session,
           progress: Array.isArray(data.progress)
             ? (data.progress as SessionProgress[])
             : state.progress,
-        }))
-        break
+        }));
+        break;
       }
       case "answer_result": {
-        if (data.progress) updateProgress(data.progress as SessionProgress)
-        break
+        if (data.progress) updateProgress(data.progress as SessionProgress);
+        break;
       }
       case "text_viewed": {
         // handled by answer_result pattern — backend sends updated progress
-        break
+        break;
       }
       case "object_updated": {
         // New progress item assigned to a map object; will be fetched by component
-        break
+        break;
       }
       case "player_finished": {
-        updatePlayer({ id: data.player_id as string, status: "finished" })
-        break
+        updatePlayer({ id: data.player_id as string, status: "finished" });
+        break;
       }
       case "session_completed": {
         set((state) => ({
           session: state.session
             ? { ...state.session, status: "completed" }
             : state.session,
-        }))
-        break
+        }));
+        break;
       }
       case "session_stopped": {
         set((state) => ({
           session: state.session
             ? { ...state.session, status: "stopped" }
             : state.session,
-        }))
-        break
+        }));
+        break;
       }
       case "chat_message": {
         addChatMessage({
@@ -157,23 +181,25 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
           display_name: data.display_name as string,
           message: data.message as string,
           created_at: (data.created_at as string) ?? new Date().toISOString(),
-        })
-        break
+        });
+        break;
       }
     }
   },
-}))
+}));
 
 export function getSessionStorage(sessionId: string): {
-  guest_token: string
-  player_id: string
+  guest_token: string;
+  player_id: string;
 } | null {
-  if (typeof window === "undefined") return null
+  if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(`coquest_session_${sessionId}`)
-    return raw ? (JSON.parse(raw) as { guest_token: string; player_id: string }) : null
+    const raw = localStorage.getItem(`coquest_session_${sessionId}`);
+    return raw
+      ? (JSON.parse(raw) as { guest_token: string; player_id: string })
+      : null;
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -181,6 +207,6 @@ export function setSessionStorage(
   sessionId: string,
   data: { guest_token: string; player_id: string },
 ) {
-  if (typeof window === "undefined") return
-  localStorage.setItem(`coquest_session_${sessionId}`, JSON.stringify(data))
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`coquest_session_${sessionId}`, JSON.stringify(data));
 }

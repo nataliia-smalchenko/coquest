@@ -21,6 +21,9 @@ export default function NewSessionPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Session name
+  const [sessionName, setSessionName] = useState("");
+
   // Game mode
   const [maxPlayers, setMaxPlayers] = useState(1);
   const [allowSoloInTeam, setAllowSoloInTeam] = useState(true);
@@ -44,7 +47,11 @@ export default function NewSessionPage() {
       return;
     }
     getQuest(questId)
-      .then(setQuest)
+      .then((q) => {
+        setQuest(q);
+        const title = q.translations?.[0]?.title;
+        if (title) setSessionName(title);
+      })
       .catch(() => router.push("/teacher/quests"))
       .finally(() => setLoadingQuest(false));
   }, [questId, router]);
@@ -56,13 +63,18 @@ export default function NewSessionPage() {
     try {
       const session = await createSession({
         quest_id: questId,
+        name: sessionName || undefined,
         max_players: maxPlayers,
         allow_solo_in_team: maxPlayers > 1 ? allowSoloInTeam : true,
         show_feedback_after_answer: showFeedbackAfterAnswer,
         show_score_after: showScoreAfter,
         show_correct_answers: showCorrectAnswers,
         keep_completed_in_materials: keepCompleted,
-        allow_change_answers: keepCompleted ? allowChangeAnswers : false,
+        allow_change_answers: isTeam
+          ? false
+          : keepCompleted
+            ? allowChangeAnswers
+            : false,
         scheduled_at:
           useScheduled && scheduledAt
             ? new Date(scheduledAt).toISOString()
@@ -156,6 +168,18 @@ export default function NewSessionPage() {
           <p className="text-base font-semibold text-gray-900">
             {translation?.title ?? "—"}
           </p>
+        </div>
+
+        {/* Session name */}
+        <div className={cardStyle}>
+          <p className={sectionLabel}>{t("sessionName")}</p>
+          <input
+            type="text"
+            value={sessionName}
+            onChange={(e) => setSessionName(e.target.value)}
+            placeholder={translation?.title ?? ""}
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         {/* Game mode */}
@@ -255,6 +279,7 @@ export default function NewSessionPage() {
             setKeepCompleted,
           )}
           {keepCompleted &&
+            !isTeam &&
             checkRow(
               t("allowChangeAnswers"),
               t("allowChangeAnswersHint"),
@@ -282,7 +307,16 @@ export default function NewSessionPage() {
             <input
               type="checkbox"
               checked={useScheduled}
-              onChange={(e) => setUseScheduled(e.target.checked)}
+              onChange={(e) => {
+                setUseScheduled(e.target.checked);
+                if (e.target.checked && !scheduledAt) {
+                  const d = new Date(Date.now() + 60 * 60 * 1000);
+                  const pad = (n: number) => String(n).padStart(2, "0");
+                  setScheduledAt(
+                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                  );
+                }
+              }}
               className="w-4 h-4 accent-blue-600"
             />
             <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -306,7 +340,16 @@ export default function NewSessionPage() {
             <input
               type="checkbox"
               checked={useEndsAt}
-              onChange={(e) => setUseEndsAt(e.target.checked)}
+              onChange={(e) => {
+                setUseEndsAt(e.target.checked);
+                if (e.target.checked && !endsAt) {
+                  const d = new Date(Date.now() + 60 * 60 * 1000);
+                  const pad = (n: number) => String(n).padStart(2, "0");
+                  setEndsAt(
+                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                  );
+                }
+              }}
               className="w-4 h-4 accent-blue-600"
             />
             <span className="text-sm font-medium text-gray-700 flex items-center gap-2">

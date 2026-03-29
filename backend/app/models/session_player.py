@@ -10,6 +10,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.game_session import GameSession
+    from app.models.session_team import SessionTeam
     from app.models.user import User
     from app.models.session_progress import SessionProgress
     from app.models.session_chat import SessionChat
@@ -26,7 +27,16 @@ class SessionPlayer(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("game_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid,
+        ForeignKey("game_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    team_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("session_teams.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
@@ -47,6 +57,9 @@ class SessionPlayer(Base):
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     finished_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -57,6 +70,11 @@ class SessionPlayer(Base):
     # Relationships
     session: Mapped["GameSession"] = relationship(
         "GameSession", back_populates="players"
+    )
+    team: Mapped[Optional["SessionTeam"]] = relationship(
+        "SessionTeam",
+        back_populates="players",
+        foreign_keys="[SessionPlayer.team_id]",
     )
     user: Mapped[Optional["User"]] = relationship(
         "User", back_populates="game_sessions", foreign_keys=[user_id]

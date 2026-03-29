@@ -130,6 +130,10 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
   const handleBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const handlePublish = async () => {
+    if (!data.title || !data.map_id) {
+      showToast(tBuilder("saveError"), false);
+      return;
+    }
     setSaving(true);
     try {
       let id = questId;
@@ -401,17 +405,23 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
             ) : (
               <button
                 onClick={handlePublish}
-                disabled={saving}
+                disabled={saving || !data.title || !data.map_id}
                 className="builder-btn"
                 style={{
                   padding: "7px 16px",
-                  backgroundColor: saving ? "#93c5fd" : "#2563eb",
+                  backgroundColor:
+                    saving || !data.title || !data.map_id
+                      ? "#93c5fd"
+                      : "#2563eb",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
                   fontSize: "13px",
                   fontWeight: 600,
-                  cursor: saving ? "not-allowed" : "pointer",
+                  cursor:
+                    saving || !data.title || !data.map_id
+                      ? "not-allowed"
+                      : "pointer",
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",

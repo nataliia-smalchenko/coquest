@@ -3,6 +3,7 @@ export type QuestStatus = "draft" | "published" | "archived";
 export interface QuestSettings {
   time_limit_minutes: number | null;
   random_order: boolean;
+  max_grade: number | null;
 }
 
 export interface QuestTranslation {
@@ -45,6 +46,7 @@ export interface QuestListItem {
 export interface QuestSettingsCreate {
   time_limit_minutes?: number | null;
   random_order?: boolean;
+  max_grade?: number | null;
 }
 
 export interface QuestResourceItem {

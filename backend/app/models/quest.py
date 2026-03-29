@@ -110,6 +110,7 @@ class QuestSettings(Base):
     )
     time_limit_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     random_order: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    max_grade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Relationships
     quest: Mapped["Quest"] = relationship("Quest", back_populates="settings")

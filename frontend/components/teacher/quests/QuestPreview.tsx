@@ -395,18 +395,48 @@ export default function QuestPreview({ questId }: Props) {
 
         {/* Materials */}
         <div>
-          <p
+          <div
             style={{
-              margin: "0 0 12px",
-              fontSize: "13px",
-              fontWeight: 700,
-              color: "#374151",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "12px",
             }}
           >
-            {tp("materials")}
-          </p>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "13px",
+                fontWeight: 700,
+                color: "#374151",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                flex: 1,
+              }}
+            >
+              {tp("materials")}
+            </p>
+            {(() => {
+              const totalPoints = resources
+                .filter((r) => r.question)
+                .reduce((sum, r) => sum + (r.question?.points ?? 1), 0);
+              return totalPoints > 0 ? (
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#7c3aed",
+                    background: "#f5f3ff",
+                    border: "1px solid #ede9fe",
+                    borderRadius: "20px",
+                    padding: "3px 10px",
+                  }}
+                >
+                  {tp("totalPoints", { n: totalPoints })}
+                </span>
+              ) : null;
+            })()}
+          </div>
           {resources.length === 0 ? (
             <div
               style={{
@@ -533,6 +563,22 @@ function ResourceCard({
             {resource.title}
           </p>
         </div>
+        {!isText && resource.question && (
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#7c3aed",
+              background: "white",
+              border: "1.5px solid #ddd6fe",
+              borderRadius: "20px",
+              padding: "3px 10px",
+              flexShrink: 0,
+            }}
+          >
+            {tp("pointsBadge", { n: resource.question.points })}
+          </span>
+        )}
       </div>
 
       {/* Card body */}

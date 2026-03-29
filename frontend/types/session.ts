@@ -16,8 +16,27 @@ export interface SessionPlayer {
   avatar_color: string;
   status: PlayerStatus;
   joined_at: string;
+  started_at: string | null;
   finished_at: string | null;
   guest_token?: string;
+  team_id: string | null;
+}
+
+export interface TeamPlayer {
+  id: string;
+  display_name: string;
+  avatar_color: string;
+  status: PlayerStatus;
+}
+
+export interface Team {
+  id: string;
+  session_id: string;
+  status: "waiting" | "active" | "completed";
+  players: TeamPlayer[];
+  created_at: string;
+  started_at: string | null;
+  hint_player_id: string | null;
 }
 
 export interface SessionProgress {
@@ -27,6 +46,7 @@ export interface SessionProgress {
   resource_id: string | null;
   map_object_id: string | null;
   status: ProgressStatus;
+  step_order: number | null;
   score: number | null;
   answer: unknown | null;
   requires_review: boolean;
@@ -47,6 +67,7 @@ export interface GameSession {
   id: string;
   quest_id: string;
   session_code: string;
+  name: string | null;
   status: SessionStatus;
   started_at: string | null;
   ends_at: string | null;
@@ -66,6 +87,7 @@ export interface SessionListItem {
   id: string;
   quest_id: string;
   session_code: string;
+  name: string | null;
   status: SessionStatus;
   started_at: string | null;
   ends_at: string | null;
@@ -80,7 +102,14 @@ export interface PlayerProgressSummary {
   completed: number;
   total: number;
   score: number | null;
+  total_score: number | null;
+  max_score: number | null;
+  grade: number | null;
+  max_grade: number | null;
   pending_review: number;
+  correct: number;
+  incorrect: number;
+  viewed: number;
 }
 
 export interface TeacherMonitorResponse {
@@ -108,6 +137,32 @@ export interface GameSessionDetailResponse extends GameSession {
   chat_messages: ChatMessage[];
 }
 
+export interface QuestionResultOption {
+  id: string;
+  text: string;
+  is_correct: boolean;
+}
+
+export interface QuestionResultData {
+  body: string;
+  question_type: string;
+  options: QuestionResultOption[];
+  correct_answers: string[];
+  points: number;
+}
+
+export interface SessionProgressResult extends SessionProgress {
+  resource_title: string | null;
+  question: QuestionResultData | null;
+}
+
+export interface GameSessionResultResponse extends GameSession {
+  progress: SessionProgressResult[];
+  chat_messages: ChatMessage[];
+  max_grade: number | null;
+  total_question_points: number | null;
+}
+
 export interface SessionStorageData {
   guest_token: string;
   player_id: string;
@@ -115,6 +170,7 @@ export interface SessionStorageData {
 
 export interface SessionCreate {
   quest_id: string;
+  name?: string;
   max_players?: number;
   allow_solo_in_team?: boolean;
   show_feedback_after_answer?: boolean;

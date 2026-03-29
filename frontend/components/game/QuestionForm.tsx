@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
-import type { QuestionResponse } from "@/types/resource";
+import type { QuestionPublicResponse } from "@/types/resource";
 
 interface QuestionFormProps {
-  question: QuestionResponse;
+  question: QuestionPublicResponse;
   onSubmit: (answer: Record<string, unknown>) => void;
   isSubmitting?: boolean;
 }

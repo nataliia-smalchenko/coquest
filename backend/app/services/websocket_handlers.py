@@ -9,6 +9,7 @@ from app.models.game_session import GameSession, SessionStatus
 from app.models.session_chat import SessionChat
 from app.models.session_player import PlayerStatus, SessionPlayer
 from app.models.session_progress import ProgressStatus, SessionProgress
+from app.models.session_team import SessionTeam, TeamStatus
 from app.schemas.session import ReviewAnswerRequest, SubmitAnswerRequest
 from app.services import session_service as svc
 from app.services.websocket_manager import manager
@@ -72,7 +73,7 @@ async def _handle_submit_answer(session_id: str, player_id: str, data: dict) -> 
         if not player:
             return
 
-        result = await svc.SessionService.submit_answer(
+        result, team_step_info = await svc.SessionService.submit_answer(
             db, progress_id, player, request
         )
 
@@ -92,8 +93,21 @@ async def _handle_submit_answer(session_id: str, player_id: str, data: dict) -> 
             },
         )
 
-        # Check if a new resource was assigned to the same map_object
-        if result.map_object_id:
+        if player.team_id and team_step_info:
+            team_players_result = await db.execute(
+                select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
+            )
+            team_players = team_players_result.scalars().all()
+            step_event = {
+                "type": "team_step_advanced",
+                **team_step_info,
+                "completed_by_progress": result.model_dump(mode="json"),
+            }
+            for tp in team_players:
+                await manager.send_to_player(session_id, str(tp.id), step_event)
+
+        # Check if a new resource was assigned to the same map_object (solo only)
+        if not player.team_id and result.map_object_id:
             new_p_result = await db.execute(
                 select(SessionProgress)
                 .where(
@@ -140,6 +154,21 @@ async def _handle_submit_answer(session_id: str, player_id: str, data: dict) -> 
                 },
             )
 
+        if player_finished and player.team_id:
+            async with AsyncSessionLocal() as db2:
+                team_result = await db2.execute(
+                    select(SessionTeam).where(SessionTeam.id == player.team_id)
+                )
+                team = team_result.scalar_one_or_none()
+                if team and team.status == TeamStatus.COMPLETED:
+                    await manager.broadcast_to_all(
+                        session_id,
+                        {
+                            "type": "team_completed",
+                            "team_id": str(player.team_id),
+                        },
+                    )
+
         # Check session completed
         session_result = await db.execute(
             select(GameSession).where(GameSession.id == uuid.UUID(session_id))
@@ -166,16 +195,42 @@ async def _handle_mark_viewed(session_id: str, player_id: str, data: dict) -> No
         if not player:
             return
 
-        result = await svc.SessionService.mark_text_viewed(db, progress_id, player)
-
-        await manager.send_to_player(
-            session_id,
-            player_id,
-            {
-                "type": "text_viewed",
-                "progress_id": str(result.id),
-            },
+        result, team_step_info, viewers = await svc.SessionService.mark_text_viewed(
+            db, progress_id, player
         )
+
+        if player.team_id:
+            team_players_result = await db.execute(
+                select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
+            )
+            team_players = team_players_result.scalars().all()
+
+            viewed_event = {
+                "type": "team_text_viewed",
+                "viewer_id": player_id,
+                "viewers": viewers or [player_id],
+            }
+            for tp in team_players:
+                await manager.send_to_player(session_id, str(tp.id), viewed_event)
+
+            if team_step_info:
+                step_event = {
+                    "type": "team_step_advanced",
+                    **team_step_info,
+                    "completed_by_progress": None,
+                }
+                for tp in team_players:
+                    await manager.send_to_player(session_id, str(tp.id), step_event)
+        else:
+            await manager.send_to_player(
+                session_id,
+                player_id,
+                {
+                    "type": "text_viewed",
+                    "progress_id": str(result.id),
+                },
+            )
+
         await manager.send_to_teacher(
             session_id,
             {
@@ -185,7 +240,8 @@ async def _handle_mark_viewed(session_id: str, player_id: str, data: dict) -> No
             },
         )
 
-        if player.status == PlayerStatus.FINISHED:
+        player_finished = player.status == PlayerStatus.FINISHED
+        if player_finished:
             await manager.broadcast_to_all(
                 session_id,
                 {
@@ -193,6 +249,21 @@ async def _handle_mark_viewed(session_id: str, player_id: str, data: dict) -> No
                     "player_id": player_id,
                 },
             )
+
+        if player_finished and player.team_id:
+            async with AsyncSessionLocal() as db2:
+                team_result = await db2.execute(
+                    select(SessionTeam).where(SessionTeam.id == player.team_id)
+                )
+                team = team_result.scalar_one_or_none()
+                if team and team.status == TeamStatus.COMPLETED:
+                    await manager.broadcast_to_all(
+                        session_id,
+                        {
+                            "type": "team_completed",
+                            "team_id": str(player.team_id),
+                        },
+                    )
 
         session_result = await db.execute(
             select(GameSession).where(GameSession.id == uuid.UUID(session_id))
