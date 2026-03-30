@@ -771,10 +771,10 @@ class SessionService:
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Session is not active"
             )
 
-        if not session.allow_solo_in_team and len(team.players) < session.max_players:
+        if not session.allow_solo_in_team and len(team.players) < 2:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Need {session.max_players} players to start",
+                detail="Need at least one teammate to start",
             )
 
         await SessionService._distribute_resources_for_team(db, session, team)
