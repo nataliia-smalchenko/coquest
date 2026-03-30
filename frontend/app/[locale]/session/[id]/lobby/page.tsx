@@ -165,7 +165,10 @@ export default function LobbyPage() {
   }, [session, stored, isTeamMode, sessionId, router, t]);
 
   const displayPlayers = isTeamMode ? teamPlayers : players;
-  const canStart = !isTeamMode || allowSolo || teamPlayers.length >= maxPlayers;
+  const canStart =
+    !isTeamMode ||
+    allowSolo ||
+    (teamPlayers.length >= 2 && teamPlayers.length <= maxPlayers);
 
   const handleStart = async () => {
     if (!stored || starting) return;
@@ -244,7 +247,7 @@ export default function LobbyPage() {
         {/* Start button or waiting indicator */}
         {session && (
           <div className="flex flex-col items-center gap-3">
-            {isTeamMode && !allowSolo && teamPlayers.length < maxPlayers && (
+            {isTeamMode && !allowSolo && teamPlayers.length < 2 && (
               <p className="text-sm text-gray-400 text-center">
                 {t("minPlayers")}
               </p>
