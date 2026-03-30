@@ -286,7 +286,7 @@
       "teamWaitingViewers": "Очікуємо поки всі ознайомляться ({count}/{total})",
       "teamAnsweredBy": "Відповів(ла): {name}",
       "teamViewedBy": "Переглянув(ла): {name}",
-      "yourAnswer": "Ваша відповідь"
+      "yourAnswer": "Надана відповідь"
     },
     "results": {
       "title": "Результати",

@@ -86,14 +86,14 @@ export default function ResourceModal({
     };
   }, []);
 
-  // Syntax-highlight code blocks lazily
+  // Syntax-highlight code blocks lazily; re-run when answer is submitted (view switches)
   useEffect(() => {
     const el = contentRef.current;
     if (!el || !el.querySelector("pre code")) return;
     import("@/lib/highlightCode").then(({ applyHighlighting }) => {
       if (contentRef.current) applyHighlighting(contentRef.current);
     });
-  }, [resource]);
+  }, [resource, answerResult]);
 
   const isAnswered =
     progress.status === "answered" || progress.status === "viewed";

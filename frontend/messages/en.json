@@ -286,7 +286,7 @@
       "teamWaitingViewers": "Waiting for teammates to view ({count}/{total})",
       "teamAnsweredBy": "Answered by {name}",
       "teamViewedBy": "Viewed by {name}",
-      "yourAnswer": "Your answer"
+      "yourAnswer": "Provided answer"
     },
     "results": {
       "title": "Results",
