@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -298,8 +298,8 @@ async def _advance_queue(
     )
     used_ids = {row[0] for row in used_result.all()}
 
-    # Pick a random object not yet used
-    available_objs = [obj for obj in all_objects if obj.id not in used_ids]
+    # Pick a random object not yet used; wrap around when all objects exhausted
+    available_objs = [obj for obj in all_objects if obj.id not in used_ids] or all_objects
     if not available_objs:
         return
     next_obj = random.choice(available_objs)
@@ -1881,5 +1881,8 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Player not found"
             )
+        # Explicitly delete related records to avoid ORM lazy-load issues in async
+        await db.execute(sa_delete(SessionProgress).where(SessionProgress.player_id == player_id))
+        await db.execute(sa_delete(SessionChat).where(SessionChat.player_id == player_id))
         await db.delete(player)
         await db.commit()
