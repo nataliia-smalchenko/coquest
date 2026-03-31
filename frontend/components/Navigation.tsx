@@ -224,39 +224,65 @@ export default function Navigation() {
               </button>
             </>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Link
-                href="/login"
+            <>
+              {/* Desktop: login + register */}
+              <div
+                className="desktop-nav"
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+              >
+                <Link
+                  href="/login"
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "#374151",
+                    textDecoration: "none",
+                  }}
+                >
+                  {tAuth("login.submit")}
+                </Link>
+                <Link
+                  href="/register"
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "white",
+                    backgroundColor: "#2563eb",
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                    textDecoration: "none",
+                  }}
+                >
+                  {tAuth("register.submit")}
+                </Link>
+              </div>
+
+              {/* Mobile burger for unauthenticated */}
+              <button
+                className="mobile-nav"
+                onClick={() => setMenuOpen((v) => !v)}
                 style={{
-                  fontSize: "14px",
-                  fontWeight: 500,
+                  display: "none",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  border: "1.5px solid #e5e7eb",
+                  background: "white",
+                  cursor: "pointer",
                   color: "#374151",
-                  textDecoration: "none",
                 }}
               >
-                {tAuth("login.submit")}
-              </Link>
-              <Link
-                href="/register"
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  color: "white",
-                  backgroundColor: "#2563eb",
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  textDecoration: "none",
-                }}
-              >
-                {tAuth("register.submit")}
-              </Link>
-            </div>
+                {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </>
           )}
         </div>
       </div>
 
       {/* Mobile overlay + drawer */}
-      {menuOpen && user && (
+      {menuOpen && (
         <>
           {/* Backdrop */}
           <div
@@ -301,7 +327,7 @@ export default function Navigation() {
               <span
                 style={{ fontSize: "16px", fontWeight: 700, color: "#111827" }}
               >
-                {user.full_name}
+                {user ? user.full_name : "CoQuest"}
               </span>
               <button
                 onClick={() => setMenuOpen(false)}
@@ -324,7 +350,8 @@ export default function Navigation() {
 
             {/* Nav links */}
             <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
-              {user.role === "teacher" &&
+              {user &&
+                user.role === "teacher" &&
                 teacherLinks.map((link) => (
                   <Link
                     key={link.href}
@@ -336,23 +363,43 @@ export default function Navigation() {
                   </Link>
                 ))}
 
-              <div
-                style={{
-                  height: "1px",
-                  background: "#f3f4f6",
-                  margin: "8px 0",
-                }}
-              />
+              {user && (
+                <>
+                  <div
+                    style={{
+                      height: "1px",
+                      background: "#f3f4f6",
+                      margin: "8px 0",
+                    }}
+                  />
+                  <Link
+                    href="/profile"
+                    style={mobileLinkStyle(isActive("/profile"))}
+                  >
+                    {t("profile")}
+                  </Link>
+                </>
+              )}
 
-              <Link
-                href="/profile"
-                style={mobileLinkStyle(isActive("/profile"))}
-              >
-                {t("profile")}
-              </Link>
+              {!user && (
+                <>
+                  <Link
+                    href="/login"
+                    style={mobileLinkStyle(isActive("/login"))}
+                  >
+                    {tAuth("login.submit")}
+                  </Link>
+                  <Link
+                    href="/register"
+                    style={mobileLinkStyle(isActive("/register"))}
+                  >
+                    {tAuth("register.submit")}
+                  </Link>
+                </>
+              )}
             </div>
 
-            {/* Footer: language + logout */}
+            {/* Footer: language + logout (authenticated) / language only (guest) */}
             <div
               style={{
                 borderTop: "1px solid #f3f4f6",
@@ -366,26 +413,28 @@ export default function Navigation() {
               <div style={{ padding: "4px 4px 8px" }}>
                 <LanguageSwitcher />
               </div>
-              <button
-                onClick={logout}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "12px 16px",
-                  fontSize: "15px",
-                  fontWeight: 500,
-                  color: "#ef4444",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  borderRadius: "10px",
-                  textAlign: "left",
-                  width: "100%",
-                }}
-              >
-                {t("logout")}
-              </button>
+              {user && (
+                <button
+                  onClick={logout}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "12px 16px",
+                    fontSize: "15px",
+                    fontWeight: 500,
+                    color: "#ef4444",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: "10px",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                >
+                  {t("logout")}
+                </button>
+              )}
             </div>
           </div>
         </>

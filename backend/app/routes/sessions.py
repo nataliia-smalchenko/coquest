@@ -19,6 +19,8 @@ from app.schemas.session import (
     GameSessionResultResponse,
     GameSessionResponse,
     JoinSessionRequest,
+    LeaveTeamResponse,
+    RejoinSessionRequest,
     ReviewAnswerRequest,
     SessionCreate,
     SessionListItem,
@@ -115,6 +117,58 @@ async def join_session(
 ):
     user_id = current_user.id if current_user else None
     return await SessionService.join_session(db, data, user_id)
+
+
+@router.post("/rejoin", response_model=SessionPlayerResponse)
+async def rejoin_session(
+    data: RejoinSessionRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    return await SessionService.rejoin_session(db, data)
+
+
+@router.post("/{session_id}/teams/leave", response_model=LeaveTeamResponse)
+async def leave_team(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    player: SessionPlayer = Depends(_get_player_by_token),
+):
+    player_resp, new_team, old_member_ids = await SessionService.leave_team(
+        db, session_id, player
+    )
+    sid = str(session_id)
+    pid = str(player.id)
+
+    # Notify old teammates that this player left
+    for old_pid in old_member_ids:
+        await manager.send_to_player(
+            sid, old_pid, {"type": "player_left", "player_id": pid}
+        )
+
+    # Notify new team members that this player joined
+    player_data = {
+        "id": pid,
+        "session_id": str(player_resp.session_id),
+        "display_name": player_resp.display_name,
+        "avatar_color": player_resp.avatar_color,
+        "status": player_resp.status.value
+        if hasattr(player_resp.status, "value")
+        else player_resp.status,
+        "team_id": str(player_resp.team_id) if player_resp.team_id else None,
+        "joined_at": player_resp.joined_at.isoformat(),
+        "started_at": None,
+        "finished_at": None,
+        "guest_name": player_resp.guest_name,
+        "user_id": None,
+    }
+    for member in new_team.players:
+        new_pid = str(member.id)
+        if new_pid != pid:
+            await manager.send_to_player(
+                sid, new_pid, {"type": "player_joined", "player": player_data}
+            )
+
+    return LeaveTeamResponse(player=player_resp, team=new_team)
 
 
 @router.post("/{session_id}/start", response_model=GameSessionResponse)

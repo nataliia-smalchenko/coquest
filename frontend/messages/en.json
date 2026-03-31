@@ -215,6 +215,8 @@
       "teamSize": "Players per team",
       "allowSolo": "Allow individual play",
       "allowSoloHint": "Players can start without waiting for a full team",
+      "randomTeams": "Random team formation",
+      "randomTeamsHint": "Hides player names and prevents manual team switching",
       "gameplay": "Gameplay",
       "showFeedback": "Show feedback after each answer",
       "showFeedbackHint": "Players see whether their answer was correct immediately",
@@ -241,7 +243,8 @@
       "submit": "Join",
       "invalidCode": "Invalid session code",
       "sessionFull": "Session is full",
-      "sessionClosed": "Session is closed"
+      "sessionClosed": "Session is closed",
+      "switchPlayer": "Not you? Join as another student"
     },
     "lobby": {
       "waiting": "Connecting...",
@@ -251,10 +254,15 @@
       "starting": "Starting...",
       "startError": "Failed to start",
       "sessionCode": "Session Code",
+      "teamCode": "Team",
       "minPlayers": "Waiting for teammates...",
       "waitingOptional": "You can start alone or wait for teammates",
       "waitingRequired": "Wait for teammates to join",
-      "sessionEndsAt": "Session ends at"
+      "sessionEndsAt": "Session ends at",
+      "joinAsOther": "Join as another student",
+      "leaveTeam": "Switch team",
+      "leavingTeam": "Switching...",
+      "leaveTeamError": "Failed to switch team"
     },
     "game": {
       "materials": "Materials",
@@ -307,7 +315,8 @@
       "correctAnswer": "Correct answer",
       "pointsUnit": "pt",
       "myQuestions": "My questions",
-      "answeredBy": "Answered by {name}"
+      "answeredBy": "Answered by {name}",
+      "playAgain": "Play again"
     },
     "monitor": {
       "title": "Session Monitor",

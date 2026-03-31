@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { getResults } from "@/lib/api/sessions";
-import { getSessionStorage } from "@/hooks/useGameSession";
+import { clearSessionStorage, getSessionStorage } from "@/hooks/useGameSession";
 import type {
   GameSessionResultResponse,
   SessionProgressResult,
@@ -564,6 +564,19 @@ export default function ResultsPage() {
               </div>
             );
           })}
+
+        {/* Play again */}
+        {results.session_code && (
+          <button
+            onClick={() => {
+              clearSessionStorage(sessionId);
+              router.push(`/join?code=${results.session_code}`);
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors text-sm"
+          >
+            {t("playAgain")}
+          </button>
+        )}
 
         {/* Back home */}
         <button

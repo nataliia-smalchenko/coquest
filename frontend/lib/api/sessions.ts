@@ -34,6 +34,29 @@ export async function joinSession(data: {
   return res;
 }
 
+export async function rejoinSession(
+  session_code: string,
+  guest_token: string,
+): Promise<SessionPlayer> {
+  const { data: res } = await api.post("/api/sessions/rejoin", {
+    session_code,
+    guest_token,
+  });
+  return res;
+}
+
+export async function leaveTeam(
+  sessionId: string,
+  guestToken: string,
+): Promise<{ player: SessionPlayer; team: import("@/types/session").Team }> {
+  const { data } = await api.post(
+    `/api/sessions/${sessionId}/teams/leave`,
+    {},
+    { headers: { "X-Guest-Token": guestToken } },
+  );
+  return data;
+}
+
 export async function startSession(id: string): Promise<GameSession> {
   const { data } = await api.post(`/api/sessions/${id}/start`);
   return data;
