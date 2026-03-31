@@ -164,6 +164,7 @@ class GameSessionDetailResponse(GameSessionResponse):
 class QuestionResultOption(BaseModel):
     id: str
     text: str
+    image_url: Optional[str] = None
     is_correct: bool
 
 

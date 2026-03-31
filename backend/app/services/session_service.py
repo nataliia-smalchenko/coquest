@@ -1530,6 +1530,7 @@ class SessionService:
                     QuestionResultOption(
                         id=str(opt.get("id", "")),
                         text=str(opt.get("text", "")),
+                        image_url=opt.get("image_url") or None,
                         is_correct=bool(opt.get("is_correct", False))
                         if show_correct
                         else False,
@@ -1758,6 +1759,7 @@ class SessionService:
                     QuestionResultOption(
                         id=str(opt.get("id", "")),
                         text=str(opt.get("text", "")),
+                        image_url=opt.get("image_url") or None,
                         is_correct=bool(opt.get("is_correct", False)),
                     )
                     for opt in (q.options or [])
@@ -2075,7 +2077,7 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Player not found"
             )
-        
+
         # Explicitly delete related records to avoid ORM lazy-load issues in async
         await db.execute(
             sa_delete(SessionProgress).where(SessionProgress.player_id == player_id)
