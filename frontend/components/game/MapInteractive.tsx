@@ -36,7 +36,11 @@ export default function MapInteractive({
   const progressByObject = new Map<string, SessionProgress>();
   for (const p of progress) {
     if (p.map_object_id) {
-      progressByObject.set(p.map_object_id, p);
+      const existing = progressByObject.get(p.map_object_id);
+      // When the same object is reused (wrap-around), prefer the assigned entry
+      if (!existing || p.status === "assigned") {
+        progressByObject.set(p.map_object_id, p);
+      }
     }
   }
 
