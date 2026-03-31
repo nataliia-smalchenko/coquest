@@ -27,6 +27,7 @@ export default function NewSessionPage() {
   // Game mode
   const [maxPlayers, setMaxPlayers] = useState(1);
   const [allowSoloInTeam, setAllowSoloInTeam] = useState(true);
+  const [randomTeams, setRandomTeams] = useState(false);
 
   // Gameplay settings
   const [showFeedbackAfterAnswer, setShowFeedbackAfterAnswer] = useState(false);
@@ -66,6 +67,7 @@ export default function NewSessionPage() {
         name: sessionName || undefined,
         max_players: maxPlayers,
         allow_solo_in_team: maxPlayers > 1 ? allowSoloInTeam : true,
+        random_teams: maxPlayers > 1 ? randomTeams : false,
         show_feedback_after_answer: showFeedbackAfterAnswer,
         show_score_after: showScoreAfter,
         show_correct_answers: showCorrectAnswers,
@@ -251,12 +253,18 @@ export default function NewSessionPage() {
                   </button>
                 ))}
               </div>
-              <div className="mt-3">
+              <div className="mt-3 space-y-2">
                 {checkRow(
                   t("allowSolo"),
                   t("allowSoloHint"),
                   allowSoloInTeam,
                   setAllowSoloInTeam,
+                )}
+                {checkRow(
+                  t("randomTeams"),
+                  t("randomTeamsHint"),
+                  randomTeams,
+                  setRandomTeams,
                 )}
               </div>
             </div>

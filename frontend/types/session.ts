@@ -74,6 +74,7 @@ export interface GameSession {
   scheduled_at: string | null;
   max_players: number;
   allow_solo_in_team: boolean;
+  random_teams: boolean;
   show_feedback_after_answer: boolean;
   show_score_after: boolean;
   show_correct_answers: boolean;
@@ -166,6 +167,8 @@ export interface GameSessionResultResponse extends GameSession {
 export interface SessionStorageData {
   guest_token: string;
   player_id: string;
+  session_code?: string;
+  display_name?: string;
 }
 
 export interface SessionCreate {
@@ -173,6 +176,7 @@ export interface SessionCreate {
   name?: string;
   max_players?: number;
   allow_solo_in_team?: boolean;
+  random_teams?: boolean;
   show_feedback_after_answer?: boolean;
   show_score_after?: boolean;
   show_correct_answers?: boolean;

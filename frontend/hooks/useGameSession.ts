@@ -191,12 +191,19 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
 export function getSessionStorage(sessionId: string): {
   guest_token: string;
   player_id: string;
+  session_code?: string;
+  display_name?: string;
 } | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(`coquest_session_${sessionId}`);
     return raw
-      ? (JSON.parse(raw) as { guest_token: string; player_id: string })
+      ? (JSON.parse(raw) as {
+          guest_token: string;
+          player_id: string;
+          session_code?: string;
+          display_name?: string;
+        })
       : null;
   } catch {
     return null;
@@ -205,8 +212,52 @@ export function getSessionStorage(sessionId: string): {
 
 export function setSessionStorage(
   sessionId: string,
-  data: { guest_token: string; player_id: string },
+  data: {
+    guest_token: string;
+    player_id: string;
+    session_code?: string;
+    display_name?: string;
+  },
 ) {
   if (typeof window === "undefined") return;
   localStorage.setItem(`coquest_session_${sessionId}`, JSON.stringify(data));
+  if (data.session_code) {
+    localStorage.setItem(`coquest_code_${data.session_code}`, sessionId);
+  }
+}
+
+export function getSessionStorageByCode(code: string): {
+  session_id: string;
+  guest_token: string;
+  player_id: string;
+  display_name?: string;
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const sessionId = localStorage.getItem(
+      `coquest_code_${code.toUpperCase()}`,
+    );
+    if (!sessionId) return null;
+    const stored = getSessionStorage(sessionId);
+    if (!stored) return null;
+    return { session_id: sessionId, ...stored };
+  } catch {
+    return null;
+  }
+}
+
+export function clearSessionStorage(sessionId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(`coquest_session_${sessionId}`);
+    if (raw) {
+      const data = JSON.parse(raw) as { session_code?: string };
+      if (data.session_code) {
+        localStorage.removeItem(`coquest_code_${data.session_code}`);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  localStorage.removeItem(`coquest_session_${sessionId}`);
 }
