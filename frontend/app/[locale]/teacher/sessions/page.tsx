@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter, Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import {
   Activity,
@@ -106,102 +106,110 @@ export default function TeacherSessionsPage() {
       ) : (
         <div className="space-y-3">
           {sessions.map((s) => (
-            <div
+            <Link
               key={s.id}
-              onClick={() => router.push(`/teacher/sessions/${s.id}/monitor`)}
-              className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
+              href={`/teacher/sessions/${s.id}/monitor`}
+              style={{
+                display: "block",
+                textDecoration: "none",
+                color: "inherit",
+              }}
             >
-              {/* Status dot */}
-              <div
-                className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                  effectiveStatus(s) === "active"
-                    ? "bg-green-500 animate-pulse"
-                    : "bg-gray-300"
-                }`}
-              />
+              <div className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer">
+                {/* Status dot */}
+                <div
+                  className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                    effectiveStatus(s) === "active"
+                      ? "bg-green-500 animate-pulse"
+                      : "bg-gray-300"
+                  }`}
+                />
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                {s.name && (
-                  <p className="text-sm font-semibold text-gray-800 truncate mb-0.5">
-                    {s.name}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono font-bold text-gray-900 text-lg tracking-widest">
-                    {s.session_code}
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[effectiveStatus(s)]}`}
-                  >
-                    {STATUS_LABEL[effectiveStatus(s)]}
-                  </span>
-                </div>
-                <div className="flex items-start gap-3 text-xs text-gray-400 flex-wrap">
-                  <span className="flex items-center gap-1">
-                    <Users size={12} />
-                    {s.players_count}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock size={12} />
-                    {formatDate(s.created_at, locale)}
-                  </span>
-                  {s.scheduled_at && (
-                    <span className="flex items-center gap-1">
-                      {t("scheduleStartLabel")}:{" "}
-                      {formatDate(s.scheduled_at, locale)}
-                    </span>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  {s.name && (
+                    <p className="text-sm font-semibold text-gray-800 truncate mb-0.5">
+                      {s.name}
+                    </p>
                   )}
-                  {s.ends_at &&
-                    effectiveStatus(s) !== "stopped" &&
-                    effectiveStatus(s) !== "completed" && (
-                      <span className="flex items-center gap-1 text-orange-500">
-                        <Clock size={12} />
-                        {t("scheduleEndLabel")}: {formatDate(s.ends_at, locale)}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono font-bold text-gray-900 text-lg tracking-widest">
+                      {s.session_code}
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[effectiveStatus(s)]}`}
+                    >
+                      {STATUS_LABEL[effectiveStatus(s)]}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-3 text-xs text-gray-400 flex-wrap">
+                    <span className="flex items-center gap-1">
+                      <Users size={12} />
+                      {s.players_count}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} />
+                      {formatDate(s.created_at, locale)}
+                    </span>
+                    {s.scheduled_at && (
+                      <span className="flex items-center gap-1">
+                        {t("scheduleStartLabel")}:{" "}
+                        {formatDate(s.scheduled_at, locale)}
                       </span>
                     )}
+                    {s.ends_at &&
+                      effectiveStatus(s) !== "stopped" &&
+                      effectiveStatus(s) !== "completed" && (
+                        <span className="flex items-center gap-1 text-orange-500">
+                          <Clock size={12} />
+                          {t("scheduleEndLabel")}:{" "}
+                          {formatDate(s.ends_at, locale)}
+                        </span>
+                      )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div
+                  className="flex items-center gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ position: "relative", zIndex: 1 }}
+                >
+                  {effectiveStatus(s) === "active" && (
+                    <button
+                      onClick={() =>
+                        router.push(`/teacher/sessions/${s.id}/monitor`)
+                      }
+                      className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                    >
+                      <BarChart2 size={13} />
+                      {t("monitoring")}
+                    </button>
+                  )}
+                  {(effectiveStatus(s) === "completed" ||
+                    effectiveStatus(s) === "stopped") && (
+                    <button
+                      onClick={() =>
+                        router.push(`/teacher/sessions/${s.id}/monitor`)
+                      }
+                      className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                    >
+                      <BarChart2 size={13} />
+                      {t("results")}
+                    </button>
+                  )}
+                  {effectiveStatus(s) !== "active" && (
+                    <button
+                      onClick={() => setDeleteId(s.id)}
+                      className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title={t("deleteSession")}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Actions */}
-              <div
-                className="flex items-center gap-2"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {effectiveStatus(s) === "active" && (
-                  <button
-                    onClick={() =>
-                      router.push(`/teacher/sessions/${s.id}/monitor`)
-                    }
-                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-                  >
-                    <BarChart2 size={13} />
-                    {t("monitoring")}
-                  </button>
-                )}
-                {(effectiveStatus(s) === "completed" ||
-                  effectiveStatus(s) === "stopped") && (
-                  <button
-                    onClick={() =>
-                      router.push(`/teacher/sessions/${s.id}/monitor`)
-                    }
-                    className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-                  >
-                    <BarChart2 size={13} />
-                    {t("results")}
-                  </button>
-                )}
-                {effectiveStatus(s) !== "active" && (
-                  <button
-                    onClick={() => setDeleteId(s.id)}
-                    className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    title={t("deleteSession")}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
