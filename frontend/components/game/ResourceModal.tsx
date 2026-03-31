@@ -139,7 +139,7 @@ export default function ResourceModal({
           {!loading && resource?.type === "text" && resource.text_content && (
             <>
               <div
-                className="prose prose-sm max-w-none text-gray-700"
+                className="prose prose-sm max-w-none text-gray-700 [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
                 dangerouslySetInnerHTML={{
                   __html: sanitizeHtml(
                     renderTiptap(
@@ -172,7 +172,7 @@ export default function ResourceModal({
               {answerResult != null ? (
                 <div className="space-y-4">
                   <div
-                    className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full"
+                    className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
                     dangerouslySetInnerHTML={{
                       __html: sanitizeHtml(resource.question.body),
                     }}
@@ -211,7 +211,7 @@ export default function ResourceModal({
               ) : isAnswered ? (
                 <div className="space-y-3">
                   <div
-                    className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full"
+                    className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
                     dangerouslySetInnerHTML={{
                       __html: sanitizeHtml(resource.question.body),
                     }}

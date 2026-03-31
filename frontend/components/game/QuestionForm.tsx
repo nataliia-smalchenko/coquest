@@ -61,7 +61,7 @@ export default function QuestionForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Question body — HTML with possible images */}
       <div
-        className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full"
+        className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.body) }}
       />
 
