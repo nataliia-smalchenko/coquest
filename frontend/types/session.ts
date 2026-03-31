@@ -141,6 +141,7 @@ export interface GameSessionDetailResponse extends GameSession {
 export interface QuestionResultOption {
   id: string;
   text: string;
+  image_url?: string | null;
   is_correct: boolean;
 }
 

@@ -91,7 +91,16 @@ function QuestionDetail({
                 key={opt.id}
                 className={`flex items-center gap-2 border rounded-lg px-3 py-2 ${bg}`}
               >
-                <span className="flex-1 text-gray-800">{opt.text}</span>
+                <span className="flex-1 text-gray-800">
+                  {opt.image_url && (
+                    <img
+                      src={opt.image_url}
+                      alt=""
+                      className="max-h-24 rounded mb-1 object-contain"
+                    />
+                  )}
+                  {opt.text}
+                </span>
                 {isSelected && !showCorrectAnswers && (
                   <span className="text-blue-500 text-xs font-medium">
                     {t("yourAnswer")}

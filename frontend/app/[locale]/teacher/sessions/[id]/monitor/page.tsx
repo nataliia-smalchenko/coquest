@@ -203,9 +203,14 @@ function PlayerDetailDrawer({
   };
 
   // Only show items this player actually answered/viewed (skip unstarted)
-  const questionItems = (items ?? []).filter(
-    (p) => p.question !== null && p.status !== "assigned",
-  );
+  // Pending-review items float to the top
+  const questionItems = (items ?? [])
+    .filter((p) => p.question !== null && p.status !== "assigned")
+    .sort((a, b) => {
+      const aPending = a.requires_review && a.score === null ? 0 : 1;
+      const bPending = b.requires_review && b.score === null ? 0 : 1;
+      return aPending - bPending;
+    });
   const textItems = (items ?? []).filter(
     (p) =>
       p.question === null &&
@@ -281,12 +286,12 @@ function PlayerDetailDrawer({
 
                 let cardBorderColor = "#e5e7eb";
                 let cardBg = "#ffffff";
-                if (isCorrect) {
+                if (isPending) {
+                  cardBorderColor = "#9ca3af";
+                  cardBg = "#ffffff";
+                } else if (isCorrect) {
                   cardBorderColor = "#86efac";
                   cardBg = "#f0fdf4";
-                } else if (isPending) {
-                  cardBorderColor = "#fdba74";
-                  cardBg = "#fff7ed";
                 } else if (isWrong) {
                   cardBorderColor = "#fca5a5";
                   cardBg = "#fef2f2";
@@ -352,7 +357,7 @@ function PlayerDetailDrawer({
                         )}
                         {isWrong && <X size={16} className="text-red-400" />}
                         {isPending && (
-                          <Clock size={16} className="text-orange-400" />
+                          <Clock size={16} className="text-gray-400" />
                         )}
                         {notStarted && (
                           <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
@@ -403,7 +408,17 @@ function PlayerDetailDrawer({
                                 fontWeight: optFontWeight,
                               }}
                             >
-                              <span className="flex-1">{opt.text}</span>
+                              <span className="flex-1">
+                                {opt.image_url && (
+                                  <img
+                                    src={opt.image_url}
+                                    alt=""
+                                    className="rounded mb-1 object-contain"
+                                    style={{ maxHeight: "6rem" }}
+                                  />
+                                )}
+                                {opt.text}
+                              </span>
                               {opt.is_correct && (
                                 <CheckCircle
                                   size={12}
