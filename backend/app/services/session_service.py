@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,9 +24,11 @@ from app.schemas.session import (
     GameSessionDetailResponse,
     GameSessionResponse,
     JoinSessionRequest,
+    LeaveTeamResponse,
     PlayerProgressSummary,
     SessionSettingsPublic,
     ReviewAnswerRequest,
+    RejoinSessionRequest,
     SessionChatMessage,
     SessionCreate,
     SessionListItem,
@@ -110,7 +112,16 @@ def _team_response(team: SessionTeam) -> TeamResponse:
 
 async def _find_or_create_team(db: AsyncSession, session: GameSession) -> SessionTeam:
     """Find a waiting team with an open slot, or create a new one."""
-    result = await db.execute(
+    return await _find_or_create_team_excluding(db, session, None)
+
+
+async def _find_or_create_team_excluding(
+    db: AsyncSession,
+    session: GameSession,
+    exclude_team_id: Optional[uuid.UUID],
+) -> SessionTeam:
+    """Find a waiting team with an open slot (excluding a given team), or create a new one."""
+    query = (
         select(SessionTeam)
         .where(
             SessionTeam.session_id == session.id,
@@ -119,6 +130,9 @@ async def _find_or_create_team(db: AsyncSession, session: GameSession) -> Sessio
         .options(selectinload(SessionTeam.players))
         .order_by(SessionTeam.created_at)
     )
+    if exclude_team_id is not None:
+        query = query.where(SessionTeam.id != exclude_team_id)
+    result = await db.execute(query)
     waiting_teams = list(result.scalars().all())
     team = next(
         (t for t in waiting_teams if len(t.players) < session.max_players), None
@@ -128,6 +142,50 @@ async def _find_or_create_team(db: AsyncSession, session: GameSession) -> Sessio
         db.add(team)
         await db.flush()
     return team
+
+
+async def _cleanup_stale_teams(
+    db: AsyncSession, session: GameSession, max_wait_minutes: int = 30
+) -> bool:
+    """Delete WAITING teams (and all their players) that have not started within the given window.
+
+    Returns True if anything was deleted.
+    """
+    cutoff = _now() - timedelta(minutes=max_wait_minutes)
+    stale_result = await db.execute(
+        select(SessionTeam)
+        .where(
+            SessionTeam.session_id == session.id,
+            SessionTeam.status == TeamStatus.WAITING,
+            SessionTeam.created_at < cutoff,
+        )
+        .options(selectinload(SessionTeam.players))
+    )
+    stale_teams = list(stale_result.scalars().all())
+    if not stale_teams:
+        return False
+
+    for team in stale_teams:
+        player_ids = [p.id for p in team.players]
+        if player_ids:
+            # Detach hint_player_id FK before deleting players
+            team.hint_player_id = None
+            await db.flush()
+            await db.execute(
+                sa_delete(SessionProgress).where(
+                    SessionProgress.player_id.in_(player_ids)
+                )
+            )
+            await db.execute(
+                sa_delete(SessionChat).where(SessionChat.player_id.in_(player_ids))
+            )
+            await db.execute(
+                sa_delete(SessionPlayer).where(SessionPlayer.id.in_(player_ids))
+            )
+        await db.delete(team)
+
+    await db.flush()
+    return True
 
 
 def _session_response(session: GameSession) -> GameSessionResponse:
@@ -142,6 +200,7 @@ def _session_response(session: GameSession) -> GameSessionResponse:
         scheduled_at=session.scheduled_at,
         max_players=session.max_players,
         allow_solo_in_team=session.allow_solo_in_team,
+        random_teams=session.random_teams,
         show_feedback_after_answer=session.show_feedback_after_answer,
         show_score_after=session.show_score_after,
         show_correct_answers=session.show_correct_answers,
@@ -298,8 +357,10 @@ async def _advance_queue(
     )
     used_ids = {row[0] for row in used_result.all()}
 
-    # Pick a random object not yet used
-    available_objs = [obj for obj in all_objects if obj.id not in used_ids]
+    # Pick a random object not yet used; wrap around if all objects are exhausted
+    available_objs = [
+        obj for obj in all_objects if obj.id not in used_ids
+    ] or all_objects
     if not available_objs:
         return
     next_obj = random.choice(available_objs)
@@ -537,6 +598,7 @@ class SessionService:
             ends_at=data.ends_at,
             max_players=data.max_players,
             allow_solo_in_team=data.allow_solo_in_team,
+            random_teams=data.random_teams,
             show_feedback_after_answer=data.show_feedback_after_answer,
             show_score_after=data.show_score_after,
             show_correct_answers=data.show_correct_answers,
@@ -632,14 +694,148 @@ class SessionService:
         db.add(player)
         await db.flush()
 
-        # In team mode, assign player to a waiting team (or create one)
+        # In team mode, clean up stale teams then assign player to a waiting team
         if session.max_players > 1:
+            await _cleanup_stale_teams(db, session)
             team = await _find_or_create_team(db, session)
             player.team_id = team.id
 
         await db.commit()
         await db.refresh(player)
         return _player_response(player)
+
+    @staticmethod
+    async def rejoin_session(
+        db: AsyncSession, data: RejoinSessionRequest
+    ) -> SessionPlayerResponse:
+        """Look up an existing player by token and session code, reassigning their team if needed."""
+        sess_result = await db.execute(
+            select(GameSession)
+            .where(GameSession.session_code == data.session_code.upper())
+            .options(selectinload(GameSession.players))
+        )
+        session = sess_result.scalar_one_or_none()
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+            )
+
+        player_result = await db.execute(
+            select(SessionPlayer).where(
+                SessionPlayer.guest_token == data.guest_token,
+                SessionPlayer.session_id == session.id,
+            )
+        )
+        player = player_result.scalar_one_or_none()
+        if not player:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Player not found"
+            )
+
+        # Already playing or finished → return as-is (frontend redirects accordingly)
+        if player.status in (PlayerStatus.PLAYING, PlayerStatus.FINISHED):
+            return _player_response(player)
+
+        # Clean up any stale waiting teams before (re)assigning
+        if session.max_players > 1:
+            await _cleanup_stale_teams(db, session)
+
+        # WAITING player: check if their team has started
+        if player.team_id and session.max_players > 1:
+            team_result = await db.execute(
+                select(SessionTeam).where(SessionTeam.id == player.team_id)
+            )
+            team = team_result.scalar_one_or_none()
+            if team is None or team.status != TeamStatus.WAITING:
+                # Team was deleted by cleanup or already started → reassign
+                player.team_id = None
+                await db.flush()
+                new_team = await _find_or_create_team(db, session)
+                player.team_id = new_team.id
+                await db.flush()
+        elif not player.team_id and session.max_players > 1:
+            new_team = await _find_or_create_team(db, session)
+            player.team_id = new_team.id
+            await db.flush()
+
+        await db.commit()
+        await db.refresh(player)
+        return _player_response(player)
+
+    @staticmethod
+    async def leave_team(
+        db: AsyncSession, session_id: uuid.UUID, player: SessionPlayer
+    ) -> tuple:
+        """Move a player from their current waiting team to a different team.
+
+        Returns (updated_player, new_team, old_team_member_ids).
+        """
+        if player.session_id != session_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
+
+        if not player.team_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Not in a team"
+            )
+
+        # Load old team with its members
+        old_team_result = await db.execute(
+            select(SessionTeam)
+            .where(SessionTeam.id == player.team_id)
+            .options(selectinload(SessionTeam.players))
+        )
+        old_team = old_team_result.scalar_one_or_none()
+
+        if not old_team or old_team.status != TeamStatus.WAITING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot leave a team that has already started",
+            )
+
+        old_team_id = old_team.id
+        old_member_ids = [str(p.id) for p in old_team.players if p.id != player.id]
+
+        # Load session for team lookup
+        session_result = await db.execute(
+            select(GameSession)
+            .where(GameSession.id == session_id)
+            .options(selectinload(GameSession.players))
+        )
+        session = session_result.scalar_one_or_none()
+
+        # Remove player from old team
+        player.team_id = None
+        await db.flush()
+
+        # Delete old team if now empty
+        count_result = await db.execute(
+            select(func.count()).where(SessionPlayer.team_id == old_team_id)
+        )
+        if count_result.scalar_one() == 0:
+            stale_team = await db.get(SessionTeam, old_team_id)
+            if stale_team:
+                await db.delete(stale_team)
+                await db.flush()
+
+        # Assign to a new waiting team
+        new_team = await _find_or_create_team_excluding(db, session, old_team_id)
+        player.team_id = new_team.id
+        await db.flush()
+
+        await db.commit()
+        await db.refresh(player)
+
+        # Reload new team with current players
+        new_team_result = await db.execute(
+            select(SessionTeam)
+            .where(SessionTeam.id == new_team.id)
+            .options(selectinload(SessionTeam.players))
+        )
+        new_team_loaded = new_team_result.scalar_one()
+
+        return _player_response(player), _team_response(new_team_loaded), old_member_ids
 
     @staticmethod
     async def start_session(
@@ -1495,9 +1691,7 @@ class SessionService:
             )
             grade_val = (
                 round(total_score_val / max_score_val * monitor_max_grade, 1)
-                if total_score_val is not None
-                and max_score_val
-                and monitor_max_grade
+                if total_score_val is not None and max_score_val and monitor_max_grade
                 else None
             )
 
@@ -1881,5 +2075,11 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Player not found"
             )
+        await db.execute(
+            sa_delete(SessionProgress).where(SessionProgress.player_id == player_id)
+        )
+        await db.execute(
+            sa_delete(SessionChat).where(SessionChat.player_id == player_id)
+        )
         await db.delete(player)
         await db.commit()

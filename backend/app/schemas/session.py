@@ -20,6 +20,9 @@ class SessionCreate(BaseModel):
     allow_solo_in_team: bool = Field(
         default=True, description="Allow solo play in team mode"
     )
+    random_teams: bool = Field(
+        default=False, description="Hide player names and prevent manual team switching"
+    )
     # Gameplay settings
     show_feedback_after_answer: bool = False
     show_score_after: bool = True
@@ -35,6 +38,11 @@ class JoinSessionRequest(BaseModel):
     session_code: str = Field(..., min_length=6, max_length=6)
     guest_name: Optional[str] = None
     display_name: Optional[str] = None
+
+
+class RejoinSessionRequest(BaseModel):
+    session_code: str = Field(..., min_length=6, max_length=6)
+    guest_token: str
 
 
 class TeamPlayerResponse(BaseModel):
@@ -118,6 +126,13 @@ class SessionListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LeaveTeamResponse(BaseModel):
+    player: SessionPlayerResponse
+    team: TeamResponse
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class GameSessionResponse(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID
@@ -129,6 +144,7 @@ class GameSessionResponse(BaseModel):
     scheduled_at: Optional[datetime] = None
     max_players: int
     allow_solo_in_team: bool = True
+    random_teams: bool = False
     show_feedback_after_answer: bool = False
     show_score_after: bool = True
     show_correct_answers: bool = True
