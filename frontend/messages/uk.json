@@ -43,6 +43,8 @@
     },
     "register": {
       "title": "Реєстрація в CoQuest",
+      "google": "Зареєструватись через Google",
+      "or": "Або",
       "fullName": "Повне ім'я",
       "email": "Email",
       "password": "Пароль",

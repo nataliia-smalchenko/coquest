@@ -12,7 +12,7 @@ import api from "@/lib/api";
 import { Eye, EyeOff, Loader2, MailCheck, CheckCircle2 } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "invalidEmail" }),
+  email: z.email({ message: "invalidEmail" }),
   password: z.string().min(8, { message: "passwordMin" }),
 });
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
   const { login, error: authError } = useAuth();
 
   const redirectByRole = (role: string) => {
-    router.push(role === "teacher" ? "/teacher/dashboard" : "/dashboard");
+    router.push(role === "teacher" ? "/teacher/resources" : "/student");
   };
 
   const t = useTranslations("auth.login");

@@ -43,6 +43,8 @@
     },
     "register": {
       "title": "Sign up for CoQuest",
+      "google": "Sign up with Google",
+      "or": "Or",
       "fullName": "Full name",
       "email": "Email",
       "password": "Password",
