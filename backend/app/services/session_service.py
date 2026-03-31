@@ -2075,6 +2075,8 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Player not found"
             )
+        
+        # Explicitly delete related records to avoid ORM lazy-load issues in async
         await db.execute(
             sa_delete(SessionProgress).where(SessionProgress.player_id == player_id)
         )

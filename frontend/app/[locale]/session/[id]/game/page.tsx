@@ -120,12 +120,11 @@ export default function GamePage() {
   const myPlayerId = stored?.player_id ?? "";
 
   // The one currently assigned (and not yet completed) map object in MY progress
-  const activeObjectId = useMemo(
-    () =>
-      progress.find((p) => p.status === "assigned" && p.map_object_id)
-        ?.map_object_id ?? null,
+  const activeProgress = useMemo(
+    () => progress.find((p) => p.status === "assigned" && p.map_object_id) ?? null,
     [progress],
   );
+  const activeObjectId = activeProgress?.map_object_id ?? null;
 
   // In team mode: am I the hint player for the current step?
   const iAmHintPlayer =
@@ -243,7 +242,10 @@ export default function GamePage() {
             if (hints.length > 0) {
               const hint = hints[Math.floor(Math.random() * hints.length)];
               setPendingHint(hint.hint_text);
-              setPendingHintIsTeam(si.resource_type === "question");
+              setPendingHintIsTeam(
+                si.resource_type === "question" &&
+                  si.active_player_id !== stored.player_id,
+              );
             }
           }
         }
@@ -253,11 +255,12 @@ export default function GamePage() {
 
   // Show hint when a new active object is revealed
   // Solo mode only — team mode uses WS team_step events
+  // Track by progress ID so recycled objects show hints again
   useEffect(() => {
     if (isTeamMode) return;
-    if (!activeObjectId || !map) return;
-    if (shownHintObjects.current.has(activeObjectId)) return;
-    shownHintObjects.current.add(activeObjectId);
+    if (!activeObjectId || !activeProgress?.id || !map) return;
+    if (shownHintObjects.current.has(activeProgress.id)) return;
+    shownHintObjects.current.add(activeProgress.id);
 
     const obj = map.objects.find((o) => o.id === activeObjectId);
     if (!obj) return;
@@ -275,7 +278,7 @@ export default function GamePage() {
     const hint = candidates[Math.floor(Math.random() * candidates.length)];
     setPendingHint(hint.hint_text);
     setPendingHintIsTeam(false);
-  }, [activeObjectId, map, locale, isTeamMode]);
+  }, [activeObjectId, activeProgress, map, locale, isTeamMode]);
 
   // Handle team_step event: show hint to hint player
   const handleTeamStepEvent = useCallback(
@@ -303,7 +306,11 @@ export default function GamePage() {
             const hint =
               candidates[Math.floor(Math.random() * candidates.length)];
             setPendingHint(hint.hint_text);
-            setPendingHintIsTeam(stepInfo.resource_type === "question");
+            // "for teammate" only when hint player is NOT the active player
+            setPendingHintIsTeam(
+              stepInfo.resource_type === "question" &&
+                stepInfo.active_player_id !== myPlayerId,
+            );
           }
         }
       }
