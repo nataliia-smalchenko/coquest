@@ -27,6 +27,7 @@ from app.schemas.session import (
     SessionPlayerResponse,
     SessionProgressResponse,
     SessionProgressResultResponse,
+    SessionUpdateRequest,
     SubmitAnswerRequest,
     TeacherMonitorResponse,
     TeamResponse,
@@ -374,6 +375,32 @@ async def stop_session(
     result = await SessionService.stop_session(db, session_id, teacher.id)
     await manager.broadcast_to_all(
         str(session_id), {"type": "session_stopped", "session_id": str(session_id)}
+    )
+    return result
+
+
+@router.patch("/{session_id}/settings", response_model=GameSessionResponse)
+async def update_session_settings(
+    session_id: uuid.UUID,
+    data: SessionUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
+    return await SessionService.update_session_settings(
+        db, session_id, teacher.id, data
+    )
+
+
+@router.post("/{session_id}/restart", response_model=GameSessionResponse)
+async def restart_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
+    result = await SessionService.restart_session(db, session_id, teacher.id)
+    await manager.broadcast_to_all(
+        str(session_id),
+        {"type": "session_restarted", "session_id": str(session_id)},
     )
     return result
 

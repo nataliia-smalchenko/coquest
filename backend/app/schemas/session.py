@@ -213,6 +213,17 @@ class SubmitAnswerRequest(BaseModel):
     answer: Dict[str, Any]
 
 
+class SessionUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    show_feedback_after_answer: Optional[bool] = None
+    show_score_after: Optional[bool] = None
+    show_correct_answers: Optional[bool] = None
+    keep_completed_in_materials: Optional[bool] = None
+    allow_change_answers: Optional[bool] = None
+    ends_at: Optional[datetime] = None
+    scheduled_at: Optional[datetime] = None
+
+
 class ReviewAnswerRequest(BaseModel):
     score: float = Field(..., ge=0.0, le=1.0)
     feedback: Optional[str] = None
