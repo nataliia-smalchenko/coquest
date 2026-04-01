@@ -43,6 +43,8 @@
     },
     "register": {
       "title": "Sign up for CoQuest",
+      "google": "Sign up with Google",
+      "or": "Or",
       "fullName": "Full name",
       "email": "Email",
       "password": "Password",
@@ -456,5 +458,21 @@
       },
       "pointsUnit": "pt"
     }
+  },
+  "profile": {
+    "title": "Profile",
+    "fullName": "Full name",
+    "role": "Role",
+    "roleStudent": "Student",
+    "roleTeacher": "Teacher",
+    "email": "Email",
+    "saved": "Saved",
+    "saveError": "Failed to save",
+    "cannotChangeRole": "You cannot switch to Student because you have resources, quests, or sessions",
+    "cannotChangeRoleHint": "You cannot switch to Student while you have resources, quests, or sessions"
+  },
+  "student": {
+    "title": "My Progress",
+    "comingSoon": "Your quest completions will be stored here in the future."
   }
 }

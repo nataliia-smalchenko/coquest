@@ -80,3 +80,10 @@ class UserUpdateLanguage(BaseModel):
     """Update user's preferred language"""
 
     language: Literal["uk", "en"]
+
+
+class UserUpdate(BaseModel):
+    """Update user profile: name and/or role"""
+
+    full_name: Optional[str] = Field(None, min_length=2, max_length=255)
+    role: Optional[UserRole] = None
