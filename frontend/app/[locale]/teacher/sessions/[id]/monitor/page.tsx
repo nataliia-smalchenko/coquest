@@ -10,6 +10,8 @@ import {
   ExternalLink,
   Pencil,
   Play,
+  RefreshCw,
+  Settings,
   Square,
   Trash2,
   User,
@@ -27,16 +29,19 @@ import {
   deleteSession,
   getMonitor,
   getPlayerProgressDetail,
+  restartSession,
   reviewAnswer,
   startSession,
   stopSession,
   updateGuestName,
+  updateSessionSettings,
 } from "@/lib/api/sessions";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type {
   GameSession,
   PlayerProgressSummary,
   SessionProgressResult,
+  SessionUpdate,
   TeacherMonitorResponse,
 } from "@/types/session";
 
@@ -578,6 +583,15 @@ export default function MonitorPage() {
   const [renameValue, setRenameValue] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
 
+  // Edit settings
+  const [showEditSettings, setShowEditSettings] = useState(false);
+  const [editForm, setEditForm] = useState<SessionUpdate>({});
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Restart
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+
   // Detail drawer
   const [detailPlayer, setDetailPlayer] =
     useState<PlayerProgressSummary | null>(null);
@@ -657,6 +671,51 @@ export default function MonitorPage() {
       // ignore
     } finally {
       setRenameSaving(false);
+    }
+  };
+
+  const handleOpenEditSettings = () => {
+    if (!session) return;
+    setEditForm({
+      name: session.name ?? "",
+      show_feedback_after_answer: session.show_feedback_after_answer,
+      show_score_after: session.show_score_after,
+      show_correct_answers: session.show_correct_answers,
+      keep_completed_in_materials: session.keep_completed_in_materials,
+      ends_at: session.ends_at ?? undefined,
+      scheduled_at: session.scheduled_at ?? undefined,
+    });
+    setShowEditSettings(true);
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const payload: SessionUpdate = { ...editForm };
+      // Convert empty string name to null
+      if (payload.name === "") payload.name = null;
+      const updated = await updateSessionSettings(sessionId, payload);
+      setSession((s) => (s ? { ...s, ...updated } : updated));
+      setShowEditSettings(false);
+    } catch {
+      // ignore
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    setRestarting(true);
+    try {
+      const updated = await restartSession(sessionId);
+      setSession(updated);
+      setShowRestartConfirm(false);
+      const data = await getMonitor(sessionId);
+      setMonitor(data);
+    } catch {
+      // ignore
+    } finally {
+      setRestarting(false);
     }
   };
 
@@ -771,6 +830,8 @@ export default function MonitorPage() {
   const isActive = sessionStatus === "active";
   const canStart = sessionStatus === "waiting" || sessionStatus === "scheduled";
   const canDelete = sessionStatus !== "active";
+  const canRestart =
+    sessionStatus === "stopped" || sessionStatus === "completed";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -857,6 +918,15 @@ export default function MonitorPage() {
               {t("stop")}
             </button>
           )}
+          {canRestart && (
+            <button
+              onClick={() => setShowRestartConfirm(true)}
+              className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium px-4 py-2.5 rounded-xl text-sm transition-colors border border-blue-200"
+            >
+              <RefreshCw size={14} />
+              {t("restart")}
+            </button>
+          )}
           {canDelete && (
             <button
               onClick={() => setShowDeleteSession(true)}
@@ -897,9 +967,18 @@ export default function MonitorPage() {
       {/* Session settings */}
       {session && (
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            {t("settingsTitle")}
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              {t("settingsTitle")}
+            </p>
+            <button
+              onClick={handleOpenEditSettings}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+            >
+              <Settings size={13} />
+              {t("editSettings")}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2 px-1">
             <span
               className="inline-flex items-center gap-1.5 text-xs rounded-full bg-blue-50 text-blue-700 font-medium"
@@ -930,13 +1009,6 @@ export default function MonitorPage() {
               on={session.keep_completed_in_materials}
               label={tSession("keepCompleted")}
             />
-            {session.keep_completed_in_materials &&
-              session.max_players === 1 && (
-                <SettingChip
-                  on={session.allow_change_answers}
-                  label={tSession("allowChangeAnswers")}
-                />
-              )}
             <SettingChip
               on={session.show_score_after}
               label={tSession("showScore")}
@@ -1181,6 +1253,135 @@ export default function MonitorPage() {
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {deletingSession ? "..." : tCommon("delete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit settings modal */}
+      {showEditSettings && session && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {t("editSettings")}
+            </h3>
+
+            {/* Name */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                {t("sessionName")}
+              </label>
+              <input
+                value={editForm.name ?? ""}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, name: e.target.value }))
+                }
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-gray-400 outline-none"
+              />
+            </div>
+
+            {/* Ends at */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                {t("endsAt")}
+              </label>
+              <input
+                type="datetime-local"
+                value={
+                  editForm.ends_at
+                    ? new Date(editForm.ends_at).toISOString().slice(0, 16)
+                    : ""
+                }
+                onChange={(e) =>
+                  setEditForm((f) => ({
+                    ...f,
+                    ends_at: e.target.value
+                      ? new Date(e.target.value).toISOString()
+                      : null,
+                  }))
+                }
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-gray-400 outline-none"
+              />
+            </div>
+
+            {/* Toggles */}
+            {(
+              [
+                ["show_feedback_after_answer", tSession("showFeedback")],
+                ["keep_completed_in_materials", tSession("keepCompleted")],
+                ["show_score_after", tSession("showScore")],
+                ["show_correct_answers", tSession("showCorrect")],
+              ] as [keyof SessionUpdate, string][]
+            ).map(([key, label]) => (
+              <label
+                key={key}
+                className="flex items-center gap-3 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={!!(editForm[key] as boolean | undefined)}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, [key]: e.target.checked }))
+                  }
+                  className="w-4 h-4 rounded accent-blue-600"
+                />
+                <span className="text-sm text-gray-700">{label}</span>
+              </label>
+            ))}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowEditSettings(false)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {tCommon("cancel")}
+              </button>
+              <button
+                onClick={handleSaveSettings}
+                disabled={savingSettings}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {savingSettings ? "..." : t("saveSettings")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm restart dialog */}
+      {showRestartConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle
+                size={24}
+                className="text-orange-500 flex-shrink-0"
+              />
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("restart")}
+              </h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-6">{t("restartConfirm")}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRestartConfirm(false)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {tCommon("cancel")}
+              </button>
+              <button
+                onClick={handleRestart}
+                disabled={restarting}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {restarting ? "..." : t("restart")}
               </button>
             </div>
           </div>
