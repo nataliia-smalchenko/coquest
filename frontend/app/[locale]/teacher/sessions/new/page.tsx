@@ -34,7 +34,6 @@ export default function NewSessionPage() {
   const [showScoreAfter, setShowScoreAfter] = useState(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(true);
   const [keepCompleted, setKeepCompleted] = useState(true);
-  const [allowChangeAnswers, setAllowChangeAnswers] = useState(true);
 
   // Scheduling
   const [scheduledAt, setScheduledAt] = useState("");
@@ -72,11 +71,6 @@ export default function NewSessionPage() {
         show_score_after: showScoreAfter,
         show_correct_answers: showCorrectAnswers,
         keep_completed_in_materials: keepCompleted,
-        allow_change_answers: isTeam
-          ? false
-          : keepCompleted
-            ? allowChangeAnswers
-            : false,
         scheduled_at:
           useScheduled && scheduledAt
             ? new Date(scheduledAt).toISOString()
@@ -286,14 +280,6 @@ export default function NewSessionPage() {
             keepCompleted,
             setKeepCompleted,
           )}
-          {keepCompleted &&
-            !isTeam &&
-            checkRow(
-              t("allowChangeAnswers"),
-              t("allowChangeAnswersHint"),
-              allowChangeAnswers,
-              setAllowChangeAnswers,
-            )}
         </div>
 
         {/* Results settings */}

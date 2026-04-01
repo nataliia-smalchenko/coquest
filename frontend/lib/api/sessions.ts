@@ -268,3 +268,19 @@ export async function deletePlayer(
 ): Promise<void> {
   await api.delete(`/api/sessions/${session_id}/players/${player_id}`);
 }
+
+export async function updateSessionSettings(
+  session_id: string,
+  data: import("@/types/session").SessionUpdate,
+): Promise<GameSession> {
+  const { data: res } = await api.patch(
+    `/api/sessions/${session_id}/settings`,
+    data,
+  );
+  return res;
+}
+
+export async function restartSession(session_id: string): Promise<GameSession> {
+  const { data } = await api.post(`/api/sessions/${session_id}/restart`);
+  return data;
+}

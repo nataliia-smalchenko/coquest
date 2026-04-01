@@ -164,6 +164,7 @@ class GameSessionDetailResponse(GameSessionResponse):
 class QuestionResultOption(BaseModel):
     id: str
     text: str
+    image_url: Optional[str] = None
     is_correct: bool
 
 
@@ -210,6 +211,17 @@ class TeacherMonitorResponse(BaseModel):
 class SubmitAnswerRequest(BaseModel):
     progress_id: Optional[uuid.UUID] = None
     answer: Dict[str, Any]
+
+
+class SessionUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    show_feedback_after_answer: Optional[bool] = None
+    show_score_after: Optional[bool] = None
+    show_correct_answers: Optional[bool] = None
+    keep_completed_in_materials: Optional[bool] = None
+    allow_change_answers: Optional[bool] = None
+    ends_at: Optional[datetime] = None
+    scheduled_at: Optional[datetime] = None
 
 
 class ReviewAnswerRequest(BaseModel):

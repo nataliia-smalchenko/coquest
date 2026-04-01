@@ -79,7 +79,6 @@ export interface GameSession {
   show_score_after: boolean;
   show_correct_answers: boolean;
   keep_completed_in_materials: boolean;
-  allow_change_answers: boolean;
   created_at: string;
   players: SessionPlayer[];
 }
@@ -124,7 +123,6 @@ export interface SessionSettingsPublic {
   show_feedback_after_answer: boolean;
   show_score_after: boolean;
   show_correct_answers: boolean;
-  allow_change_answers: boolean;
 }
 
 export interface GameInfoResponse {
@@ -141,6 +139,7 @@ export interface GameSessionDetailResponse extends GameSession {
 export interface QuestionResultOption {
   id: string;
   text: string;
+  image_url?: string | null;
   is_correct: boolean;
 }
 
@@ -181,7 +180,16 @@ export interface SessionCreate {
   show_score_after?: boolean;
   show_correct_answers?: boolean;
   keep_completed_in_materials?: boolean;
-  allow_change_answers?: boolean;
   scheduled_at?: string;
   ends_at?: string;
+}
+
+export interface SessionUpdate {
+  name?: string | null;
+  show_feedback_after_answer?: boolean;
+  show_score_after?: boolean;
+  show_correct_answers?: boolean;
+  keep_completed_in_materials?: boolean;
+  ends_at?: string | null;
+  scheduled_at?: string | null;
 }

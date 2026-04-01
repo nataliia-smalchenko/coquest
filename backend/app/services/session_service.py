@@ -34,6 +34,7 @@ from app.schemas.session import (
     SessionListItem,
     SessionPlayerResponse,
     SessionProgressResponse,
+    SessionUpdateRequest,
     SubmitAnswerRequest,
     TeacherMonitorResponse,
     TeamPlayerResponse,
@@ -855,8 +856,9 @@ class SessionService:
         session.started_at = now
 
         for player in session.players:
-            player.status = PlayerStatus.PLAYING
-            player.started_at = now
+            if player.status != PlayerStatus.FINISHED:
+                player.status = PlayerStatus.PLAYING
+                player.started_at = now
 
         await db.commit()
 
@@ -1018,7 +1020,8 @@ class SessionService:
         )
         interactive_objects: List[MapObject] = list(objects_result.scalars().all())
 
-        players = session.players
+        # Only distribute to players who are waiting (skip those already finished)
+        players = [p for p in session.players if p.status != PlayerStatus.FINISHED]
         if not players:
             return
 
@@ -1530,6 +1533,7 @@ class SessionService:
                     QuestionResultOption(
                         id=str(opt.get("id", "")),
                         text=str(opt.get("text", "")),
+                        image_url=opt.get("image_url") or None,
                         is_correct=bool(opt.get("is_correct", False))
                         if show_correct
                         else False,
@@ -1758,6 +1762,7 @@ class SessionService:
                     QuestionResultOption(
                         id=str(opt.get("id", "")),
                         text=str(opt.get("text", "")),
+                        image_url=opt.get("image_url") or None,
                         is_correct=bool(opt.get("is_correct", False)),
                     )
                     for opt in (q.options or [])
@@ -1792,6 +1797,92 @@ class SessionService:
             )
         await db.delete(session)
         await db.commit()
+
+    @staticmethod
+    async def update_session_settings(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        teacher_id: uuid.UUID,
+        data: SessionUpdateRequest,
+    ) -> GameSessionResponse:
+        session = await _load_own_session(db, session_id, teacher_id)
+        update = data.model_dump(exclude_unset=True)
+        for field, value in update.items():
+            setattr(session, field, value)
+        await db.commit()
+        result = await db.execute(
+            select(GameSession)
+            .where(GameSession.id == session.id)
+            .options(selectinload(GameSession.players))
+        )
+        return _session_response(result.scalar_one())
+
+    @staticmethod
+    async def restart_session(
+        db: AsyncSession, session_id: uuid.UUID, teacher_id: uuid.UUID
+    ) -> GameSessionResponse:
+        session = await _load_own_session(db, session_id, teacher_id)
+        if session.status not in (SessionStatus.STOPPED, SessionStatus.COMPLETED):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only stopped or completed sessions can be restarted",
+            )
+
+        # Collect IDs of players who have NOT finished (their progress gets cleared)
+        non_finished_ids = [
+            p.id for p in session.players if p.status != PlayerStatus.FINISHED
+        ]
+
+        # Delete progress only for non-finished players
+        if non_finished_ids:
+            await db.execute(
+                sa_delete(SessionProgress).where(
+                    SessionProgress.player_id.in_(non_finished_ids)
+                )
+            )
+
+        # Null out hint_player_id on all teams to break the circular FK before deletion
+        teams_result = await db.execute(
+            select(SessionTeam).where(SessionTeam.session_id == session_id)
+        )
+        for team in teams_result.scalars().all():
+            team.hint_player_id = None
+        await db.flush()
+
+        # Bulk-delete teams; DB ON DELETE SET NULL handles session_players.team_id
+        await db.execute(
+            sa_delete(SessionTeam).where(SessionTeam.session_id == session_id)
+        )
+        await db.flush()
+
+        # Expire all cached ORM objects so the next reads reflect DB state
+        db.expire_all()
+
+        # Reload players fresh after the bulk ops
+        players_result = await db.execute(
+            select(SessionPlayer).where(SessionPlayer.session_id == session_id)
+        )
+        players = players_result.scalars().all()
+
+        for player in players:
+            player.team_id = None  # Already NULL in DB; ensure ORM in sync
+            if player.status != PlayerStatus.FINISHED:
+                player.status = PlayerStatus.WAITING
+                player.started_at = None
+                player.finished_at = None
+
+        # Reset session
+        session.status = SessionStatus.WAITING
+        session.started_at = None
+        session.ends_at = None
+
+        await db.commit()
+        result = await db.execute(
+            select(GameSession)
+            .where(GameSession.id == session_id)
+            .options(selectinload(GameSession.players))
+        )
+        return _session_response(result.scalar_one())
 
     @staticmethod
     async def get_game_info(
@@ -2075,7 +2166,7 @@ class SessionService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Player not found"
             )
-        
+
         # Explicitly delete related records to avoid ORM lazy-load issues in async
         await db.execute(
             sa_delete(SessionProgress).where(SessionProgress.player_id == player_id)

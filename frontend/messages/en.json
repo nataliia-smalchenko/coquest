@@ -224,8 +224,6 @@
       "showFeedbackHint": "Players see whether their answer was correct immediately",
       "keepCompleted": "Keep completed materials in list",
       "keepCompletedHint": "Players can revisit previous materials during the quest",
-      "allowChangeAnswers": "Allow changing answers",
-      "allowChangeAnswersHint": "Players can change their answer after the first submission",
       "results": "Results",
       "showScore": "Show score after quest",
       "showCorrect": "Show correct answers",
@@ -370,7 +368,14 @@
       "sessionEndsAt": "Session ends at",
       "timeLeft": "time left",
       "pointsUnit": "pt",
-      "questPreview": "Quest preview"
+      "questPreview": "Quest preview",
+      "editSettings": "Edit settings",
+      "saveSettings": "Save",
+      "restart": "Restart session",
+      "restartConfirm": "Restart the session? Players who have not finished will be reset. Finished players keep their results.",
+      "sessionName": "Session name",
+      "endsAt": "Deadline",
+      "scheduledAt": "Scheduled start"
     }
   },
   "resources": {
