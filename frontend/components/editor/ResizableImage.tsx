@@ -4,14 +4,18 @@ import Image from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/core";
 
-const SIZE_PRESETS = [25, 50, 75, 100];
+// Explicit list of classes for Tailwind to scan (prevents JIT purging of dynamically generated classes)
+// img-mw-100 img-mw-200 img-mw-300 img-mw-400 img-mw-500 img-mw-532
+// img-w-25 img-w-50 img-w-75 img-w-100
+
+const SIZE_PRESETS = [100, 200, 300, 400, 500, 532];
 
 function ResizableImageView({
   node,
   updateAttributes,
   selected,
 }: NodeViewProps) {
-  const width: number = node.attrs.width ?? 100;
+  const width: number = node.attrs.width ?? 532;
   const src: string = node.attrs.src ?? "";
   const alt: string = node.attrs.alt ?? "";
 
@@ -19,8 +23,8 @@ function ResizableImageView({
     <NodeViewWrapper>
       <div
         style={{
-          width: `${width}%`,
-          maxWidth: "100%",
+          width: "100%",
+          maxWidth: width === 532 ? "100%" : `${width}px`,
           position: "relative",
           display: "inline-block",
         }}
@@ -72,7 +76,7 @@ function ResizableImageView({
                   transition: "background 0.1s, color 0.1s",
                 }}
               >
-                {size}%
+                {size}px
               </button>
             ))}
           </div>
@@ -87,14 +91,39 @@ export const ResizableImage = Image.extend({
     return {
       ...this.parent?.(),
       width: {
-        default: 100,
+        default: 532,
         parseHTML: (el) => {
-          const style = el.getAttribute("style") ?? "";
-          const match = style.match(/width:\s*(\d+)%/);
-          return match ? parseInt(match[1]) : 100;
+          // Match: class="img-mw-300"
+          const classMwMatch = (el.getAttribute("class") ?? "").match(
+            /\bimg-mw-(\d+)\b/,
+          );
+          if (classMwMatch) return parseInt(classMwMatch[1]);
+          // Old format: class="img-w-50"
+          const classWMatch = (el.getAttribute("class") ?? "").match(
+            /\bimg-w-(\d+)\b/,
+          );
+          if (classWMatch) {
+            const w = parseInt(classWMatch[1]);
+            if (w <= 25) return 200;
+            if (w <= 50) return 300;
+            if (w <= 75) return 400;
+            return 532;
+          }
+          // Legacy style-based format: style="width: 50%"
+          const styleMatch = (el.getAttribute("style") ?? "").match(
+            /width:\s*(\d+)%/,
+          );
+          if (styleMatch) {
+            const w = parseInt(styleMatch[1]);
+            if (w <= 25) return 200;
+            if (w <= 50) return 300;
+            if (w <= 75) return 400;
+            return 532;
+          }
+          return 532;
         },
         renderHTML: (attrs) => ({
-          style: `width: ${attrs.width ?? 100}%; max-width: 100%; display: block;`,
+          class: `img-mw-${attrs.width ?? 532}`,
         }),
       },
     };

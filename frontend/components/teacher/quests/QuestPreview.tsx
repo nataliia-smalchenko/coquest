@@ -1,7 +1,6 @@
 "use client";
 
 import { generateHTML } from "@tiptap/core";
-import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
 import {
   ArrowLeft,
@@ -36,7 +35,6 @@ function renderTiptap(body: Record<string, unknown>): string {
   try {
     return generateHTML(body as Parameters<typeof generateHTML>[0], [
       StarterKit,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
       ResizableImage,
     ]);
   } catch {
@@ -481,8 +479,6 @@ export default function QuestPreview({ questId }: Props) {
         .tiptap-preview strong { font-weight: 600; }
         .tiptap-preview em { font-style: italic; }
         .tiptap-preview u { text-decoration: underline; }
-        .tiptap-preview [style*="text-align: center"] { text-align: center; }
-        .tiptap-preview [style*="text-align: right"] { text-align: right; }
       `}</style>
     </div>
   );
@@ -657,6 +653,7 @@ function QuestionView({
       {/* Question body */}
       <div
         ref={bodyRef}
+        className="tiptap-preview"
         style={{
           margin: 0,
           fontSize: "15px",
@@ -664,6 +661,7 @@ function QuestionView({
           color: "#111827",
           lineHeight: 1.5,
         }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanctioned HTML
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(body) }}
       />
 

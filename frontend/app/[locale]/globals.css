@@ -163,11 +163,44 @@ pre code {
 .tiptap-preview u {
   text-decoration: underline;
 }
-.tiptap-preview [style*="text-align: center"] {
-  text-align: center;
+
+/* Resizable image widths — emitted by ResizableImage extension.
+   Applied to <img> tags in sanitized Tiptap HTML output. */
+.tiptap-preview img.img-mw-100,
+.ProseMirror img.img-mw-100 {
+  max-width: 100px !important;
+  width: 100%;
+  display: block;
 }
-.tiptap-preview [style*="text-align: right"] {
-  text-align: right;
+.tiptap-preview img.img-mw-200,
+.ProseMirror img.img-mw-200 {
+  max-width: 200px !important;
+  width: 100%;
+  display: block;
+}
+.tiptap-preview img.img-mw-300,
+.ProseMirror img.img-mw-300 {
+  max-width: 300px !important;
+  width: 100%;
+  display: block;
+}
+.tiptap-preview img.img-mw-400,
+.ProseMirror img.img-mw-400 {
+  max-width: 400px !important;
+  width: 100%;
+  display: block;
+}
+.tiptap-preview img.img-mw-500,
+.ProseMirror img.img-mw-500 {
+  max-width: 500px !important;
+  width: 100%;
+  display: block;
+}
+.tiptap-preview img.img-mw-532,
+.ProseMirror img.img-mw-532 {
+  max-width: 532px !important;
+  width: 100%;
+  display: block;
 }
 
 /* Tiptap / ProseMirror */

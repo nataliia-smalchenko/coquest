@@ -5,15 +5,11 @@ import { useTranslations } from "next-intl";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
 import { CodeBlockWithSelector } from "@/components/editor/CodeBlockWithSelector";
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   Bold,
   Check,
   Code,
@@ -127,7 +123,6 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
         codeBlock: false,
       }),
       Underline,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
       CodeBlockWithSelector,
       ResizableImage.configure({ inline: false, allowBase64: false }),
       Placeholder.configure({ placeholder: t("bodyPlaceholder") }),
@@ -269,30 +264,6 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
           title="Ordered list"
         >
           <ListOrdered size={15} />
-        </ToolbarButton>
-
-        <Separator />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign("left").run()}
-          active={editor.isActive({ textAlign: "left" })}
-          title="Align left"
-        >
-          <AlignLeft size={15} />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign("center").run()}
-          active={editor.isActive({ textAlign: "center" })}
-          title="Align center"
-        >
-          <AlignCenter size={15} />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign("right").run()}
-          active={editor.isActive({ textAlign: "right" })}
-          title="Align right"
-        >
-          <AlignRight size={15} />
         </ToolbarButton>
 
         <Separator />
