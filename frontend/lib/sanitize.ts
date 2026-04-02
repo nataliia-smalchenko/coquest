@@ -2,6 +2,10 @@ import DOMPurify from "dompurify";
 
 // Allowed tags produced by Tiptap editors in this project.
 // Images are allowed because teachers upload them via Cloudinary (trusted URLs).
+
+// `style` is intentionally excluded to prevent CSS-injection attacks.
+// Image sizing use CSS classes instead (see TextAlignWithClass
+// and ResizableImage extensions, and the corresponding rules in globals.css).
 const CONFIG: DOMPurify.Config = {
   ALLOWED_TAGS: [
     "p",
@@ -23,7 +27,8 @@ const CONFIG: DOMPurify.Config = {
     "code",
     "span",
   ],
-  ALLOWED_ATTR: ["src", "alt", "style", "class"],
+  // `style` omitted: prevents CSS-injection attacks (UI redress, data exfiltration).
+  ALLOWED_ATTR: ["src", "alt", "class"],
   // Strip any javascript: or data: URLs in src
   ALLOW_DATA_ATTR: false,
 };

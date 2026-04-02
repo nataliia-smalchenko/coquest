@@ -305,12 +305,15 @@ class ResourceService:
             )
             content = result.scalar_one_or_none()
 
+            images_serialized = [img.model_dump() for img in data.images]
             if content:
                 content.body = data.body
-                content.images = data.images
+                content.images = images_serialized
             else:
                 content = TextContent(
-                    resource_id=resource_id, body=data.body, images=data.images
+                    resource_id=resource_id,
+                    body=data.body,
+                    images=images_serialized,
                 )
                 db.add(content)
 
