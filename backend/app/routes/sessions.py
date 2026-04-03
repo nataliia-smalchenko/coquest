@@ -4,13 +4,11 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 
 from app.models.session_player import PlayerStatus, SessionPlayer
-from app.models.session_progress import SessionProgress
 from app.models.user import User
 from app.schemas.resource import ResourceDetailPublicResponse
 from app.schemas.session import (
@@ -34,6 +32,8 @@ from app.schemas.session import (
     UpdateGuestNameRequest,
 )
 from app.services.session_service import SessionService
+from app.services.team_service import TeamService
+from app.services.progress_service import ProgressService
 from app.services.websocket_manager import manager
 from app.utils.dependencies import get_current_teacher
 from app.utils.security import verify_token
@@ -132,7 +132,7 @@ async def leave_team(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    player_resp, new_team, old_member_ids = await SessionService.leave_team(
+    player_resp, new_team, old_member_ids = await TeamService.leave_team(
         db, session_id, player
     )
     sid = str(session_id)
@@ -191,7 +191,7 @@ async def player_start_session(
     sid = str(session_id)
     for player_resp in result.players:
         pid = str(player_resp.id)
-        visible = await SessionService.get_player_visible_progress(
+        visible = await ProgressService.get_player_visible_progress(
             db, session_id, player_resp.id
         )
         await manager.send_to_player(
@@ -251,7 +251,7 @@ async def get_team(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    return await SessionService.get_team(db, session_id, team_id, player)
+    return await TeamService.get_team(db, session_id, team_id, player)
 
 
 @router.get("/{session_id}/teams/{team_id}/step-info")
@@ -264,7 +264,7 @@ async def get_team_step_info(
     """Return current active step info for the team (hint player, active player, map object)."""
     if player.team_id != team_id or player.session_id != session_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    return await SessionService.get_team_step_info(db, session_id, team_id)
+    return await TeamService.get_team_step_info(db, session_id, team_id)
 
 
 @router.post("/{session_id}/teams/{team_id}/start", response_model=TeamResponse)
@@ -274,12 +274,13 @@ async def start_team(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    team = await SessionService.start_team(db, session_id, team_id, player)
+    team = await TeamService.start_team(db, session_id, team_id, player)
 
     sid = str(session_id)
     tid = str(team_id)
 
     from app.models.game_session import GameSession as _GS
+    from sqlalchemy import select
 
     sess_row = await db.execute(select(_GS).where(_GS.id == session_id))
     started_session = sess_row.scalar_one_or_none()
@@ -289,12 +290,14 @@ async def start_team(
     }
 
     # Get current step info for hint/active player broadcast
-    step_info = await SessionService.get_team_step_info(db, session_id, team_id)
+    step_info = await TeamService.get_team_step_info(db, session_id, team_id)
 
     # Notify all team members with their visible progress + step info
     for p in team.players:
         pid = str(p.id)
-        visible = await SessionService.get_player_visible_progress(db, session_id, p.id)
+        visible = await ProgressService.get_player_visible_progress(
+            db, session_id, p.id
+        )
         await manager.send_to_player(
             sid,
             pid,
@@ -410,7 +413,7 @@ async def get_player_progress_detail(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.get_player_progress_detail(
+    return await ProgressService.get_player_progress_detail(
         db, session_id, player_id, teacher.id
     )
 
@@ -422,7 +425,7 @@ async def submit_answer(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    result, team_step_info = await SessionService.submit_answer(
+    result, team_step_info = await ProgressService.submit_answer(
         db, progress_id, player, data
     )
     sid = str(player.session_id)
@@ -447,6 +450,8 @@ async def submit_answer(
 
         # Broadcast step advance to all team members
         if team_step_info:
+            from sqlalchemy import select
+
             team_players_q = await db.execute(
                 select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
             )
@@ -472,6 +477,9 @@ async def submit_answer(
         )
         # New resource on same map object
         if result.map_object_id:
+            from sqlalchemy import select
+            from app.models.session_progress import SessionProgress
+
             new_prog = await db.execute(
                 select(SessionProgress)
                 .where(
@@ -520,7 +528,7 @@ async def mark_text_viewed(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    result, team_step_info, viewers = await SessionService.mark_text_viewed(
+    result, team_step_info, viewers = await ProgressService.mark_text_viewed(
         db, progress_id, player
     )
     sid = str(player.session_id)
@@ -528,6 +536,8 @@ async def mark_text_viewed(
 
     if player.team_id:
         # Team mode: broadcast who has viewed to all team members
+        from sqlalchemy import select
+
         team_players_q = await db.execute(
             select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
         )
@@ -578,7 +588,7 @@ async def review_answer(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.review_answer(db, progress_id, teacher.id, data)
+    return await ProgressService.review_answer(db, progress_id, teacher.id, data)
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -635,7 +645,7 @@ async def get_my_progress(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    return await SessionService.get_my_progress(db, session_id, player)
+    return await ProgressService.get_my_progress(db, session_id, player)
 
 
 @router.get("/{session_id}/team-progress", response_model=List[SessionProgressResponse])
@@ -645,7 +655,7 @@ async def get_team_progress(
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
     """Team mode: return all teammates' completed progress items for materials panel."""
-    return await SessionService.get_team_progress(db, session_id, player)
+    return await ProgressService.get_team_progress(db, session_id, player)
 
 
 @router.get(
@@ -656,7 +666,7 @@ async def get_progress_resource(
     db: AsyncSession = Depends(get_db),
     player: SessionPlayer = Depends(_get_player_by_token),
 ):
-    return await SessionService.get_progress_resource(db, progress_id, player)
+    return await ProgressService.get_progress_resource(db, progress_id, player)
 
 
 @router.get("/{session_id}/results", response_model=GameSessionResultResponse)
