@@ -58,8 +58,9 @@ async def _get_optional_user(
     if not payload:
         return None
     user_id = payload.get("sub")
-    result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+    from app.services.auth_service import AuthService
+
+    return await AuthService.get_user_by_id(db, user_id)
 
 
 async def _get_player_by_token(
@@ -72,10 +73,7 @@ async def _get_player_by_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Guest token required"
         )
-    result = await db.execute(
-        select(SessionPlayer).where(SessionPlayer.guest_token == token)
-    )
-    player = result.scalar_one_or_none()
+    player = await SessionService.get_player_by_token(db, token)
     if not player:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid guest token"
@@ -193,14 +191,9 @@ async def player_start_session(
     sid = str(session_id)
     for player_resp in result.players:
         pid = str(player_resp.id)
-        progress_result = await db.execute(
-            select(SessionProgress).where(
-                SessionProgress.session_id == session_id,
-                SessionProgress.player_id == player_resp.id,
-                SessionProgress.map_object_id != None,  # noqa: E711
-            )
+        visible = await SessionService.get_player_visible_progress(
+            db, session_id, player_resp.id
         )
-        visible = progress_result.scalars().all()
         await manager.send_to_player(
             sid,
             pid,
@@ -301,14 +294,7 @@ async def start_team(
     # Notify all team members with their visible progress + step info
     for p in team.players:
         pid = str(p.id)
-        progress_result = await db.execute(
-            select(SessionProgress).where(
-                SessionProgress.session_id == session_id,
-                SessionProgress.player_id == p.id,
-                SessionProgress.map_object_id != None,  # noqa: E711
-            )
-        )
-        visible = progress_result.scalars().all()
+        visible = await SessionService.get_player_visible_progress(db, session_id, p.id)
         await manager.send_to_player(
             sid,
             pid,

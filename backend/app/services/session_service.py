@@ -503,6 +503,28 @@ async def _advance_team_step(
 
 class SessionService:
     @staticmethod
+    async def get_player_by_token(
+        db: AsyncSession, token: str
+    ) -> Optional[SessionPlayer]:
+        result = await db.execute(
+            select(SessionPlayer).where(SessionPlayer.guest_token == token)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_player_visible_progress(
+        db: AsyncSession, session_id: uuid.UUID, player_id: uuid.UUID
+    ) -> List[SessionProgress]:
+        result = await db.execute(
+            select(SessionProgress).where(
+                SessionProgress.session_id == session_id,
+                SessionProgress.player_id == player_id,
+                SessionProgress.map_object_id != None,  # noqa: E711
+            )
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def list_sessions(
         db: AsyncSession, teacher_id: uuid.UUID
     ) -> List[SessionListItem]:
