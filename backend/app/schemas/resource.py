@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.question import DifficultyLevel, QuestionType
 from app.models.resource import ResourceType
@@ -67,9 +68,57 @@ class ResourceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+def _validate_cloudinary_url(url: str) -> str:
+    """Ensure a URL is a valid HTTPS Cloudinary URL."""
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError("URL must use HTTPS")
+    if not parsed.netloc.endswith("cloudinary.com"):
+        raise ValueError("URL must be from cloudinary.com")
+    return url
+
+
+class CloudinaryImageCreate(BaseModel):
+    """Typed input for a Cloudinary image reference stored in JSONB."""
+
+    url: str
+    public_id: str
+    width: Optional[int] = None
+    height: Optional[int] = None
+    size_bytes: Optional[int] = None
+
+    @field_validator("url")
+    @classmethod
+    def url_must_be_cloudinary_https(cls, v: str) -> str:
+        return _validate_cloudinary_url(v)
+
+
+class QuestionOption(BaseModel):
+    id: str = Field(..., min_length=1, max_length=100)
+    text: str = Field(default="", max_length=1_000)
+    image_url: Optional[str] = None
+    is_correct: bool = False
+
+    @field_validator("image_url")
+    @classmethod
+    def image_url_must_be_cloudinary_https(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _validate_cloudinary_url(v)
+
+
 class TextContentCreate(BaseModel):
     body: Dict[str, Any] = Field(default_factory=dict)
-    images: List[Dict[str, Any]] = Field(default_factory=list)
+    images: List[CloudinaryImageCreate] = Field(default_factory=list)
+
+    @field_validator("body")
+    @classmethod
+    def body_must_be_tiptap_doc(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        if v.get("type") != "doc":
+            raise ValueError("body must be a Tiptap document with type 'doc'")
+        if not isinstance(v.get("content"), list):
+            raise ValueError("body must contain a 'content' list")
+        return v
 
 
 class TextContentResponse(BaseModel):
@@ -79,13 +128,6 @@ class TextContentResponse(BaseModel):
     images: List[Dict[str, Any]]
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class QuestionOption(BaseModel):
-    id: str = Field(..., description="Unique ID for the option within the question")
-    text: str = Field(default="")
-    image_url: Optional[str] = None
-    is_correct: bool = False
 
 
 class QuestionPublicOption(BaseModel):
@@ -98,13 +140,25 @@ class QuestionPublicOption(BaseModel):
 
 class QuestionCreate(BaseModel):
     question_type: QuestionType
-    body: str = Field(..., min_length=1)
-    explanation: Optional[str] = None
-    options: List[QuestionOption] = Field(default_factory=list)
-    correct_answers: List[str] = Field(default_factory=list)
+    # body is HTML produced by Tiptap's getHTML(). XSS is prevented on the
+    # frontend via DOMPurify (sanitizeHtml). max_length guards against DoS.
+    body: str = Field(..., min_length=1, max_length=10_000)
+    explanation: Optional[str] = Field(None, max_length=2_000)
+    options: List[QuestionOption] = Field(default_factory=list, max_length=30)
+    correct_answers: List[str] = Field(default_factory=list, max_length=30)
     requires_review: bool = False
     difficulty: Optional[DifficultyLevel] = None
-    points: int = Field(default=1, ge=1)
+    points: int = Field(default=1, ge=1, le=100)
+
+    @field_validator("correct_answers")
+    @classmethod
+    def correct_answers_no_empty_strings(cls, v: List[str]) -> List[str]:
+        for ans in v:
+            if not ans.strip():
+                raise ValueError("correct_answers must not contain empty strings")
+            if len(ans) > 500:
+                raise ValueError("each correct answer must be at most 500 characters")
+        return v
 
 
 class QuestionResponse(BaseModel):

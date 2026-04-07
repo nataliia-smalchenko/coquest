@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import TextAlign from "@tiptap/extension-text-align";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { ResourceDetailResponse } from "@/types/resource";
@@ -14,7 +13,6 @@ function renderTiptap(body: Record<string, unknown>): string {
   try {
     return generateHTML(body as Parameters<typeof generateHTML>[0], [
       StarterKit,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
       ResizableImage,
     ]);
   } catch {
