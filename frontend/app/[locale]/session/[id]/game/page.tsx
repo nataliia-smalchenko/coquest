@@ -319,7 +319,7 @@ export default function GamePage() {
   );
 
   // WS
-  const { messages, send: wsSend } = usePlayerWebSocket(sessionId, token);
+  const { messages, send: wsSend, reconnecting } = usePlayerWebSocket(sessionId, token);
 
   const modalProgressIdRef = useRef<string | null>(null);
   modalProgressIdRef.current = modalProgressId;
@@ -621,6 +621,13 @@ export default function GamePage() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-900">
+      {/* Reconnecting banner */}
+      {reconnecting && (
+        <div className="bg-yellow-500 text-yellow-950 text-xs font-medium text-center py-1 flex-shrink-0">
+          {t("reconnecting")}
+        </div>
+      )}
+
       {/* Header */}
       <header className="h-14 bg-gray-800 text-white flex items-center justify-between px-4 flex-shrink-0 z-10">
         <span className="text-sm font-medium truncate max-w-[160px]">
