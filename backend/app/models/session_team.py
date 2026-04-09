@@ -48,6 +48,7 @@ class SessionTeam(Base):
             "session_players.id",
             ondelete="SET NULL",
             use_alter=True,
+            name="fk_session_teams_hint_player_id",
         ),
         nullable=True,
     )
