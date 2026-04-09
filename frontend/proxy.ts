@@ -27,12 +27,9 @@ export default function middleware(request: NextRequest) {
 
   if (!hasLocaleInPath && !rememberedLocale) {
     const locale = detectLocale(request.headers.get("Accept-Language"));
-    if (locale === "en") {
-      const url = request.nextUrl.clone();
-      url.pathname = `/en${pathname === "/" ? "" : pathname}`;
-      return NextResponse.redirect(url);
-    }
-    // locale === "uk": default, no redirect needed — intlMiddleware handles it
+    const url = request.nextUrl.clone();
+    url.pathname = `/${locale}${pathname === "/" ? "" : pathname}`;
+    return NextResponse.redirect(url);
   }
 
   return intlMiddleware(request);
