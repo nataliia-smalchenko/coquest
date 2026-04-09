@@ -201,3 +201,129 @@ async def db_quest(db_session: AsyncSession, teacher: User, db_map: Map) -> Ques
     await db_session.commit()
     await db_session.refresh(q)
     return q
+
+
+# WebSocket fixtures
+# WS handlers use AsyncSessionLocal directly (not get_db DI), so data must
+# be committed to the real test DB for them to see it.
+@pytest_asyncio.fixture()
+async def ws_db() -> AsyncGenerator[AsyncSession, None]:
+    """A real committed session for WS tests — cleaned up afterwards."""
+    session = TestingSessionLocal()
+    yield session
+    await session.close()
+
+
+@pytest_asyncio.fixture()
+async def ws_teacher(ws_db: AsyncSession) -> User:
+    user = User(
+        email=f"ws_teacher_{uuid.uuid4().hex[:8]}@test.com",
+        password_hash=get_password_hash("TestPass123"),
+        full_name="WS Teacher",
+        role="teacher",
+        auth_provider=AuthProvider.EMAIL,
+        is_email_verified=True,
+        preferred_language="uk",
+    )
+    ws_db.add(user)
+    await ws_db.commit()
+    await ws_db.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture()
+async def ws_teacher_token(ws_teacher: User) -> str:
+    return create_access_token(
+        {"sub": str(ws_teacher.id), "email": ws_teacher.email, "role": ws_teacher.role}
+    )
+
+
+@pytest_asyncio.fixture()
+async def ws_map(ws_db: AsyncSession) -> Map:
+    m = Map(
+        slug=f"ws-map-{uuid.uuid4().hex[:8]}",
+        original_width=1920,
+        original_height=1080,
+    )
+    ws_db.add(m)
+    await ws_db.flush()
+    tr = MapTranslation(map_id=m.id, language="uk", name="WS Map")
+    obj = MapObject(
+        map_id=m.id,
+        slug="ws_point",
+        x=10,
+        y=10,
+        width=30,
+        height=30,
+        is_interactive=True,
+    )
+    ws_db.add_all([tr, obj])
+    await ws_db.commit()
+    await ws_db.refresh(m)
+    return m
+
+
+@pytest_asyncio.fixture()
+async def ws_quest(ws_db: AsyncSession, ws_teacher: User, ws_map: Map) -> Quest:
+    q = Quest(
+        teacher_id=ws_teacher.id,
+        map_id=ws_map.id,
+        slug=f"ws-quest-{uuid.uuid4().hex[:8]}",
+        status=QuestStatus.PUBLISHED,
+        settings=QuestSettings(random_order=False),
+        translations=[QuestTranslation(language="uk", title="WS Quest")],
+    )
+    ws_db.add(q)
+    await ws_db.commit()
+    await ws_db.refresh(q)
+    return q
+
+
+@pytest_asyncio.fixture()
+async def ws_session_and_player(
+    ws_db: AsyncSession,
+    ws_teacher: User,
+    ws_quest: Quest,
+    ws_teacher_token: str,
+):
+    """Create a GameSession + join a guest player via REST, return info dict."""
+    from httpx import ASGITransport
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        teacher_headers = {"Authorization": f"Bearer {ws_teacher_token}"}
+        create = await client.post(
+            "/api/sessions/",
+            json={"quest_id": str(ws_quest.id), "max_players": 1},
+            headers=teacher_headers,
+        )
+        assert create.status_code == 201, create.text
+        session_data = create.json()
+
+        join = await client.post(
+            "/api/sessions/join",
+            json={
+                "session_code": session_data["session_code"],
+                "guest_name": "WSPlayer",
+            },
+        )
+        assert join.status_code == 200, join.text
+        player_data = join.json()
+
+    return {
+        "session_id": session_data["id"],
+        "session_code": session_data["session_code"],
+        "player_id": player_data["id"],
+        "guest_token": player_data["guest_token"],
+        "teacher_token": ws_teacher_token,
+        "teacher_id": str(ws_teacher.id),
+    }
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _cleanup_ws_data(ws_db: AsyncSession):
+    """Yield, then truncate tables so WS tests don't leak committed data."""
+    yield
+    for table in reversed(Base.metadata.sorted_tables):
+        await ws_db.execute(table.delete())
+    await ws_db.commit()
