@@ -20,6 +20,7 @@ import { getMap, getMaps } from "@/lib/api/maps";
 import { getQuest } from "@/lib/api/quests";
 import { getResource } from "@/lib/api/resources";
 import { sanitizeHtml } from "@/lib/sanitize";
+import Image from "next/image";
 import type { MapResponse } from "@/types/map";
 import type { QuestResponse, QuestStatus } from "@/types/quest";
 import type { ResourceDetailResponse } from "@/types/resource";
@@ -710,10 +711,14 @@ function QuestionView({
                     }}
                   >
                     {opt.image_url && (
-                      <img
+                      <Image
                         src={opt.image_url}
                         alt=""
+                        width={0}
+                        height={0}
+                        sizes="300px"
                         style={{
+                          width: "auto",
                           maxHeight: "120px",
                           borderRadius: "6px",
                           objectFit: "contain",

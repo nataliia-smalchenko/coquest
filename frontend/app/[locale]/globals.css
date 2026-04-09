@@ -165,39 +165,56 @@ pre code {
 }
 
 /* Resizable image widths — emitted by ResizableImage extension.
-   Applied to <img> tags in sanitized Tiptap HTML output. */
-.tiptap-preview img.img-mw-100,
-.ProseMirror img.img-mw-100 {
+   Applied unconditionally to any img with these classes (no parent selector
+   required, so they work in all rendering contexts). */
+img.img-mw-100 {
   max-width: 100px !important;
   width: 100%;
   display: block;
 }
-.tiptap-preview img.img-mw-200,
-.ProseMirror img.img-mw-200 {
+img.img-mw-200 {
   max-width: 200px !important;
   width: 100%;
   display: block;
 }
-.tiptap-preview img.img-mw-300,
-.ProseMirror img.img-mw-300 {
+img.img-mw-300 {
   max-width: 300px !important;
   width: 100%;
   display: block;
 }
-.tiptap-preview img.img-mw-400,
-.ProseMirror img.img-mw-400 {
+img.img-mw-400 {
   max-width: 400px !important;
   width: 100%;
   display: block;
 }
-.tiptap-preview img.img-mw-500,
-.ProseMirror img.img-mw-500 {
+img.img-mw-500 {
   max-width: 500px !important;
   width: 100%;
   display: block;
 }
-.tiptap-preview img.img-mw-532,
-.ProseMirror img.img-mw-532 {
+img.img-mw-532 {
+  max-width: 532px !important;
+  width: 100%;
+  display: block;
+}
+
+/* Legacy percentage-based image width classes. */
+img.img-w-25 {
+  max-width: 200px !important;
+  width: 100%;
+  display: block;
+}
+img.img-w-50 {
+  max-width: 300px !important;
+  width: 100%;
+  display: block;
+}
+img.img-w-75 {
+  max-width: 400px !important;
+  width: 100%;
+  display: block;
+}
+img.img-w-100 {
   max-width: 532px !important;
   width: 100%;
   display: block;
@@ -313,4 +330,32 @@ pre code {
   border-left: 3px solid #e5e7eb;
   padding-left: 1rem;
   color: #6b7280;
+}
+
+/* Navigation responsive layout */
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .mobile-nav {
+    display: flex !important;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }

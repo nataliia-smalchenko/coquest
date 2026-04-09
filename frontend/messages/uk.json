@@ -294,7 +294,8 @@
       "teamWaitingViewers": "Очікуємо поки всі ознайомляться ({count}/{total})",
       "teamAnsweredBy": "Відповів(ла): {name}",
       "teamViewedBy": "Переглянув(ла): {name}",
-      "yourAnswer": "Надана відповідь"
+      "yourAnswer": "Надана відповідь",
+      "reconnecting": "З'єднання перервано, перепідключення..."
     },
     "results": {
       "title": "Результати",

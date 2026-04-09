@@ -102,16 +102,16 @@ export default function Navigation() {
         style={{
           maxWidth: "1280px",
           margin: "0 auto",
-          padding: "0 20px",
-          height: "64px",
+          padding: "0 16px",
+          height: "56px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "16px",
+          gap: "12px",
         }}
       >
         {/* Left: logo + desktop nav */}
-        <div style={{ display: "flex", alignItems: "center", gap: "32px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
           <Link
             href="/"
             style={{
@@ -147,7 +147,7 @@ export default function Navigation() {
         </div>
 
         {/* Right: language + profile/auth + burger */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {/* Language switcher — hidden on mobile */}
           <div className="desktop-nav">
             <LanguageSwitcher />
@@ -315,7 +315,7 @@ export default function Navigation() {
             {/* Drawer header */}
             <div
               style={{
-                height: "64px",
+                height: "56px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -440,20 +440,6 @@ export default function Navigation() {
         </>
       )}
 
-      <style>{`
-        @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
-          .mobile-nav { display: flex !important; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideIn {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-      `}</style>
     </nav>
   );
 }

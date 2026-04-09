@@ -1,61 +1,75 @@
-from authlib.integrations.starlette_client import OAuth
-from authlib.jose import jwt
-from app.config import settings
-
 import json
-from app.core.redis import redis_client
+
 import httpx
+from jose import jwt
 
-oauth = OAuth()
+from app.config import settings
+from app.core.redis import redis_client
 
-oauth.register(
-    name="google",
-    client_id=settings.GOOGLE_CLIENT_ID,
-    client_secret=settings.GOOGLE_CLIENT_SECRET,
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
-)
+GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
+GOOGLE_CERTS_KEY = "google_auth_certs"
+CERTS_TTL = 86400  # 24 hours
+
+
+async def _fetch_and_cache_google_certs() -> dict:
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(GOOGLE_CERTS_URL)
+        resp.raise_for_status()
+        certs = resp.json()
+    await redis_client.setex(GOOGLE_CERTS_KEY, CERTS_TTL, json.dumps(certs))
+    return certs
+
+
+async def _get_google_certs() -> dict:
+    cached = await redis_client.get(GOOGLE_CERTS_KEY)
+    if cached:
+        return json.loads(cached)
+    return await _fetch_and_cache_google_certs()
 
 
 class OAuthService:
-    GOOGLE_CERTS_KEY = "google_auth_certs"
-    CERTS_TTL = 86400
-
     @staticmethod
-    def get_google_oauth():
-        """Get Google OAuth client"""
-        return oauth.google
+    async def verify_google_id_token(credential: str) -> dict:
+        """
+        Verify a Google ID token (JWT credential from GoogleLogin component).
+        Public keys are fetched from Google once and cached in Redis for 24h.
+        On key rotation (unknown kid), the cache is invalidated and refreshed once.
+        """
+        certs = await _get_google_certs()
 
-    @staticmethod
-    async def verify_google_token(access_token: str) -> dict:
-        """
-        Verify a Google Access Token by calling the Google UserInfo endpoint.
-        Returns mapped user information if the token is valid.
-        """
+        header = jwt.get_unverified_header(credential)
+        kid = header.get("kid")
+
+        key = next((k for k in certs.get("keys", []) if k.get("kid") == kid), None)
+
+        if not key:
+            # Cache is stale — Google rotated keys. Force one refresh.
+            await redis_client.delete(GOOGLE_CERTS_KEY)
+            certs = await _fetch_and_cache_google_certs()
+            key = next((k for k in certs.get("keys", []) if k.get("kid") == kid), None)
+            if not key:
+                raise ValueError("Google public key not found for this token")
+
         try:
-            # Робимо запит до Google для перевірки Access Token
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    "https://www.googleapis.com/oauth2/v3/userinfo",
-                    headers={"Authorization": f"Bearer {access_token}"},
-                )
+            payload = jwt.decode(
+                credential,
+                key,
+                algorithms=["RS256"],
+                audience=settings.GOOGLE_CLIENT_ID,
+            )
+        except Exception as exc:
+            raise ValueError(f"Invalid Google ID token: {exc}")
 
-                if resp.status_code != 200:
-                    print(f"Google API Error: {resp.text}")
-                    raise ValueError(
-                        f"Google verification failed. Status: {resp.status_code}"
-                    )
+        if payload.get("iss") not in (
+            "https://accounts.google.com",
+            "accounts.google.com",
+        ):
+            raise ValueError("Invalid token issuer")
 
-                user_info = resp.json()
-
-            # Мапимо дані від Google у структуру, яку очікує наш AuthService
-            return {
-                "google_id": user_info.get("sub"),
-                "email": user_info.get("email"),
-                "full_name": user_info.get("name", ""),
-                "avatar_url": user_info.get("picture"),
-                "email_verified": user_info.get("email_verified", False),
-            }
-
-        except Exception as e:
-            raise ValueError(f"Invalid Google token or verification failed: {str(e)}")
+        return {
+            "google_id": payload.get("sub"),
+            "email": payload.get("email"),
+            "full_name": payload.get("name", ""),
+            "avatar_url": payload.get("picture"),
+            "email_verified": payload.get("email_verified", False),
+        }

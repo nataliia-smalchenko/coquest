@@ -294,7 +294,8 @@
       "teamWaitingViewers": "Waiting for teammates to view ({count}/{total})",
       "teamAnsweredBy": "Answered by {name}",
       "teamViewedBy": "Viewed by {name}",
-      "yourAnswer": "Provided answer"
+      "yourAnswer": "Provided answer",
+      "reconnecting": "Connection lost, reconnecting..."
     },
     "results": {
       "title": "Results",
