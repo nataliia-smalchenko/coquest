@@ -37,6 +37,7 @@ import {
   updateSessionSettings,
 } from "@/lib/api/sessions";
 import { sanitizeHtml } from "@/lib/sanitize";
+import Image from "next/image";
 import type {
   GameSession,
   PlayerProgressSummary,
@@ -415,11 +416,14 @@ function PlayerDetailDrawer({
                             >
                               <span className="flex-1">
                                 {opt.image_url && (
-                                  <img
+                                  <Image
                                     src={opt.image_url}
                                     alt=""
-                                    className="rounded mb-1 object-contain"
-                                    style={{ maxHeight: "6rem" }}
+                                    width={0}
+                                    height={0}
+                                    sizes="200px"
+                                    className="rounded mb-1"
+                                    style={{ width: "auto", maxHeight: "6rem", objectFit: "contain" }}
                                   />
                                 )}
                                 {opt.text}

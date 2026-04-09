@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import { Check } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -74,6 +76,7 @@ function QuestionPreview({
       {/* Question body */}
       <div
         ref={bodyRef}
+        className="tiptap-preview"
         style={{
           margin: 0,
           fontSize: "14px",
@@ -129,10 +132,14 @@ function QuestionPreview({
                     }}
                   >
                     {opt.image_url && (
-                      <img
-                        src={opt.image_url}
+                      <Image
+                        src={cloudinaryUrl(opt.image_url)}
                         alt=""
+                        width={0}
+                        height={0}
+                        sizes="300px"
                         style={{
+                          width: "auto",
                           maxHeight: "100px",
                           borderRadius: "6px",
                           objectFit: "contain",

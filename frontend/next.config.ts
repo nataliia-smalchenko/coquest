@@ -12,8 +12,14 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
   },
   images: {
-    formats: ["image/webp"],
+    formats: ["image/webp", "image/avif"],
     deviceSizes: [640, 768, 1024, 1280, 1920],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+    ],
   },
 };
 

@@ -13,6 +13,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
+import Image from "next/image";
 import { getResults } from "@/lib/api/sessions";
 import { clearSessionStorage, getSessionStorage } from "@/hooks/useGameSession";
 import type {
@@ -93,10 +94,14 @@ function QuestionDetail({
               >
                 <span className="flex-1 text-gray-800">
                   {opt.image_url && (
-                    <img
+                    <Image
                       src={opt.image_url}
                       alt=""
-                      className="max-h-24 rounded mb-1 object-contain"
+                      width={0}
+                      height={0}
+                      sizes="300px"
+                      className="rounded mb-1"
+                      style={{ width: "auto", maxHeight: "6rem", objectFit: "contain" }}
                     />
                   )}
                   {opt.text}
