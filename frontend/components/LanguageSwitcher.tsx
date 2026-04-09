@@ -25,22 +25,22 @@ export default function LanguageSwitcherButtons() {
   };
 
   return (
-    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+    <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 w-fit">
       {routing.locales.map((loc) => (
         <button
           key={loc}
           onClick={() => switchLocale(loc as Locale)}
+          title={loc.toUpperCase()}
           className={`
-            flex items-center justify-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200
+            flex items-center justify-center w-8 h-7 rounded-md text-base transition-all duration-200
             ${
               locale === loc
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                ? "bg-white shadow-sm"
+                : "opacity-50 hover:opacity-80 hover:bg-gray-50"
             }
           `}
         >
-          <span className="mr-2 text-base">{localeFlags[loc]}</span>
-          {loc.toUpperCase()}
+          {localeFlags[loc]}
         </button>
       ))}
     </div>
