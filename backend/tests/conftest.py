@@ -11,6 +11,7 @@ from app.main import app
 from app.database import Base, get_db
 from app.config import settings
 from app.models.user import User, AuthProvider
+from app.models.map import Map, MapTranslation, MapObject
 from app.utils.security import create_access_token, get_password_hash
 
 from sqlalchemy.pool import NullPool
@@ -27,12 +28,14 @@ TestingSessionLocal = async_sessionmaker(
     test_engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
 )
 
+
 # Set up event loop for async tests
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 # Initialize test database tables
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -45,6 +48,7 @@ async def setup_test_db():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+
 # DB Session fixture with transactions (rollback after each test)
 @pytest_asyncio.fixture()
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
@@ -53,6 +57,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         async with TestingSessionLocal(bind=connection) as session:
             yield session
             await transaction.rollback()
+
 
 # Async client fixture
 @pytest_asyncio.fixture()
@@ -66,7 +71,10 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Note: If you want to mock Redis or other services, do it here or in app.lifespan
 
     from httpx import ASGITransport
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
     app.dependency_overrides.clear()
@@ -91,7 +99,7 @@ async def _create_verified_user(
         preferred_language="uk",
     )
     db_session.add(user)
-    await db_session.flush()   # get the UUID without committing
+    await db_session.flush()  # get the UUID without committing
     await db_session.refresh(user)
     return user
 
@@ -143,3 +151,35 @@ def teacher_headers(teacher_token: str) -> dict:
 @pytest.fixture()
 def student_headers(student_token: str) -> dict:
     return {"Authorization": f"Bearer {student_token}"}
+
+
+@pytest_asyncio.fixture()
+async def db_map(db_session: AsyncSession) -> Map:
+    """A map pre-populated in the db for testing quests/maps endpoints."""
+    # Check if we already created it (since DB might not reset perfectly between scopes)
+    m = Map(
+        slug="test-island",
+        original_width=1920,
+        original_height=1080,
+    )
+    db_session.add(m)
+    await db_session.flush()
+
+    tr = MapTranslation(
+        map_id=m.id,
+        language="uk",
+        name="Тестовий острів",
+    )
+    obj = MapObject(
+        map_id=m.id,
+        slug="point_1",
+        x=100,
+        y=100,
+        width=50,
+        height=50,
+        is_interactive=True,
+    )
+    db_session.add_all([tr, obj])
+    await db_session.commit()
+    await db_session.refresh(m)
+    return m
