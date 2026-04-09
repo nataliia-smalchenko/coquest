@@ -248,6 +248,8 @@ class ResourceService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Resource not found",
             )
+        resource.has_content = bool(resource.text_content or resource.question)
+        resource.difficulty = resource.question.difficulty if resource.question else None
         return resource
 
     @staticmethod
