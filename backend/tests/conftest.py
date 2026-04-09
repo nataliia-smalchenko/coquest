@@ -12,6 +12,7 @@ from app.database import Base, get_db
 from app.config import settings
 from app.models.user import User, AuthProvider
 from app.models.map import Map, MapTranslation, MapObject
+from app.models.quest import Quest, QuestStatus, QuestSettings, QuestTranslation
 from app.utils.security import create_access_token, get_password_hash
 
 from sqlalchemy.pool import NullPool
@@ -183,3 +184,20 @@ async def db_map(db_session: AsyncSession) -> Map:
     await db_session.commit()
     await db_session.refresh(m)
     return m
+
+
+@pytest_asyncio.fixture()
+async def db_quest(db_session: AsyncSession, teacher: User, db_map: Map) -> Quest:
+    """A quest pre-populated in the db for testing session endpoints."""
+    q = Quest(
+        teacher_id=teacher.id,
+        map_id=db_map.id,
+        slug=f"test-quest-{uuid.uuid4().hex[:8]}",
+        status=QuestStatus.PUBLISHED,
+        settings=QuestSettings(random_order=False),
+        translations=[QuestTranslation(language="uk", title="Test Quest")],
+    )
+    db_session.add(q)
+    await db_session.commit()
+    await db_session.refresh(q)
+    return q
