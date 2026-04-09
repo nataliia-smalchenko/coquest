@@ -126,10 +126,12 @@ class QuestService:
             )
 
         await db.commit()
-        await db.refresh(quest)
 
         result = await db.execute(
-            select(Quest).where(Quest.id == quest.id).options(*_load_options())
+            select(Quest)
+            .where(Quest.id == quest.id)
+            .options(*_load_options())
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one()
 
@@ -194,7 +196,10 @@ class QuestService:
         await db.commit()
 
         result = await db.execute(
-            select(Quest).where(Quest.id == quest.id).options(*_load_options())
+            select(Quest)
+            .where(Quest.id == quest.id)
+            .options(*_load_options())
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one()
 
@@ -214,7 +219,10 @@ class QuestService:
         quest.status = new_status
         await db.commit()
         result = await db.execute(
-            select(Quest).where(Quest.id == quest.id).options(*_load_options())
+            select(Quest)
+            .where(Quest.id == quest.id)
+            .options(*_load_options())
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one()
 
