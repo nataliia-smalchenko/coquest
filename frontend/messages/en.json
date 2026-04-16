@@ -61,6 +61,12 @@
         "backToLogin": "Back to login"
       }
     },
+    "googleRole": {
+      "title": "Choose your role",
+      "subtitle": "How will you use CoQuest?",
+      "continue": "Continue",
+      "back": "Back"
+    },
     "verify": {
       "loading": "Verifying email...",
       "success": "Success!",
