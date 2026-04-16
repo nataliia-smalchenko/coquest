@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "@/lib/api";
-import { Eye, EyeOff, Loader2, MailCheck, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, MailCheck, CheckCircle2, GraduationCap, BookOpen } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.email({ message: "invalidEmail" }),
@@ -30,10 +30,14 @@ export default function LoginPage() {
   const tErrors = useTranslations("auth.errors");
   const tCommon = useTranslations("common");
   const tVerify = useTranslations("auth.verify");
+  const tRegister = useTranslations("auth.register");
+  const tGoogleRole = useTranslations("auth.googleRole");
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [customError, setCustomError] = useState("");
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | null>(null);
 
   const [needsVerification, setNeedsVerification] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -66,16 +70,37 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSuccess = async (credential: string) => {
-    setIsLoading(true);
+  const handleGoogleSuccess = (credential: string) => {
     setCustomError("");
     setSuccessMessage("");
+    setPendingGoogleCredential(credential);
+    setSelectedRole(null);
+  };
+
+  const handleGoogleWithRole = async () => {
+    if (!pendingGoogleCredential || !selectedRole) return;
+    setIsLoading(true);
+    setCustomError("");
     try {
-      const { data } = await api.post("/api/auth/google", { credential });
+      const { data } = await api.post("/api/auth/google", {
+        credential: pendingGoogleCredential,
+        role: selectedRole,
+      });
       document.cookie = `access_token=${data.access_token}; path=/`;
       document.cookie = `refresh_token=${data.refresh_token}; path=/`;
+
+      // Backend may ignore `role` on creation — patch it explicitly if needed
+      if (data.user.role !== selectedRole) {
+        try {
+          await api.patch("/api/user/profile", { role: selectedRole });
+        } catch {
+          // Existing user who can't change role — keep their current role
+        }
+      }
+
       await fetchUser();
-      redirectByRole(data.user.role);
+      const finalRole = useAuth.getState().user?.role ?? data.user.role;
+      redirectByRole(finalRole);
     } catch {
       setCustomError(tErrors("googleLoginFailed"));
     } finally {
@@ -93,6 +118,76 @@ export default function LoginPage() {
       setCustomError(tErrors("verificationFailed"));
     }
   };
+
+  if (pendingGoogleCredential) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-lg space-y-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900">{tGoogleRole("title")}</h2>
+            <p className="text-gray-500 mt-2 text-sm">{tGoogleRole("subtitle")}</p>
+          </div>
+
+          {customError && (
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded text-sm">
+              {customError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectedRole("student")}
+              className={`flex flex-col items-center justify-center gap-3 p-5 border-2 rounded-xl transition-all ${
+                selectedRole === "student"
+                  ? "bg-blue-50 border-blue-500 text-blue-700"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <GraduationCap size={32} />
+              <span className="text-sm font-medium">{tRegister("roleStudent")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedRole("teacher")}
+              className={`flex flex-col items-center justify-center gap-3 p-5 border-2 rounded-xl transition-all ${
+                selectedRole === "teacher"
+                  ? "bg-blue-50 border-blue-500 text-blue-700"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <BookOpen size={32} />
+              <span className="text-sm font-medium">{tRegister("roleTeacher")}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleWithRole}
+            disabled={!selectedRole || isLoading}
+            className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {tCommon("loading")}
+              </>
+            ) : (
+              tGoogleRole("continue")
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPendingGoogleCredential(null)}
+            className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            {tGoogleRole("back")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (needsVerification) {
     return (

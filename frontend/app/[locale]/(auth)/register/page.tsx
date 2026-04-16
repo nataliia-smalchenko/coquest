@@ -17,6 +17,8 @@ import {
   Mail,
   Lock,
   CheckCircle2,
+  GraduationCap,
+  BookOpen,
 } from "lucide-react";
 
 const registerSchema = z
@@ -48,11 +50,14 @@ export default function RegisterPage() {
   const t = useTranslations("auth.register");
   const tErrors = useTranslations("auth.errors");
   const tCommon = useTranslations("common");
+  const tGoogleRole = useTranslations("auth.googleRole");
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [customError, setCustomError] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<string | null>(null);
+  const [googleRole, setGoogleRole] = useState<"student" | "teacher" | null>(null);
 
   const {
     register,
@@ -68,15 +73,36 @@ export default function RegisterPage() {
 
   const selectedRole = watch("role");
 
-  const handleGoogleSuccess = async (credential: string) => {
+  const handleGoogleSuccess = (credential: string) => {
+    setCustomError("");
+    setPendingGoogleCredential(credential);
+    setGoogleRole(null);
+  };
+
+  const handleGoogleWithRole = async () => {
+    if (!pendingGoogleCredential || !googleRole) return;
     setIsLoading(true);
     setCustomError("");
     try {
-      const { data } = await api.post("/api/auth/google", { credential });
+      const { data } = await api.post("/api/auth/google", {
+        credential: pendingGoogleCredential,
+        role: googleRole,
+      });
       document.cookie = `access_token=${data.access_token}; path=/`;
       document.cookie = `refresh_token=${data.refresh_token}; path=/`;
+
+      // Backend may ignore `role` on creation — patch it explicitly if needed
+      if (data.user.role !== googleRole) {
+        try {
+          await api.patch("/api/user/profile", { role: googleRole });
+        } catch {
+          // Existing user who can't change role — keep their current role
+        }
+      }
+
       await fetchUser();
-      router.push(data.user.role === "teacher" ? "/teacher/resources" : "/student");
+      const finalRole = useAuth.getState().user?.role ?? data.user.role;
+      router.push(finalRole === "teacher" ? "/teacher/resources" : "/student");
     } catch {
       setCustomError(tErrors("googleLoginFailed"));
     } finally {
@@ -106,6 +132,76 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  if (pendingGoogleCredential) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-lg space-y-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900">{tGoogleRole("title")}</h2>
+            <p className="text-gray-500 mt-2 text-sm">{tGoogleRole("subtitle")}</p>
+          </div>
+
+          {customError && (
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded text-sm">
+              {customError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setGoogleRole("student")}
+              className={`flex flex-col items-center justify-center gap-3 p-5 border-2 rounded-xl transition-all ${
+                googleRole === "student"
+                  ? "bg-blue-50 border-blue-500 text-blue-700"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <GraduationCap size={32} />
+              <span className="text-sm font-medium">{t("roleStudent")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setGoogleRole("teacher")}
+              className={`flex flex-col items-center justify-center gap-3 p-5 border-2 rounded-xl transition-all ${
+                googleRole === "teacher"
+                  ? "bg-blue-50 border-blue-500 text-blue-700"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <BookOpen size={32} />
+              <span className="text-sm font-medium">{t("roleTeacher")}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleWithRole}
+            disabled={!googleRole || isLoading}
+            className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                {tCommon("loading")}
+              </>
+            ) : (
+              tGoogleRole("continue")
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPendingGoogleCredential(null)}
+            className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            {tGoogleRole("back")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (

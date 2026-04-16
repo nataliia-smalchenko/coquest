@@ -18,9 +18,9 @@ interface AuthState {
   setLanguage: (lang: string) => Promise<void>;
 }
 
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>((set, get) => ({
   user: null,
-  isLoading: false,
+  isLoading: true,
   error: null,
   language: "uk",
 
@@ -63,9 +63,14 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   fetchUser: async () => {
-    if (!Cookies.get("access_token") && !Cookies.get("refresh_token")) return;
+    if (!Cookies.get("access_token") && !Cookies.get("refresh_token")) {
+      set({ isLoading: false });
+      return;
+    }
 
-    set({ isLoading: true });
+    if (!get().user) {
+      set({ isLoading: true });
+    }
     try {
       const user = await authService.getMe();
       set({
