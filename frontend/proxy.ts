@@ -27,9 +27,15 @@ export default function middleware(request: NextRequest) {
 
   if (!hasLocaleInPath && !rememberedLocale) {
     const locale = detectLocale(request.headers.get("Accept-Language"));
-    const url = request.nextUrl.clone();
-    url.pathname = `/${locale}${pathname === "/" ? "" : pathname}`;
-    return NextResponse.redirect(url);
+    // For the default locale with localePrefix: "as-needed", the canonical URL
+    // has NO prefix (e.g. "/teacher/resources", not "/uk/teacher/resources").
+    // Redirecting to "/uk/..." would cause intlMiddleware to redirect back to "/...",
+    // creating an infinite loop. Only redirect for non-default locales.
+    if (locale !== routing.defaultLocale) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}${pathname === "/" ? "" : pathname}`;
+      return NextResponse.redirect(url);
+    }
   }
 
   return intlMiddleware(request);

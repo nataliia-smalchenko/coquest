@@ -479,6 +479,6 @@
   },
   "student": {
     "title": "My Progress",
-    "comingSoon": "Your quest completions will be stored here in the future."
+    "comingSoon": "You are logged in as a student. If you want to switch to Teacher, go to your profile. Your quest completions will be stored here in the future."
   }
 }
