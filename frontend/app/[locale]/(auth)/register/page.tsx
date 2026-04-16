@@ -57,7 +57,7 @@ export default function RegisterPage() {
   const [customError, setCustomError] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [pendingGoogleCredential, setPendingGoogleCredential] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | null>(null);
+  const [googleRole, setGoogleRole] = useState<"student" | "teacher" | null>(null);
 
   const {
     register,
@@ -76,25 +76,25 @@ export default function RegisterPage() {
   const handleGoogleSuccess = (credential: string) => {
     setCustomError("");
     setPendingGoogleCredential(credential);
-    setSelectedRole(null);
+    setGoogleRole(null);
   };
 
   const handleGoogleWithRole = async () => {
-    if (!pendingGoogleCredential || !selectedRole) return;
+    if (!pendingGoogleCredential || !googleRole) return;
     setIsLoading(true);
     setCustomError("");
     try {
       const { data } = await api.post("/api/auth/google", {
         credential: pendingGoogleCredential,
-        role: selectedRole,
+        role: googleRole,
       });
       document.cookie = `access_token=${data.access_token}; path=/`;
       document.cookie = `refresh_token=${data.refresh_token}; path=/`;
 
       // Backend may ignore `role` on creation — patch it explicitly if needed
-      if (data.user.role !== selectedRole) {
+      if (data.user.role !== googleRole) {
         try {
-          await api.patch("/api/user/profile", { role: selectedRole });
+          await api.patch("/api/user/profile", { role: googleRole });
         } catch {
           // Existing user who can't change role — keep their current role
         }
@@ -151,9 +151,9 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setSelectedRole("student")}
+              onClick={() => setGoogleRole("student")}
               className={`flex flex-col items-center justify-center gap-3 p-5 border-2 rounded-xl transition-all ${
-                selectedRole === "student"
+                googleRole === "student"
                   ? "bg-blue-50 border-blue-500 text-blue-700"
                   : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
               }`}
@@ -163,9 +163,9 @@ export default function RegisterPage() {
             </button>
             <button
               type="button"
-              onClick={() => setSelectedRole("teacher")}
+              onClick={() => setGoogleRole("teacher")}
               className={`flex flex-col items-center justify-center gap-3 p-5 border-2 rounded-xl transition-all ${
-                selectedRole === "teacher"
+                googleRole === "teacher"
                   ? "bg-blue-50 border-blue-500 text-blue-700"
                   : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
               }`}
@@ -178,7 +178,7 @@ export default function RegisterPage() {
           <button
             type="button"
             onClick={handleGoogleWithRole}
-            disabled={!selectedRole || isLoading}
+            disabled={!googleRole || isLoading}
             className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {isLoading ? (
