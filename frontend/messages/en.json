@@ -61,6 +61,12 @@
         "backToLogin": "Back to login"
       }
     },
+    "googleRole": {
+      "title": "Choose your role",
+      "subtitle": "How will you use CoQuest?",
+      "continue": "Continue",
+      "back": "Back"
+    },
     "verify": {
       "loading": "Verifying email...",
       "success": "Success!",
@@ -294,7 +300,8 @@
       "teamWaitingViewers": "Waiting for teammates to view ({count}/{total})",
       "teamAnsweredBy": "Answered by {name}",
       "teamViewedBy": "Viewed by {name}",
-      "yourAnswer": "Provided answer"
+      "yourAnswer": "Provided answer",
+      "reconnecting": "Connection lost, reconnecting..."
     },
     "results": {
       "title": "Results",
@@ -478,6 +485,6 @@
   },
   "student": {
     "title": "My Progress",
-    "comingSoon": "Your quest completions will be stored here in the future."
+    "comingSoon": "You are logged in as a student. If you want to switch to Teacher, go to your profile. Your quest completions will be stored here in the future."
   }
 }

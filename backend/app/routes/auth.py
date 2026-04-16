@@ -78,8 +78,8 @@ async def google_auth(
     language: str = Depends(get_language),
 ):
     """Login or register with Google"""
-    # Verify token with Google public keys (cached in Redis)
-    google_user_info = await OAuthService.verify_google_token(request.token)
+    # Verify ID token locally using Google public keys cached in Redis
+    google_user_info = await OAuthService.verify_google_id_token(request.credential)
 
     # Add requested role to the data if it's a new user
     google_user_info["requested_role"] = getattr(request, "role", "student")

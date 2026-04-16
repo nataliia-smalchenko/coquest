@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { QuestionPublicResponse } from "@/types/resource";
 
@@ -61,7 +62,7 @@ export default function QuestionForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Question body — HTML with possible images */}
       <div
-        className="prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_img]:max-w-full [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
+        className="tiptap-preview prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.body) }}
       />
 
@@ -90,11 +91,18 @@ export default function QuestionForm({
                 )}
               </div>
               {opt.image_url && (
-                <img
-                  src={opt.image_url}
+                <Image
+                  src={opt.image_url!}
                   alt=""
-                  className="rounded-md max-w-full"
-                  style={{ maxHeight: "160px", objectFit: "contain" }}
+                  width={0}
+                  height={0}
+                  sizes="400px"
+                  className="rounded-md"
+                  style={{
+                    width: "auto",
+                    maxHeight: "160px",
+                    objectFit: "contain",
+                  }}
                 />
               )}
             </label>
@@ -132,11 +140,18 @@ export default function QuestionForm({
                 )}
               </div>
               {opt.image_url && (
-                <img
-                  src={opt.image_url}
+                <Image
+                  src={opt.image_url!}
                   alt=""
-                  className="rounded-md max-w-full"
-                  style={{ maxHeight: "160px", objectFit: "contain" }}
+                  width={0}
+                  height={0}
+                  sizes="400px"
+                  className="rounded-md"
+                  style={{
+                    width: "auto",
+                    maxHeight: "160px",
+                    objectFit: "contain",
+                  }}
                 />
               )}
             </label>

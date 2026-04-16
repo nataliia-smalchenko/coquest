@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -719,10 +720,14 @@ export function QuestionEditor({
                         gap: "8px",
                       }}
                     >
-                      <img
+                      <Image
                         src={imageUrl}
                         alt=""
+                        width={0}
+                        height={0}
+                        sizes="150px"
                         style={{
+                          width: "auto",
                           height: "64px",
                           borderRadius: "8px",
                           objectFit: "cover",

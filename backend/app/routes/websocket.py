@@ -147,6 +147,7 @@ async def ws_player(
             {"type": "player_finished", "player_id": player_id},
         )
 
+    # broadcast_to_session already notifies the teacher, so no separate send_to_teacher needed
     await manager.broadcast_to_session(
         sid,
         {
@@ -154,15 +155,6 @@ async def ws_player(
             "player": player_data,
         },
         exclude_player_id=player_id,
-    )
-
-    # Notify teacher about the new player
-    await manager.send_to_teacher(
-        sid,
-        {
-            "type": "player_joined",
-            "player": player_data,
-        },
     )
 
     try:

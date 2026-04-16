@@ -40,9 +40,9 @@ class UserLogin(BaseModel):
 
 
 class GoogleAuthRequest(BaseModel):
-    """Google ID token from frontend"""
+    """Google ID token (JWT credential) from GoogleLogin component"""
 
-    token: str
+    credential: str
     role: Optional[str] = "student"
 
 
