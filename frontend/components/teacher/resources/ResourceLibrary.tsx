@@ -450,6 +450,39 @@ export function ResourceLibrary() {
         </div>
       </div>
 
+      {/* Full-screen loading overlay while creating a resource */}
+      {creating && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(255,255,255,0.7)",
+            zIndex: 200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "12px",
+              background: "white",
+              borderRadius: "16px",
+              padding: "32px 40px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            }}
+          >
+            <Loader2 size={32} color="#2563eb" className="animate-spin" />
+            <span style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}>
+              {creating === "text" ? t("newText") : t("newQuestion")}…
+            </span>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
