@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 class UserRole(str, enum.Enum):
     TEACHER = "teacher"
     STUDENT = "student"
+    ADMIN = "admin"
 
 
 class UserLanguage(str, enum.Enum):

@@ -55,3 +55,13 @@ async def get_current_student(current_user: User = Depends(get_current_user)) ->
             detail="Not authorized. Student role required.",
         )
     return current_user
+
+
+async def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Require admin role"""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized. Admin role required.",
+        )
+    return current_user

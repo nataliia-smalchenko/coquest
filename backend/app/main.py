@@ -7,6 +7,7 @@ from app.config import settings
 from contextlib import asynccontextmanager
 from app.services.redis_service import RedisService
 
+from app.routes import admin
 from app.routes import auth
 from app.routes import user
 from app.routes import resources
@@ -72,6 +73,7 @@ async def sqlalchemy_exception_handler(
     )
 
 
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(resources.router)
