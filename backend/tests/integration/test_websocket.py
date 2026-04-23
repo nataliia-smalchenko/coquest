@@ -104,7 +104,7 @@ async def test_player_sends_unknown_type_gets_error(ws_session_and_player):
             await ws.send_text(json.dumps({"type": "nonsense"}))
             err_msg = json.loads(await ws.receive_text())
             assert err_msg["type"] == "error"
-            assert "Unknown message type" in err_msg["detail"]
+            assert "Invalid message format" in err_msg["detail"]
 
 
 @pytest.mark.asyncio
@@ -169,7 +169,7 @@ async def test_teacher_sends_unknown_type_gets_error(ws_session_and_player):
             await ws.send_text(json.dumps({"type": "invalid_command"}))
             err_msg = json.loads(await ws.receive_text())
             assert err_msg["type"] == "error"
-            assert "Unknown message type" in err_msg["detail"]
+            assert "Invalid message format" in err_msg["detail"]
 
 
 @pytest.mark.asyncio

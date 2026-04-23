@@ -21,7 +21,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter
 
 
 # Answer shapes
@@ -49,7 +49,7 @@ class TextAnswer(BaseModel):
     review) can be submitted without text if needed.
     """
 
-    text: str = Field(default="", max_length=5000, strip_whitespace=True)
+    text: Annotated[str, StringConstraints(strip_whitespace=True, max_length=5000)] = ""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -78,7 +78,7 @@ class MarkViewedMessage(BaseModel):
 class ChatMessage(BaseModel):
     type: Literal["chat_message"]
     # strip_whitespace prevents blank messages slipping past min_length=1
-    message: str = Field(..., min_length=1, max_length=500, strip_whitespace=True)
+    message: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
 PlayerMessage = Annotated[
