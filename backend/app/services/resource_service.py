@@ -1,3 +1,5 @@
+import logging
+import re
 import time
 import uuid
 from collections import Counter
@@ -5,6 +7,13 @@ from typing import Any, Optional, List, Dict
 
 import cloudinary.utils
 from fastapi import HTTPException, status
+
+logger = logging.getLogger(__name__)
+
+# Whitelist: only alphanumeric characters, hyphens, and underscores are allowed
+# in a folder segment. Slashes, dots, and other special characters are rejected
+# to prevent path traversal attacks against the Cloudinary namespace.
+_FOLDER_SEGMENT_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -387,12 +396,25 @@ class ResourceService:
 
     @staticmethod
     def get_cloudinary_signature(teacher_id: str, folder: str) -> dict[str, Any]:
+        """Generate a signed Cloudinary upload request for the given teacher and folder.
+
+        The ``folder`` parameter is validated against a strict whitelist regex
+        (alphanumeric, hyphens, underscores only) to prevent path-traversal
+        attacks that could place files outside the teacher's Cloudinary namespace.
+        """
+        if not _FOLDER_SEGMENT_RE.match(folder):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid folder name. Only letters, digits, hyphens, and underscores are allowed.",
+            )
+
+        upload_preset = settings.CLOUDINARY_UPLOAD_PRESET
         timestamp = int(time.time())
         full_folder = f"coquest/{teacher_id}/{folder}"
         params_to_sign = {
             "folder": full_folder,
             "timestamp": timestamp,
-            "upload_preset": "coquest_preset",
+            "upload_preset": upload_preset,
         }
         signature = cloudinary.utils.api_sign_request(
             params_to_sign, settings.CLOUDINARY_API_SECRET
@@ -403,7 +425,7 @@ class ResourceService:
             "api_key": settings.CLOUDINARY_API_KEY,
             "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
             "folder": full_folder,
-            "upload_preset": "coquest_preset",
+            "upload_preset": upload_preset,
         }
 
     # Helpers

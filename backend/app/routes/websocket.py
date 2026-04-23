@@ -10,7 +10,7 @@ from app.database import AsyncSessionLocal
 from app.models.game_session import GameSession, SessionStatus
 from app.models.quest import QuestSettings
 from app.models.session_player import PlayerStatus, SessionPlayer
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.session import GameSessionResponse, SessionPlayerResponse
 from app.services.websocket_handlers import (
     handle_player_message,
@@ -199,7 +199,7 @@ async def ws_teacher(
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
 
-        if not user or user.role != "teacher":
+        if not user or user.role != UserRole.TEACHER:
             await websocket.close(
                 code=4001, reason="Unauthorized: teacher role required"
             )

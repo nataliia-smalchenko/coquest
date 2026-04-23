@@ -1,11 +1,16 @@
-import resend
-from app.config import settings
-from app.services.i18n_service import I18nService
-from datetime import datetime, timedelta, timezone
+import logging
 import secrets
 import asyncio
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import resend
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from app.config import settings
+from app.services.i18n_service import I18nService
+
+logger = logging.getLogger(__name__)
 
 resend.api_key = settings.RESEND_API_KEY
 
@@ -83,7 +88,7 @@ class EmailService:
 
             return await EmailService._send_email_task(params)
         except Exception as e:
-            print(f"Error sending verification email: {e}")
+            logger.error("Error sending verification email to %s: %s", email, e, exc_info=True)
             raise
 
     @staticmethod
@@ -123,4 +128,4 @@ class EmailService:
 
             return await EmailService._send_email_task(params)
         except Exception as e:
-            print(f"Error sending welcome email: {e}")
+            logger.error("Error sending welcome email to %s: %s", email, e, exc_info=True)

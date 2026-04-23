@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
@@ -13,6 +15,8 @@ from app.utils.security import (
 from app.services.email_service import EmailService
 from app.services.i18n_service import I18nService
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -65,7 +69,7 @@ class AuthService:
             return db_user
         except Exception as e:
             await db.rollback()
-            print(f"Registration error: {e}")
+            logger.error("Registration error for %s: %s", user_data.email, e, exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to send verification email",
@@ -110,7 +114,7 @@ class AuthService:
                 language=I18nService.get_user_language(user),
             )
         except Exception as e:
-            print(f"Failed to send welcome email: {e}")
+            logger.warning("Failed to send welcome email to %s: %s", user.email, e, exc_info=True)
 
         return user
 
@@ -145,7 +149,7 @@ class AuthService:
             await db.commit()
         except Exception as e:
             await db.rollback()
-            print(f"Resend verification error: {e}")
+            logger.error("Resend verification error for %s: %s", email, e, exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to resend verification email",

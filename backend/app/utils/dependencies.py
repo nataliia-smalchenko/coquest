@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.utils.security import verify_token
 
 security = HTTPBearer()
@@ -39,7 +39,7 @@ async def get_current_user(
 
 async def get_current_teacher(current_user: User = Depends(get_current_user)) -> User:
     """Require teacher role"""
-    if current_user.role != "teacher":
+    if current_user.role != UserRole.TEACHER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized. Teacher role required.",
@@ -49,7 +49,7 @@ async def get_current_teacher(current_user: User = Depends(get_current_user)) ->
 
 async def get_current_student(current_user: User = Depends(get_current_user)) -> User:
     """Require student role"""
-    if current_user.role != "student":
+    if current_user.role != UserRole.STUDENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized. Student role required.",

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_UPLOAD_PRESET: str = "coquest_preset"
 
     model_config = SettingsConfigDict(
         env_file=".env",
