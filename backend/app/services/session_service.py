@@ -24,18 +24,22 @@ from app.schemas.session import (
     GameInfoResponse,
     GameSessionDetailResponse,
     GameSessionResponse,
+    GameSessionResultResponse,
     JoinSessionRequest,
     LeaveTeamResponse,
     PlayerProgressSummary,
-    SessionSettingsPublic,
-    ReviewAnswerRequest,
-    RejoinSessionRequest,
+    QuestionResultData,
+    QuestionResultOption,
     SessionChatMessage,
     SessionCreate,
     SessionListItem,
     SessionPlayerResponse,
     SessionProgressResponse,
+    SessionProgressResultResponse,
+    SessionSettingsPublic,
     SessionUpdateRequest,
+    RejoinSessionRequest,
+    ReviewAnswerRequest,
     SubmitAnswerRequest,
     TeacherMonitorResponse,
     TeamPlayerResponse,
@@ -702,7 +706,9 @@ class SessionService:
             now = _now()
             player.status = PlayerStatus.FINISHED
             player.finished_at = now
-            player.results_available_until = now + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
+            player.results_available_until = now + timedelta(
+                days=settings.RESULTS_AVAILABLE_DAYS
+            )
             await db.commit()
             await db.refresh(player)
         return player
@@ -734,14 +740,7 @@ class SessionService:
     @staticmethod
     async def get_session_results(
         db: AsyncSession, session_id: uuid.UUID, guest_token: str
-    ) -> "GameSessionResultResponse":
-        from app.schemas.session import (
-            GameSessionResultResponse,
-            QuestionResultData,
-            QuestionResultOption,
-            SessionProgressResultResponse,
-        )
-
+    ) -> GameSessionResultResponse:
         player_result = await db.execute(
             select(SessionPlayer).where(
                 SessionPlayer.guest_token == guest_token,
@@ -794,7 +793,9 @@ class SessionService:
             )
 
         if time_expired and not player.results_available_until:
-            player.results_available_until = now + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
+            player.results_available_until = now + timedelta(
+                days=settings.RESULTS_AVAILABLE_DAYS
+            )
             await db.flush()
 
         result = await db.execute(
@@ -1240,3 +1241,73 @@ class SessionService:
         )
         await db.delete(player)
         await db.commit()
+
+    # Lightweight read helpers used by route orchestration
+    @staticmethod
+    async def get_session_with_players(
+        db: AsyncSession, session_id: uuid.UUID
+    ) -> Optional[GameSession]:
+        """Load a session with its players eagerly, returning None if not found."""
+        result = await db.execute(
+            select(GameSession)
+            .where(GameSession.id == session_id)
+            .options(selectinload(GameSession.players))
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_quest_settings(
+        db: AsyncSession, quest_id: uuid.UUID
+    ) -> Optional[QuestSettings]:
+        """Load quest settings, returning None if not configured."""
+        result = await db.execute(
+            select(QuestSettings).where(QuestSettings.quest_id == quest_id)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_session_timing(db: AsyncSession, session_id: uuid.UUID) -> dict:
+        """Return started_at / ends_at for a session as ISO strings."""
+        result = await db.execute(
+            select(GameSession).where(GameSession.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        return {
+            "started_at": session.started_at.isoformat()
+            if session and session.started_at
+            else None,
+            "ends_at": session.ends_at.isoformat()
+            if session and session.ends_at
+            else None,
+        }
+
+    @staticmethod
+    async def get_team_players(db: AsyncSession, team_id: uuid.UUID) -> list:
+        """Return all SessionPlayer rows that belong to a team."""
+        result = await db.execute(
+            select(SessionPlayer).where(SessionPlayer.team_id == team_id)
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_next_progress_for_map_object(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        player_id: uuid.UUID,
+        map_object_id: uuid.UUID,
+        exclude_progress_id: uuid.UUID,
+    ) -> "SessionProgress | None":
+        """Return the most recently assigned progress on a map object for a
+        player, excluding the progress item that was just answered."""
+        result = await db.execute(
+            select(SessionProgress)
+            .where(
+                SessionProgress.session_id == session_id,
+                SessionProgress.player_id == player_id,
+                SessionProgress.map_object_id == map_object_id,
+                SessionProgress.id != exclude_progress_id,
+            )
+            .order_by(SessionProgress.assigned_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()

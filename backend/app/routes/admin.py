@@ -1,7 +1,6 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,17 +20,8 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
 ):
     """Return a paginated list of all users."""
-    total = await db.scalar(select(func.count(User.id)))
-    result = await db.execute(
-        select(User).order_by(User.created_at.desc()).offset(offset).limit(limit)
-    )
-    users = list(result.scalars().all())
-    return AdminUserListResponse(
-        users=users,
-        total=total or 0,
-        offset=offset,
-        limit=limit,
-    )
+    users, total = await UserService.list_users(db, offset=offset, limit=limit)
+    return AdminUserListResponse(users=users, total=total, offset=offset, limit=limit)
 
 
 @router.patch("/users/{user_id}/role", response_model=UserResponse)

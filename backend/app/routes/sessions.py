@@ -279,15 +279,7 @@ async def start_team(
     sid = str(session_id)
     tid = str(team_id)
 
-    from app.models.game_session import GameSession as _GS
-    from sqlalchemy import select
-
-    sess_row = await db.execute(select(_GS).where(_GS.id == session_id))
-    started_session = sess_row.scalar_one_or_none()
-    session_timing = {
-        "started_at": _iso(started_session.started_at) if started_session else None,
-        "ends_at": _iso(started_session.ends_at) if started_session else None,
-    }
+    session_timing = await SessionService.get_session_timing(db, session_id)
 
     # Get current step info for hint/active player broadcast
     step_info = await TeamService.get_team_step_info(db, session_id, team_id)
@@ -450,12 +442,7 @@ async def submit_answer(
 
         # Broadcast step advance to all team members
         if team_step_info:
-            from sqlalchemy import select
-
-            team_players_q = await db.execute(
-                select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
-            )
-            team_players = team_players_q.scalars().all()
+            team_players = await SessionService.get_team_players(db, player.team_id)
             step_event = {
                 "type": "team_step_advanced",
                 **team_step_info,
@@ -477,21 +464,9 @@ async def submit_answer(
         )
         # New resource on same map object
         if result.map_object_id:
-            from sqlalchemy import select
-            from app.models.session_progress import SessionProgress
-
-            new_prog = await db.execute(
-                select(SessionProgress)
-                .where(
-                    SessionProgress.session_id == player.session_id,
-                    SessionProgress.player_id == player.id,
-                    SessionProgress.map_object_id == result.map_object_id,
-                    SessionProgress.id != progress_id,
-                )
-                .order_by(SessionProgress.assigned_at.desc())
-                .limit(1)
+            new_p = await SessionService.get_next_progress_for_map_object(
+                db, player.session_id, player.id, result.map_object_id, progress_id
             )
-            new_p = new_prog.scalar_one_or_none()
             if new_p:
                 await manager.send_to_player(
                     sid,
@@ -536,12 +511,7 @@ async def mark_text_viewed(
 
     if player.team_id:
         # Team mode: broadcast who has viewed to all team members
-        from sqlalchemy import select
-
-        team_players_q = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
-        )
-        team_players = team_players_q.scalars().all()
+        team_players = await SessionService.get_team_players(db, player.team_id)
 
         viewed_event = {
             "type": "team_text_viewed",

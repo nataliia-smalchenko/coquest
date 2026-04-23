@@ -4,16 +4,15 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.game_session import GameSession, SessionStatus
-from app.models.quest import QuestSettings
 from app.models.session_player import PlayerStatus, SessionPlayer
-from app.models.user import User, UserRole
+from app.models.user import UserRole
 from app.schemas.session import GameSessionResponse, SessionPlayerResponse
+from app.services.session_service import SessionService
+from app.services.user_service import UserService
 from app.services.websocket_handlers import (
     handle_player_message,
     handle_teacher_message,
@@ -103,10 +102,7 @@ async def ws_player(
 
     async with AsyncSessionLocal() as db:
         # Authenticate via guest_token
-        player_result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.guest_token == guest_token)
-        )
-        player = player_result.scalar_one_or_none()
+        player = await SessionService.get_player_by_token(db, guest_token)
         if not player:
             await websocket.close(code=4001, reason="Unauthorized: invalid token")
             return
@@ -117,12 +113,7 @@ async def ws_player(
             )
             return
 
-        session_result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
-        )
-        session = session_result.scalar_one_or_none()
+        session = await SessionService.get_session_with_players(db, session_id)
         if not session or session.status in (
             SessionStatus.COMPLETED,
             SessionStatus.STOPPED,
@@ -139,10 +130,7 @@ async def ws_player(
         now = datetime.now(timezone.utc)
         time_expired = session.ends_at is not None and session.ends_at < now
         if not time_expired and player.started_at:
-            settings_result = await db.execute(
-                select(QuestSettings).where(QuestSettings.quest_id == session.quest_id)
-            )
-            settings_obj = settings_result.scalar_one_or_none()
+            settings_obj = await SessionService.get_quest_settings(db, session.quest_id)
             if settings_obj and settings_obj.time_limit_minutes:
                 player_ends_at = player.started_at + timedelta(
                     minutes=settings_obj.time_limit_minutes
@@ -151,15 +139,7 @@ async def ws_player(
                     time_expired = True
         already_finished = player.status == PlayerStatus.FINISHED
         if time_expired and not already_finished:
-            from datetime import timedelta
-
-            player.status = PlayerStatus.FINISHED
-            if not player.finished_at:
-                player.finished_at = now
-            player.results_available_until = now + timedelta(
-                days=settings.RESULTS_AVAILABLE_DAYS
-            )
-            await db.commit()
+            player = await SessionService.player_timeout(db, session_id, player)
             already_finished = True
 
     await manager.connect_player(sid, player_id, websocket)
@@ -239,8 +219,7 @@ async def ws_teacher(
 
     async with AsyncSessionLocal() as db:
         user_id = payload.get("sub")
-        user_result = await db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalar_one_or_none()
+        user = await UserService.get_user_by_id(db, user_id)
 
         if not user or user.role != UserRole.TEACHER:
             await websocket.close(
@@ -248,12 +227,7 @@ async def ws_teacher(
             )
             return
 
-        session_result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
-        )
-        session = session_result.scalar_one_or_none()
+        session = await SessionService.get_session_with_players(db, session_id)
 
         if not session or session.teacher_id != user.id:
             await websocket.close(code=4002, reason="Forbidden: not your session")

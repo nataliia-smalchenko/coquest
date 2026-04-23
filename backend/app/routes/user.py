@@ -6,6 +6,7 @@ from app.schemas.user import UserResponse, UserUpdate, UserUpdateLanguage
 from app.models.user import User
 from app.services.user_service import UserService
 
+
 router = APIRouter(prefix="/api/user", tags=["User"])
 
 
@@ -16,15 +17,7 @@ async def update_language(
     db: AsyncSession = Depends(get_db),
 ):
     """Update user's preferred language"""
-
-    db.add(current_user)
-
-    current_user.preferred_language = data.language
-
-    await db.commit()
-    await db.refresh(current_user)
-
-    return current_user
+    return await UserService.update_language(db, current_user, data.language)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -41,16 +34,4 @@ async def update_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Update user profile: full_name and/or role"""
-    if data.full_name is not None:
-        current_user.full_name = data.full_name
-        db.add(current_user)
-        await db.commit()
-        await db.refresh(current_user)
-
-    if data.role is not None:
-        # bypass_checks=False: self-service role change enforces content checks
-        current_user = await UserService.change_role(
-            db, current_user, data.role, bypass_checks=False
-        )
-
-    return current_user
+    return await UserService.update_profile(db, current_user, data.full_name, data.role)
