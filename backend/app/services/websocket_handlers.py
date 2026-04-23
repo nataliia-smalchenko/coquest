@@ -2,6 +2,7 @@ import logging
 import uuid
 from datetime import datetime
 
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
@@ -11,6 +12,16 @@ from app.models.session_player import PlayerStatus, SessionPlayer
 from app.models.session_progress import ProgressStatus, SessionProgress
 from app.models.session_team import SessionTeam, TeamStatus
 from app.schemas.session import ReviewAnswerRequest, SubmitAnswerRequest
+from app.schemas.websocket import (
+    ChatMessage,
+    MarkViewedMessage,
+    ReviewAnswerMessage,
+    StartSessionMessage,
+    StopSessionMessage,
+    SubmitAnswerMessage,
+    player_message_adapter,
+    teacher_message_adapter,
+)
 from app.services import session_service as svc
 from app.services.websocket_manager import manager
 
@@ -39,30 +50,47 @@ def _progress_dict(p: SessionProgress) -> dict:
 
 # player messages
 async def handle_player_message(session_id: str, player_id: str, data: dict) -> None:
-    msg_type = data.get("type")
     try:
-        if msg_type == "submit_answer":
-            await _handle_submit_answer(session_id, player_id, data)
-        elif msg_type == "mark_viewed":
-            await _handle_mark_viewed(session_id, player_id, data)
-        elif msg_type == "chat_message":
-            await _handle_chat_message(session_id, player_id, data)
-        else:
-            await manager.send_to_player(
-                session_id,
-                player_id,
-                {"type": "error", "detail": f"Unknown message type: {msg_type}"},
-            )
+        msg = player_message_adapter.validate_python(data)
+    except ValidationError as exc:
+        logger.warning(
+            "Invalid player WS message session=%s player=%s: %s",
+            session_id,
+            player_id,
+            exc,
+        )
+        await manager.send_to_player(
+            session_id, player_id, {"type": "error", "detail": "Invalid message format"}
+        )
+        return
+
+    try:
+        if isinstance(msg, SubmitAnswerMessage):
+            await _handle_submit_answer(session_id, player_id, msg)
+        elif isinstance(msg, MarkViewedMessage):
+            await _handle_mark_viewed(session_id, player_id, msg)
+        elif isinstance(msg, ChatMessage):
+            await _handle_chat_message(session_id, player_id, msg)
     except Exception as exc:
-        logger.exception("Error handling player message type=%s: %s", msg_type, exc)
+        logger.exception(
+            "Error handling player message type=%s session=%s player=%s: %s",
+            msg.type,
+            session_id,
+            player_id,
+            exc,
+        )
         await manager.send_to_player(
             session_id, player_id, {"type": "error", "detail": str(exc)}
         )
 
 
-async def _handle_submit_answer(session_id: str, player_id: str, data: dict) -> None:
-    progress_id = uuid.UUID(data["progress_id"])
-    request = SubmitAnswerRequest(answer=data["answer"])
+async def _handle_submit_answer(
+    session_id: str, player_id: str, msg: SubmitAnswerMessage
+) -> None:
+    progress_id = msg.progress_id
+    # msg.answer is a typed Pydantic model; model_dump() gives the plain dict
+    # that the service layer expects and stores directly in JSONB.
+    request = SubmitAnswerRequest(answer=msg.answer.model_dump())
 
     async with AsyncSessionLocal() as db:
         # Load player
@@ -184,8 +212,10 @@ async def _handle_submit_answer(session_id: str, player_id: str, data: dict) -> 
             )
 
 
-async def _handle_mark_viewed(session_id: str, player_id: str, data: dict) -> None:
-    progress_id = uuid.UUID(data["progress_id"])
+async def _handle_mark_viewed(
+    session_id: str, player_id: str, msg: MarkViewedMessage
+) -> None:
+    progress_id = msg.progress_id
 
     async with AsyncSessionLocal() as db:
         player_result = await db.execute(
@@ -279,10 +309,11 @@ async def _handle_mark_viewed(session_id: str, player_id: str, data: dict) -> No
             )
 
 
-async def _handle_chat_message(session_id: str, player_id: str, data: dict) -> None:
-    message_text = str(data.get("message", ""))[:500]
-    if not message_text.strip():
-        return
+async def _handle_chat_message(
+    session_id: str, player_id: str, msg: ChatMessage
+) -> None:
+    # msg.message is already validated: non-empty, max 500 chars, stripped.
+    message_text = msg.message
 
     async with AsyncSessionLocal() as db:
         player_result = await db.execute(
@@ -315,21 +346,34 @@ async def _handle_chat_message(session_id: str, player_id: str, data: dict) -> N
 
 # teacher messages
 async def handle_teacher_message(session_id: str, teacher_id: str, data: dict) -> None:
-    msg_type = data.get("type")
     try:
-        if msg_type == "start_session":
+        msg = teacher_message_adapter.validate_python(data)
+    except ValidationError as exc:
+        logger.warning(
+            "Invalid teacher WS message session=%s teacher=%s: %s",
+            session_id,
+            teacher_id,
+            exc,
+        )
+        await manager.send_to_teacher(
+            session_id, {"type": "error", "detail": "Invalid message format"}
+        )
+        return
+
+    try:
+        if isinstance(msg, StartSessionMessage):
             await _handle_start_session(session_id, teacher_id)
-        elif msg_type == "stop_session":
+        elif isinstance(msg, StopSessionMessage):
             await _handle_stop_session(session_id, teacher_id)
-        elif msg_type == "review_answer":
-            await _handle_review_answer(session_id, teacher_id, data)
-        else:
-            await manager.send_to_teacher(
-                session_id,
-                {"type": "error", "detail": f"Unknown message type: {msg_type}"},
-            )
+        elif isinstance(msg, ReviewAnswerMessage):
+            await _handle_review_answer(session_id, teacher_id, msg)
     except Exception as exc:
-        logger.exception("Error handling teacher message type=%s: %s", msg_type, exc)
+        logger.exception(
+            "Error handling teacher message type=%s session=%s: %s",
+            msg.type,
+            session_id,
+            exc,
+        )
         await manager.send_to_teacher(session_id, {"type": "error", "detail": str(exc)})
 
 
@@ -389,12 +433,11 @@ async def _handle_stop_session(session_id: str, teacher_id: str) -> None:
     )
 
 
-async def _handle_review_answer(session_id: str, teacher_id: str, data: dict) -> None:
-    progress_id = uuid.UUID(data["progress_id"])
-    request = ReviewAnswerRequest(
-        score=float(data["score"]),
-        feedback=data.get("feedback"),
-    )
+async def _handle_review_answer(
+    session_id: str, teacher_id: str, msg: ReviewAnswerMessage
+) -> None:
+    progress_id = msg.progress_id
+    request = ReviewAnswerRequest(score=msg.score, feedback=msg.feedback)
 
     async with AsyncSessionLocal() as db:
         result = await svc.SessionService.review_answer(

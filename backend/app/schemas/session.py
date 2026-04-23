@@ -1,13 +1,51 @@
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, ValidationError
 
 from app.models.game_session import SessionStatus
 from app.models.session_player import PlayerStatus
 from app.models.session_progress import ProgressStatus
 from app.models.session_team import TeamStatus
+from app.schemas.websocket import (
+    MultipleChoiceAnswer,
+    SingleChoiceAnswer,
+    TextAnswer,
+)
+
+
+def _validate_player_answer(v: Any) -> Dict[str, Any]:
+    """
+    Validate that the answer dict conforms to one of the known question shapes.
+
+    Tried in order:
+      1. SingleChoiceAnswer  → {"option_id": "<str>"}
+      2. MultipleChoiceAnswer → {"option_ids": ["<str>", ...]}
+      3. TextAnswer           → {"text": "<str>"} or {}
+
+    ``extra="forbid"`` on each model ensures no unexpected keys pass through,
+    which prevents arbitrary data (potential Stored XSS) from reaching the DB.
+    """
+    if not isinstance(v, dict):
+        raise ValueError("answer must be a JSON object")
+    for model_class in (SingleChoiceAnswer, MultipleChoiceAnswer, TextAnswer):
+        try:
+            model_class.model_validate(v)
+            return v  # return original dict so the service layer receives a plain dict
+        except ValidationError:
+            continue
+    raise ValueError(
+        "answer must match one of: "
+        "{option_id: str} for single-choice, "
+        "{option_ids: [str]} for multiple-choice, "
+        "or {text: str} for open/short answers"
+    )
+
+
+# Dict[str, Any] at runtime (service layer stores it directly in JSONB),
+# but validated against the known answer shapes before the value is accepted.
+ValidatedAnswer = Annotated[Dict[str, Any], BeforeValidator(_validate_player_answer)]
 
 
 class SessionCreate(BaseModel):
@@ -210,7 +248,7 @@ class TeacherMonitorResponse(BaseModel):
 
 class SubmitAnswerRequest(BaseModel):
     progress_id: Optional[uuid.UUID] = None
-    answer: Dict[str, Any]
+    answer: ValidatedAnswer
 
 
 class SessionUpdateRequest(BaseModel):
