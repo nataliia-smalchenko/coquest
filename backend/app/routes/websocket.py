@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.game_session import GameSession, SessionStatus
 from app.models.quest import QuestSettings
@@ -22,6 +24,39 @@ from app.utils.security import verify_token
 router = APIRouter(prefix="/api/ws", tags=["WebSocket"])
 
 logger = logging.getLogger(__name__)
+
+
+# Heartbeat helpers
+async def _player_heartbeat(sid: str, player_id: str) -> None:
+    """Send periodic pings to a player to detect zombie connections.
+
+    Runs as a background asyncio task alongside the main receive loop.
+    If the underlying WebSocket is dead (e.g. mobile network drop without
+    a proper TCP FIN), ``manager.send_to_player`` will fail, log the error,
+    and call ``disconnect_player``, evicting the stale entry from
+    ConnectionManager and preventing a memory leak.
+
+    The task is always cancelled via ``finally`` in the route handler, so
+    ``asyncio.CancelledError`` on a healthy disconnect is expected and silent.
+    """
+    interval = settings.WS_HEARTBEAT_INTERVAL_SECONDS
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            await manager.send_to_player(sid, player_id, {"type": "ping"})
+    except asyncio.CancelledError:
+        pass  # normal shutdown — no action needed
+
+
+async def _teacher_heartbeat(sid: str) -> None:
+    """Send periodic pings to the teacher connection to detect zombie sockets."""
+    interval = settings.WS_HEARTBEAT_INTERVAL_SECONDS
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            await manager.send_to_teacher(sid, {"type": "ping"})
+    except asyncio.CancelledError:
+        pass  # normal shutdown — no action needed
 
 
 def _session_dict(session: GameSession) -> dict:
@@ -121,7 +156,9 @@ async def ws_player(
             player.status = PlayerStatus.FINISHED
             if not player.finished_at:
                 player.finished_at = now
-            player.results_available_until = now + timedelta(days=30)
+            player.results_available_until = now + timedelta(
+                days=settings.RESULTS_AVAILABLE_DAYS
+            )
             await db.commit()
             already_finished = True
 
@@ -157,9 +194,13 @@ async def ws_player(
         exclude_player_id=player_id,
     )
 
+    heartbeat_task = asyncio.create_task(_player_heartbeat(sid, player_id))
     try:
         while True:
             data = await websocket.receive_json()
+            if data.get("type") == "pong":
+                # Heartbeat acknowledgement from client — no further processing needed.
+                continue
             await handle_player_message(sid, player_id, data)
     except WebSocketDisconnect:
         await manager.disconnect_player(sid, player_id)
@@ -178,6 +219,8 @@ async def ws_player(
             exc,
         )
         await manager.disconnect_player(sid, player_id)
+    finally:
+        heartbeat_task.cancel()
 
 
 @router.websocket("/session/{session_id}/teacher")
@@ -234,12 +277,18 @@ async def ws_teacher(
         },
     )
 
+    heartbeat_task = asyncio.create_task(_teacher_heartbeat(sid))
     try:
         while True:
             data = await websocket.receive_json()
+            if data.get("type") == "pong":
+                # Heartbeat acknowledgement from client — no further processing needed.
+                continue
             await handle_teacher_message(sid, teacher_id, data)
     except WebSocketDisconnect:
         await manager.disconnect_teacher(sid)
     except Exception as exc:
         logger.exception("Unexpected error in teacher WS session=%s: %s", sid, exc)
         await manager.disconnect_teacher(sid)
+    finally:
+        heartbeat_task.cancel()

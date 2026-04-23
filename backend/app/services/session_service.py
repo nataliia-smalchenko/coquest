@@ -19,6 +19,7 @@ from app.models.session_player import PlayerStatus, SessionPlayer
 from app.models.session_progress import ProgressStatus, SessionProgress
 from app.models.session_team import SessionTeam, TeamStatus
 from app.models.user import User
+from app.config import settings
 from app.schemas.session import (
     GameInfoResponse,
     GameSessionDetailResponse,
@@ -65,7 +66,7 @@ async def _maybe_expire_session(db: AsyncSession, session: GameSession) -> bool:
     if session.ends_at >= now:
         return False
     session.status = SessionStatus.STOPPED
-    results_until = now + timedelta(days=30)
+    results_until = now + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
     for player in session.players:
         if player.status != PlayerStatus.FINISHED:
             player.status = PlayerStatus.FINISHED
@@ -701,7 +702,7 @@ class SessionService:
             now = _now()
             player.status = PlayerStatus.FINISHED
             player.finished_at = now
-            player.results_available_until = now + timedelta(days=30)
+            player.results_available_until = now + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
             await db.commit()
             await db.refresh(player)
         return player
@@ -714,7 +715,7 @@ class SessionService:
         now = _now()
         session.status = SessionStatus.STOPPED
         session.ends_at = now
-        results_until = now + timedelta(days=30)
+        results_until = now + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
         for player in session.players:
             if player.status != PlayerStatus.FINISHED:
                 player.status = PlayerStatus.FINISHED
@@ -793,7 +794,7 @@ class SessionService:
             )
 
         if time_expired and not player.results_available_until:
-            player.results_available_until = now + timedelta(days=30)
+            player.results_available_until = now + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
             await db.flush()
 
         result = await db.execute(

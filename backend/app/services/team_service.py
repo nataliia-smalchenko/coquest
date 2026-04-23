@@ -8,6 +8,7 @@ from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.models.game_session import GameSession, SessionStatus
 from app.models.session_chat import SessionChat
 from app.models.session_player import PlayerStatus, SessionPlayer
@@ -79,7 +80,9 @@ async def _find_or_create_team_excluding(
 
 
 async def _cleanup_stale_teams(
-    db: AsyncSession, session: GameSession, max_wait_minutes: int = 30
+    db: AsyncSession,
+    session: GameSession,
+    max_wait_minutes: int = settings.TEAM_WAIT_TIMEOUT_MINUTES,
 ) -> bool:
     """Delete WAITING teams (and all their players) that have not started within the given window.
 

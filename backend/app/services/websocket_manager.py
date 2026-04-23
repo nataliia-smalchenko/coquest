@@ -51,6 +51,12 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
+                logger.error(
+                    "Failed to send message to player %s in session %s; forcing disconnect",
+                    player_id,
+                    session_id,
+                    exc_info=True,
+                )
                 await self.disconnect_player(session_id, player_id)
 
     async def send_to_teacher(self, session_id: str, message: dict) -> None:
@@ -59,6 +65,11 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
+                logger.error(
+                    "Failed to send message to teacher in session %s; forcing disconnect",
+                    session_id,
+                    exc_info=True,
+                )
                 await self.disconnect_teacher(session_id)
 
     async def broadcast_to_session(
@@ -74,6 +85,12 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
+                logger.error(
+                    "Broadcast failed for player %s in session %s; forcing disconnect",
+                    pid,
+                    session_id,
+                    exc_info=True,
+                )
                 await self.disconnect_player(session_id, pid)
         await self.send_to_teacher(session_id, message)
 
