@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Optional, Set
 
 from fastapi import WebSocket
+from starlette.websockets import WebSocketState
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,9 @@ class ConnectionManager:
     async def connect_player(
         self, session_id: str, player_id: str, websocket: WebSocket
     ) -> None:
-        await websocket.accept()
+        # Skip accept if the connection was already accepted (e.g. in ws_player)
+        if websocket.application_state != WebSocketState.CONNECTED:
+            await websocket.accept()
         if session_id not in self.sessions:
             self.sessions[session_id] = {}
         self.sessions[session_id][player_id] = websocket

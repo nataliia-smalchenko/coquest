@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -12,6 +14,7 @@ from app.config import settings
 from app.core.rate_limit import limiter
 from app.services.redis_service import RedisService
 
+from app.database import get_db
 from app.routes import admin
 from app.routes import auth
 from app.routes import user
@@ -93,7 +96,12 @@ app.include_router(ws_routes.router)
 
 
 @app.get("/api/health")
-async def health_check():
+async def health_check(db: AsyncSession = Depends(get_db)):
+    # Probe the database rather than blindly returning 200
+    try:
+        await db.execute(text("SELECT 1"))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database unavailable")
     return {"status": "healthy", "version": settings.VERSION}
 
 

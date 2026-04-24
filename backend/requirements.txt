@@ -3,6 +3,7 @@ fastapi==0.134.0
 uvicorn[standard]==0.41.0
 
 # Auth & Security
+nh3==0.3.4
 slowapi==0.1.9
 python-jose[cryptography]==3.5.0
 bcrypt==5.0.0

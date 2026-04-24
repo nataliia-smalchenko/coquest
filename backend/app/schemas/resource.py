@@ -3,7 +3,18 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
+import nh3
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# Tags allowed in Tiptap-produced HTML; everything else is stripped.
+_TIPTAP_TAGS = frozenset({
+    "p", "br", "strong", "em", "u", "s", "ul", "ol", "li",
+    "h1", "h2", "h3", "h4", "blockquote", "code", "pre", "hr",
+})
+
+
+def _strip_html(v: str) -> str:
+    return nh3.clean(v, tags=set())
 
 from app.models.question import DifficultyLevel, QuestionType
 from app.models.resource import ResourceType
@@ -99,6 +110,11 @@ class QuestionOption(BaseModel):
     image_url: Optional[str] = None
     is_correct: bool = False
 
+    @field_validator("text")
+    @classmethod
+    def sanitize_text(cls, v: str) -> str:
+        return _strip_html(v)
+
     @field_validator("image_url")
     @classmethod
     def image_url_must_be_cloudinary_https(cls, v: Optional[str]) -> Optional[str]:
@@ -140,8 +156,7 @@ class QuestionPublicOption(BaseModel):
 
 class QuestionCreate(BaseModel):
     question_type: QuestionType
-    # body is HTML produced by Tiptap's getHTML(). XSS is prevented on the
-    # frontend via DOMPurify (sanitizeHtml). max_length guards against DoS.
+    # body — HTML from Tiptap, sanitized server-side via nh3 to prevent XSS.
     body: str = Field(..., min_length=1, max_length=10_000)
     explanation: Optional[str] = Field(None, max_length=2_000)
     options: List[QuestionOption] = Field(default_factory=list, max_length=30)
@@ -149,6 +164,18 @@ class QuestionCreate(BaseModel):
     requires_review: bool = False
     difficulty: Optional[DifficultyLevel] = None
     points: int = Field(default=1, ge=1, le=100)
+
+    @field_validator("body")
+    @classmethod
+    def sanitize_body(cls, v: str) -> str:
+        return nh3.clean(v, tags=_TIPTAP_TAGS)
+
+    @field_validator("explanation")
+    @classmethod
+    def sanitize_explanation(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _strip_html(v)
 
     @field_validator("correct_answers")
     @classmethod

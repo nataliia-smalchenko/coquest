@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -96,12 +96,26 @@ def _player_dict(player: RunPlayer) -> dict:
 async def ws_player(
     websocket: WebSocket,
     session_id: uuid.UUID,
-    guest_token: str = Query(...),
 ):
     sid = str(session_id)
 
+    # Accept before auth so the token never appears in the URL or proxy logs
+    await websocket.accept()
+
+    # First client message must be { "token": "<guest_token>" }
+    try:
+        auth_data = await websocket.receive_json()
+    except Exception:
+        await websocket.close(code=4001, reason="Unauthorized: missing auth message")
+        return
+
+    guest_token = auth_data.get("token")
+    if not guest_token:
+        await websocket.close(code=4001, reason="Unauthorized: missing token")
+        return
+
     async with AsyncSessionLocal() as db:
-        # Authenticate via guest_token
+        # Authenticate using the token from the message body
         player = await RunService.get_player_by_token(db, guest_token)
         if not player:
             await websocket.close(code=4001, reason="Unauthorized: invalid token")
