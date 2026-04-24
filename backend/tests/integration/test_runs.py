@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 @pytest.mark.asyncio
-async def test_create_and_list_sessions(client: AsyncClient, teacher_headers: dict, db_quest):
+async def test_create_and_list_runs(client: AsyncClient, teacher_headers: dict, db_quest):
     # Create the session
     create = await client.post(
         "/api/runs/",
@@ -28,7 +28,7 @@ async def test_create_and_list_sessions(client: AsyncClient, teacher_headers: di
     assert any(s["session_code"] == session_code for s in sessions)
 
 @pytest.mark.asyncio
-async def test_join_session_as_guest(client: AsyncClient, teacher_headers: dict, db_quest):
+async def test_join_run_as_guest(client: AsyncClient, teacher_headers: dict, db_quest):
     # Teacher creates session
     create = await client.post(
         "/api/runs/",
@@ -53,7 +53,7 @@ async def test_join_session_as_guest(client: AsyncClient, teacher_headers: dict,
     assert list_resp.status_code in [401, 403]
 
 @pytest.mark.asyncio
-async def test_rejoin_session(client: AsyncClient, teacher_headers: dict, db_quest):
+async def test_rejoin_run(client: AsyncClient, teacher_headers: dict, db_quest):
     # Teacher creates session
     create = await client.post(
         "/api/runs/",
@@ -78,7 +78,7 @@ async def test_rejoin_session(client: AsyncClient, teacher_headers: dict, db_que
     assert rejoin.json()["guest_name"] == "Rejoiner"
 
 @pytest.mark.asyncio
-async def test_start_session(client: AsyncClient, teacher_headers: dict, db_quest):
+async def test_start_run(client: AsyncClient, teacher_headers: dict, db_quest):
     # Create
     create = await client.post("/api/runs/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
     session_id = create.json()["id"]
@@ -90,7 +90,7 @@ async def test_start_session(client: AsyncClient, teacher_headers: dict, db_ques
     assert start.json()["started_at"] is not None
 
 @pytest.mark.asyncio
-async def test_player_start_session(client: AsyncClient, teacher_headers: dict, db_quest):
+async def test_player_start_run(client: AsyncClient, teacher_headers: dict, db_quest):
     create = await client.post("/api/runs/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
     session_id = create.json()["id"]
     code = create.json()["session_code"]

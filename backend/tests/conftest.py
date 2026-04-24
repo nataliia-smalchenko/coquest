@@ -188,7 +188,7 @@ async def db_map(db_session: AsyncSession) -> Map:
 
 @pytest_asyncio.fixture()
 async def db_quest(db_session: AsyncSession, teacher: User, db_map: Map) -> Quest:
-    """A quest pre-populated in the db for testing session endpoints."""
+    """A quest pre-populated in the db for testing run endpoints."""
     q = Quest(
         teacher_id=teacher.id,
         map_id=db_map.id,
@@ -208,7 +208,7 @@ async def db_quest(db_session: AsyncSession, teacher: User, db_map: Map) -> Ques
 # be committed to the real test DB for them to see it.
 @pytest_asyncio.fixture()
 async def ws_db() -> AsyncGenerator[AsyncSession, None]:
-    """A real committed session for WS tests — cleaned up afterwards."""
+    """A real committed DB session for WS tests — cleaned up afterwards."""
     session = TestingSessionLocal()
     yield session
     await session.close()
@@ -286,7 +286,7 @@ async def ws_session_and_player(
     ws_quest: Quest,
     ws_teacher_token: str,
 ):
-    """Create a GameSession + join a guest player via REST, return info dict."""
+    """Create a GameRun + join a guest player via REST, return info dict."""
     from httpx import ASGITransport
 
     transport = ASGITransport(app=app)
