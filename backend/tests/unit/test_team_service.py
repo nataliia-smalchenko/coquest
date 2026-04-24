@@ -12,9 +12,9 @@ from app.services.team_service import (
     _cleanup_stale_teams,
     _now,
 )
-from app.models.session_team import SessionTeam, TeamStatus
-from app.models.session_player import SessionPlayer, PlayerStatus
-from app.models.game_session import GameSession
+from app.models.run_team import RunTeam, TeamStatus
+from app.models.run_player import RunPlayer, PlayerStatus
+from app.models.game_run import GameRun
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ from app.models.game_session import GameSession
 # ---------------------------------------------------------------------------
 
 def _make_player(**kw):
-    p = MagicMock(spec=SessionPlayer)
+    p = MagicMock(spec=RunPlayer)
     p.id = kw.get("id", uuid.uuid4())
     p.session_id = kw.get("session_id", uuid.uuid4())
     p.team_id = kw.get("team_id", None)
@@ -33,7 +33,7 @@ def _make_player(**kw):
 
 
 def _make_team(**kw):
-    t = MagicMock(spec=SessionTeam)
+    t = MagicMock(spec=RunTeam)
     t.id = kw.get("id", uuid.uuid4())
     t.session_id = kw.get("session_id", uuid.uuid4())
     t.status = kw.get("status", TeamStatus.WAITING)
@@ -45,7 +45,7 @@ def _make_team(**kw):
 
 
 def _make_session(**kw):
-    s = MagicMock(spec=GameSession)
+    s = MagicMock(spec=GameRun)
     s.id = kw.get("id", uuid.uuid4())
     s.max_players = kw.get("max_players", 2)
     s.allow_solo_in_team = kw.get("allow_solo_in_team", False)

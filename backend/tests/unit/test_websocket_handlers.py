@@ -9,7 +9,7 @@ from app.services.websocket_handlers import (
     handle_player_message,
     handle_teacher_message,
 )
-from app.models.session_progress import SessionProgress, ProgressStatus
+from app.models.run_progress import RunProgress, ProgressStatus
 
 
 # ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ class TestIso:
 
 class TestProgressDict:
     def _make_progress(self, **kw):
-        p = MagicMock(spec=SessionProgress)
+        p = MagicMock(spec=RunProgress)
         p.id = kw.get("id", uuid.uuid4())
         p.session_id = kw.get("session_id", uuid.uuid4())
         p.player_id = kw.get("player_id", uuid.uuid4())

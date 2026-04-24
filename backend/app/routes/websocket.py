@@ -7,11 +7,11 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models.game_session import GameSession, SessionStatus
-from app.models.session_player import PlayerStatus, SessionPlayer
+from app.models.game_run import GameRun, SessionStatus
+from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.user import UserRole
-from app.schemas.session import GameSessionResponse, SessionPlayerResponse
-from app.services.session_service import SessionService
+from app.schemas.run import GameRunResponse, RunPlayerResponse
+from app.services.run_service import RunService
 from app.services.user_service import UserService
 from app.services.websocket_handlers import (
     handle_player_message,
@@ -58,7 +58,7 @@ async def _teacher_heartbeat(sid: str) -> None:
         pass  # normal shutdown — no action needed
 
 
-def _session_dict(session: GameSession) -> dict:
+def _session_dict(session: GameRun) -> dict:
     return {
         "id": str(session.id),
         "quest_id": str(session.quest_id),
@@ -79,7 +79,7 @@ def _session_dict(session: GameSession) -> dict:
     }
 
 
-def _player_dict(player: SessionPlayer) -> dict:
+def _player_dict(player: RunPlayer) -> dict:
     return {
         "id": str(player.id),
         "display_name": player.display_name,
@@ -102,7 +102,7 @@ async def ws_player(
 
     async with AsyncSessionLocal() as db:
         # Authenticate via guest_token
-        player = await SessionService.get_player_by_token(db, guest_token)
+        player = await RunService.get_player_by_token(db, guest_token)
         if not player:
             await websocket.close(code=4001, reason="Unauthorized: invalid token")
             return
@@ -113,7 +113,7 @@ async def ws_player(
             )
             return
 
-        session = await SessionService.get_session_with_players(db, session_id)
+        session = await RunService.get_session_with_players(db, session_id)
         if not session or session.status in (
             SessionStatus.COMPLETED,
             SessionStatus.STOPPED,
@@ -130,7 +130,7 @@ async def ws_player(
         now = datetime.now(timezone.utc)
         time_expired = session.ends_at is not None and session.ends_at < now
         if not time_expired and player.started_at:
-            settings_obj = await SessionService.get_quest_settings(db, session.quest_id)
+            settings_obj = await RunService.get_quest_settings(db, session.quest_id)
             if settings_obj and settings_obj.time_limit_minutes:
                 player_ends_at = player.started_at + timedelta(
                     minutes=settings_obj.time_limit_minutes
@@ -139,7 +139,7 @@ async def ws_player(
                     time_expired = True
         already_finished = player.status == PlayerStatus.FINISHED
         if time_expired and not already_finished:
-            player = await SessionService.player_timeout(db, session_id, player)
+            player = await RunService.player_timeout(db, session_id, player)
             already_finished = True
 
     await manager.connect_player(sid, player_id, websocket)
@@ -227,7 +227,7 @@ async def ws_teacher(
             )
             return
 
-        session = await SessionService.get_session_with_players(db, session_id)
+        session = await RunService.get_session_with_players(db, session_id)
 
         if not session or session.teacher_id != user.id:
             await websocket.close(code=4002, reason="Forbidden: not your session")

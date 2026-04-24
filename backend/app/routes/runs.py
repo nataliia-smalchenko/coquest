@@ -8,30 +8,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 
-from app.models.session_player import PlayerStatus, SessionPlayer
+from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.user import User
 from app.schemas.resource import ResourceDetailPublicResponse
-from app.schemas.session import (
+from app.schemas.run import (
     GameInfoResponse,
-    GameSessionDetailResponse,
-    GameSessionResultResponse,
-    GameSessionResponse,
-    JoinSessionRequest,
+    GameRunDetailResponse,
+    GameRunResultResponse,
+    GameRunResponse,
+    JoinRunRequest,
     LeaveTeamResponse,
-    RejoinSessionRequest,
+    RejoinRunRequest,
     ReviewAnswerRequest,
-    SessionCreate,
-    SessionListItem,
-    SessionPlayerResponse,
-    SessionProgressResponse,
-    SessionProgressResultResponse,
-    SessionUpdateRequest,
+    RunCreate,
+    RunListItem,
+    RunPlayerResponse,
+    RunProgressResponse,
+    RunProgressResultResponse,
+    RunUpdateRequest,
     SubmitAnswerRequest,
     TeacherMonitorResponse,
     TeamResponse,
     UpdateGuestNameRequest,
 )
-from app.services.session_service import SessionService
+from app.services.run_service import RunService
 from app.services.team_service import TeamService
 from app.services.progress_service import ProgressService
 from app.services.websocket_manager import manager
@@ -43,7 +43,7 @@ def _iso(dt: Optional[datetime]) -> Optional[str]:
     return dt.isoformat() if dt else None
 
 
-router = APIRouter(prefix="/api/sessions", tags=["Sessions"])
+router = APIRouter(prefix="/api/runs", tags=["Runs"])
 
 _optional_bearer = HTTPBearer(auto_error=False)
 
@@ -67,13 +67,13 @@ async def _get_player_by_token(
     x_guest_token: Optional[str] = Header(None),
     guest_token: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-) -> SessionPlayer:
+) -> RunPlayer:
     token = x_guest_token or guest_token
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Guest token required"
         )
-    player = await SessionService.get_player_by_token(db, token)
+    player = await RunService.get_player_by_token(db, token)
     if not player:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid guest token"
@@ -81,56 +81,56 @@ async def _get_player_by_token(
     return player
 
 
-@router.get("/", response_model=List[SessionListItem])
+@router.get("/", response_model=List[RunListItem])
 async def list_sessions(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.list_sessions(db, teacher.id)
+    return await RunService.list_sessions(db, teacher.id)
 
 
 @router.post(
-    "/", response_model=GameSessionResponse, status_code=status.HTTP_201_CREATED
+    "/", response_model=GameRunResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_session(
-    data: SessionCreate,
+    data: RunCreate,
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.create_session(db, teacher.id, data)
+    return await RunService.create_session(db, teacher.id, data)
 
 
-@router.get("/code/{session_code}", response_model=GameSessionResponse)
+@router.get("/code/{session_code}", response_model=GameRunResponse)
 async def get_session_by_code(
     session_code: str,
     db: AsyncSession = Depends(get_db),
 ):
-    return await SessionService.get_session_by_code(db, session_code)
+    return await RunService.get_session_by_code(db, session_code)
 
 
-@router.post("/join", response_model=SessionPlayerResponse)
+@router.post("/join", response_model=RunPlayerResponse)
 async def join_session(
-    data: JoinSessionRequest,
+    data: JoinRunRequest,
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(_get_optional_user),
 ):
     user_id = current_user.id if current_user else None
-    return await SessionService.join_session(db, data, user_id)
+    return await RunService.join_session(db, data, user_id)
 
 
-@router.post("/rejoin", response_model=SessionPlayerResponse)
+@router.post("/rejoin", response_model=RunPlayerResponse)
 async def rejoin_session(
-    data: RejoinSessionRequest,
+    data: RejoinRunRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    return await SessionService.rejoin_session(db, data)
+    return await RunService.rejoin_session(db, data)
 
 
 @router.post("/{session_id}/teams/leave", response_model=LeaveTeamResponse)
 async def leave_team(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     player_resp, new_team, old_member_ids = await TeamService.leave_team(
         db, session_id, player
@@ -170,22 +170,22 @@ async def leave_team(
     return LeaveTeamResponse(player=player_resp, team=new_team)
 
 
-@router.post("/{session_id}/start", response_model=GameSessionResponse)
+@router.post("/{session_id}/start", response_model=GameRunResponse)
 async def start_session(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.start_session(db, session_id, teacher.id)
+    return await RunService.start_session(db, session_id, teacher.id)
 
 
-@router.post("/{session_id}/player-start", response_model=GameSessionResponse)
+@router.post("/{session_id}/player-start", response_model=GameRunResponse)
 async def player_start_session(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
-    result = await SessionService.player_start_session(db, session_id, player)
+    result = await RunService.player_start_session(db, session_id, player)
 
     # Broadcast session_started to all connected WebSocket clients
     sid = str(session_id)
@@ -249,7 +249,7 @@ async def get_team(
     session_id: uuid.UUID,
     team_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     return await TeamService.get_team(db, session_id, team_id, player)
 
@@ -258,7 +258,7 @@ async def get_team(
 async def get_team_step_info(
     session_id: uuid.UUID,
     team_id: uuid.UUID,
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Return current active step info for the team (hint player, active player, map object)."""
@@ -272,14 +272,14 @@ async def start_team(
     session_id: uuid.UUID,
     team_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     team = await TeamService.start_team(db, session_id, team_id, player)
 
     sid = str(session_id)
     tid = str(team_id)
 
-    session_timing = await SessionService.get_session_timing(db, session_id)
+    session_timing = await RunService.get_session_timing(db, session_id)
 
     # Get current step info for hint/active player broadcast
     step_info = await TeamService.get_team_step_info(db, session_id, team_id)
@@ -339,46 +339,46 @@ async def start_team(
 async def player_timeout(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
-    player = await SessionService.player_timeout(db, session_id, player)
+    player = await RunService.player_timeout(db, session_id, player)
     pid = str(player.id)
     sid = str(session_id)
     await manager.broadcast_to_all(sid, {"type": "player_finished", "player_id": pid})
 
 
-@router.post("/{session_id}/stop", response_model=GameSessionResponse)
+@router.post("/{session_id}/stop", response_model=GameRunResponse)
 async def stop_session(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    result = await SessionService.stop_session(db, session_id, teacher.id)
+    result = await RunService.stop_session(db, session_id, teacher.id)
     await manager.broadcast_to_all(
         str(session_id), {"type": "session_stopped", "session_id": str(session_id)}
     )
     return result
 
 
-@router.patch("/{session_id}/settings", response_model=GameSessionResponse)
+@router.patch("/{session_id}/settings", response_model=GameRunResponse)
 async def update_session_settings(
     session_id: uuid.UUID,
-    data: SessionUpdateRequest,
+    data: RunUpdateRequest,
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.update_session_settings(
+    return await RunService.update_session_settings(
         db, session_id, teacher.id, data
     )
 
 
-@router.post("/{session_id}/restart", response_model=GameSessionResponse)
+@router.post("/{session_id}/restart", response_model=GameRunResponse)
 async def restart_session(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    result = await SessionService.restart_session(db, session_id, teacher.id)
+    result = await RunService.restart_session(db, session_id, teacher.id)
     await manager.broadcast_to_all(
         str(session_id),
         {"type": "session_restarted", "session_id": str(session_id)},
@@ -392,12 +392,12 @@ async def get_teacher_monitor(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.get_teacher_monitor(db, session_id, teacher.id)
+    return await RunService.get_teacher_monitor(db, session_id, teacher.id)
 
 
 @router.get(
     "/{session_id}/players/{player_id}/progress",
-    response_model=List[SessionProgressResultResponse],
+    response_model=List[RunProgressResultResponse],
 )
 async def get_player_progress_detail(
     session_id: uuid.UUID,
@@ -410,12 +410,12 @@ async def get_player_progress_detail(
     )
 
 
-@router.post("/progress/{progress_id}/answer", response_model=SessionProgressResponse)
+@router.post("/progress/{progress_id}/answer", response_model=RunProgressResponse)
 async def submit_answer(
     progress_id: uuid.UUID,
     data: SubmitAnswerRequest,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     result, team_step_info = await ProgressService.submit_answer(
         db, progress_id, player, data
@@ -442,7 +442,7 @@ async def submit_answer(
 
         # Broadcast step advance to all team members
         if team_step_info:
-            team_players = await SessionService.get_team_players(db, player.team_id)
+            team_players = await RunService.get_team_players(db, player.team_id)
             step_event = {
                 "type": "team_step_advanced",
                 **team_step_info,
@@ -464,7 +464,7 @@ async def submit_answer(
         )
         # New resource on same map object
         if result.map_object_id:
-            new_p = await SessionService.get_next_progress_for_map_object(
+            new_p = await RunService.get_next_progress_for_map_object(
                 db, player.session_id, player.id, result.map_object_id, progress_id
             )
             if new_p:
@@ -497,11 +497,11 @@ async def submit_answer(
     return result
 
 
-@router.post("/progress/{progress_id}/viewed", response_model=SessionProgressResponse)
+@router.post("/progress/{progress_id}/viewed", response_model=RunProgressResponse)
 async def mark_text_viewed(
     progress_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     result, team_step_info, viewers = await ProgressService.mark_text_viewed(
         db, progress_id, player
@@ -511,7 +511,7 @@ async def mark_text_viewed(
 
     if player.team_id:
         # Team mode: broadcast who has viewed to all team members
-        team_players = await SessionService.get_team_players(db, player.team_id)
+        team_players = await RunService.get_team_players(db, player.team_id)
 
         viewed_event = {
             "type": "team_text_viewed",
@@ -551,7 +551,7 @@ async def mark_text_viewed(
     return result
 
 
-@router.post("/progress/{progress_id}/review", response_model=SessionProgressResponse)
+@router.post("/progress/{progress_id}/review", response_model=RunProgressResponse)
 async def review_answer(
     progress_id: uuid.UUID,
     data: ReviewAnswerRequest,
@@ -567,12 +567,12 @@ async def delete_session(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    await SessionService.delete_session(db, session_id, teacher.id)
+    await RunService.delete_session(db, session_id, teacher.id)
 
 
 @router.patch(
     "/{session_id}/players/{player_id}/guest-name",
-    response_model=SessionPlayerResponse,
+    response_model=RunPlayerResponse,
 )
 async def update_player_guest_name(
     session_id: uuid.UUID,
@@ -581,7 +581,7 @@ async def update_player_guest_name(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await SessionService.update_player_guest_name(
+    return await RunService.update_player_guest_name(
         db, session_id, player_id, teacher.id, data.guest_name
     )
 
@@ -596,7 +596,7 @@ async def delete_player(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    await SessionService.delete_player(db, session_id, player_id, teacher.id)
+    await RunService.delete_player(db, session_id, player_id, teacher.id)
 
 
 @router.get("/{session_id}/game-info", response_model=GameInfoResponse)
@@ -604,25 +604,25 @@ async def get_game_info(
     session_id: uuid.UUID,
     lang: str = Query("uk"),
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
-    return await SessionService.get_game_info(db, session_id, player, lang)
+    return await RunService.get_game_info(db, session_id, player, lang)
 
 
-@router.get("/{session_id}/my-progress", response_model=List[SessionProgressResponse])
+@router.get("/{session_id}/my-progress", response_model=List[RunProgressResponse])
 async def get_my_progress(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     return await ProgressService.get_my_progress(db, session_id, player)
 
 
-@router.get("/{session_id}/team-progress", response_model=List[SessionProgressResponse])
+@router.get("/{session_id}/team-progress", response_model=List[RunProgressResponse])
 async def get_team_progress(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     """Team mode: return all teammates' completed progress items for materials panel."""
     return await ProgressService.get_team_progress(db, session_id, player)
@@ -634,15 +634,15 @@ async def get_team_progress(
 async def get_progress_resource(
     progress_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    player: SessionPlayer = Depends(_get_player_by_token),
+    player: RunPlayer = Depends(_get_player_by_token),
 ):
     return await ProgressService.get_progress_resource(db, progress_id, player)
 
 
-@router.get("/{session_id}/results", response_model=GameSessionResultResponse)
+@router.get("/{session_id}/results", response_model=GameRunResultResponse)
 async def get_session_results(
     session_id: uuid.UUID,
     guest_token: str = Query(...),
     db: AsyncSession = Depends(get_db),
 ):
-    return await SessionService.get_session_results(db, session_id, guest_token)
+    return await RunService.get_session_results(db, session_id, guest_token)

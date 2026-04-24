@@ -10,35 +10,35 @@ from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.game_session import GameSession, SessionStatus
+from app.models.game_run import GameRun, SessionStatus
 from app.models.map import MapObject
 from app.models.quest import Quest, QuestSettings, QuestTranslation
 from app.models.resource import Resource
-from app.models.session_chat import SessionChat
-from app.models.session_player import PlayerStatus, SessionPlayer
-from app.models.session_progress import ProgressStatus, SessionProgress
-from app.models.session_team import SessionTeam, TeamStatus
+from app.models.run_chat import RunChat
+from app.models.run_player import PlayerStatus, RunPlayer
+from app.models.run_progress import ProgressStatus, RunProgress
+from app.models.run_team import RunTeam, TeamStatus
 from app.models.user import User
 from app.config import settings
-from app.schemas.session import (
+from app.schemas.run import (
     GameInfoResponse,
-    GameSessionDetailResponse,
-    GameSessionResponse,
-    GameSessionResultResponse,
-    JoinSessionRequest,
+    GameRunDetailResponse,
+    GameRunResponse,
+    GameRunResultResponse,
+    JoinRunRequest,
     LeaveTeamResponse,
     PlayerProgressSummary,
     QuestionResultData,
     QuestionResultOption,
-    SessionChatMessage,
-    SessionCreate,
-    SessionListItem,
-    SessionPlayerResponse,
-    SessionProgressResponse,
-    SessionProgressResultResponse,
-    SessionSettingsPublic,
-    SessionUpdateRequest,
-    RejoinSessionRequest,
+    RunChatMessage,
+    RunCreate,
+    RunListItem,
+    RunPlayerResponse,
+    RunProgressResponse,
+    RunProgressResultResponse,
+    RunSettingsPublic,
+    RunUpdateRequest,
+    RejoinRunRequest,
     ReviewAnswerRequest,
     SubmitAnswerRequest,
     TeacherMonitorResponse,
@@ -62,7 +62,7 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-async def _maybe_expire_session(db: AsyncSession, session: GameSession) -> bool:
+async def _maybe_expire_session(db: AsyncSession, session: GameRun) -> bool:
     """Auto-stop a session if ends_at has passed. Returns True if the session was expired."""
     if session.status != SessionStatus.ACTIVE or session.ends_at is None:
         return False
@@ -80,8 +80,8 @@ async def _maybe_expire_session(db: AsyncSession, session: GameSession) -> bool:
     return True
 
 
-def _player_response(player: SessionPlayer) -> SessionPlayerResponse:
-    return SessionPlayerResponse(
+def _player_response(player: RunPlayer) -> RunPlayerResponse:
+    return RunPlayerResponse(
         id=player.id,
         session_id=player.session_id,
         user_id=player.user_id,
@@ -97,8 +97,8 @@ def _player_response(player: SessionPlayer) -> SessionPlayerResponse:
     )
 
 
-def _session_response(session: GameSession) -> GameSessionResponse:
-    return GameSessionResponse(
+def _session_response(session: GameRun) -> GameRunResponse:
+    return GameRunResponse(
         id=session.id,
         quest_id=session.quest_id,
         session_code=session.session_code,
@@ -120,11 +120,11 @@ def _session_response(session: GameSession) -> GameSessionResponse:
     )
 
 
-async def _load_session(db: AsyncSession, session_id: uuid.UUID) -> GameSession:
+async def _load_session(db: AsyncSession, session_id: uuid.UUID) -> GameRun:
     result = await db.execute(
-        select(GameSession)
-        .where(GameSession.id == session_id)
-        .options(selectinload(GameSession.players))
+        select(GameRun)
+        .where(GameRun.id == session_id)
+        .options(selectinload(GameRun.players))
     )
     session = result.scalar_one_or_none()
     if not session:
@@ -136,7 +136,7 @@ async def _load_session(db: AsyncSession, session_id: uuid.UUID) -> GameSession:
 
 async def _load_own_session(
     db: AsyncSession, session_id: uuid.UUID, teacher_id: uuid.UUID
-) -> GameSession:
+) -> GameRun:
     session = await _load_session(db, session_id)
     if session.teacher_id != teacher_id:
         raise HTTPException(
@@ -145,25 +145,25 @@ async def _load_own_session(
     return session
 
 
-class SessionService:
+class RunService:
     @staticmethod
     async def get_player_by_token(
         db: AsyncSession, token: str
-    ) -> Optional[SessionPlayer]:
+    ) -> Optional[RunPlayer]:
         result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.guest_token == token)
+            select(RunPlayer).where(RunPlayer.guest_token == token)
         )
         return result.scalar_one_or_none()
 
     @staticmethod
     async def list_sessions(
         db: AsyncSession, teacher_id: uuid.UUID
-    ) -> List[SessionListItem]:
+    ) -> List[RunListItem]:
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.teacher_id == teacher_id)
-            .options(selectinload(GameSession.players))
-            .order_by(GameSession.created_at.desc())
+            select(GameRun)
+            .where(GameRun.teacher_id == teacher_id)
+            .options(selectinload(GameRun.players))
+            .order_by(GameRun.created_at.desc())
         )
         sessions = result.scalars().all()
         expired_any = False
@@ -173,7 +173,7 @@ class SessionService:
         if expired_any:
             await db.commit()
         return [
-            SessionListItem(
+            RunListItem(
                 id=s.id,
                 quest_id=s.quest_id,
                 session_code=s.session_code,
@@ -191,8 +191,8 @@ class SessionService:
 
     @staticmethod
     async def create_session(
-        db: AsyncSession, teacher_id: uuid.UUID, data: SessionCreate
-    ) -> GameSessionResponse:
+        db: AsyncSession, teacher_id: uuid.UUID, data: RunCreate
+    ) -> GameRunResponse:
         quest_result = await db.execute(
             select(Quest).where(
                 Quest.id == data.quest_id, Quest.teacher_id == teacher_id
@@ -216,7 +216,7 @@ class SessionService:
                 random.choices(string.ascii_uppercase + string.digits, k=6)
             )
             exists = await db.execute(
-                select(GameSession.id).where(GameSession.session_code == candidate)
+                select(GameRun.id).where(GameRun.session_code == candidate)
             )
             if not exists.scalar_one_or_none():
                 code = candidate
@@ -242,7 +242,7 @@ class SessionService:
         sess_status = (
             SessionStatus.SCHEDULED if data.scheduled_at else SessionStatus.WAITING
         )
-        session = GameSession(
+        session = GameRun(
             quest_id=data.quest_id,
             teacher_id=teacher_id,
             session_code=code,
@@ -263,20 +263,20 @@ class SessionService:
         await db.commit()
 
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session.id)
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.id == session.id)
+            .options(selectinload(GameRun.players))
         )
         return _session_response(result.scalar_one())
 
     @staticmethod
     async def get_session_by_code(
         db: AsyncSession, session_code: str
-    ) -> GameSessionResponse:
+    ) -> GameRunResponse:
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.session_code == session_code.upper())
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.session_code == session_code.upper())
+            .options(selectinload(GameRun.players))
         )
         session = result.scalar_one_or_none()
         if not session:
@@ -288,15 +288,15 @@ class SessionService:
     @staticmethod
     async def join_session(
         db: AsyncSession,
-        data: JoinSessionRequest,
+        data: JoinRunRequest,
         user_id: Optional[uuid.UUID],
-    ) -> SessionPlayerResponse:
+    ) -> RunPlayerResponse:
         from app.services.team_service import _cleanup_stale_teams, _find_or_create_team
 
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.session_code == data.session_code.upper())
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.session_code == data.session_code.upper())
+            .options(selectinload(GameRun.players))
         )
         session = result.scalar_one_or_none()
         if not session:
@@ -338,7 +338,7 @@ class SessionService:
             random.choice(available) if available else random.choice(AVATAR_COLORS)
         )
 
-        player = SessionPlayer(
+        player = RunPlayer(
             session_id=session.id,
             user_id=user_id,
             guest_name=data.guest_name,
@@ -362,8 +362,8 @@ class SessionService:
 
     @staticmethod
     async def rejoin_session(
-        db: AsyncSession, data: RejoinSessionRequest
-    ) -> SessionPlayerResponse:
+        db: AsyncSession, data: RejoinRunRequest
+    ) -> RunPlayerResponse:
         """Look up an existing player by token and session code, reassigning their team if needed."""
         from app.services.team_service import (
             _cleanup_stale_teams,
@@ -371,9 +371,9 @@ class SessionService:
         )
 
         sess_result = await db.execute(
-            select(GameSession)
-            .where(GameSession.session_code == data.session_code.upper())
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.session_code == data.session_code.upper())
+            .options(selectinload(GameRun.players))
         )
         session = sess_result.scalar_one_or_none()
         if not session:
@@ -382,9 +382,9 @@ class SessionService:
             )
 
         player_result = await db.execute(
-            select(SessionPlayer).where(
-                SessionPlayer.guest_token == data.guest_token,
-                SessionPlayer.session_id == session.id,
+            select(RunPlayer).where(
+                RunPlayer.guest_token == data.guest_token,
+                RunPlayer.session_id == session.id,
             )
         )
         player = player_result.scalar_one_or_none()
@@ -404,7 +404,7 @@ class SessionService:
         # WAITING player: check if their team has started
         if player.team_id and session.max_players > 1:
             team_result = await db.execute(
-                select(SessionTeam).where(SessionTeam.id == player.team_id)
+                select(RunTeam).where(RunTeam.id == player.team_id)
             )
             team = team_result.scalar_one_or_none()
             if team is None or team.status != TeamStatus.WAITING:
@@ -426,7 +426,7 @@ class SessionService:
     @staticmethod
     async def start_session(
         db: AsyncSession, session_id: uuid.UUID, teacher_id: uuid.UUID
-    ) -> GameSessionResponse:
+    ) -> GameRunResponse:
         session = await _load_own_session(db, session_id, teacher_id)
         if session.status not in (SessionStatus.WAITING, SessionStatus.SCHEDULED):
             raise HTTPException(
@@ -434,7 +434,7 @@ class SessionService:
                 detail="Session must be WAITING or SCHEDULED to start",
             )
 
-        await SessionService._distribute_resources(db, session)
+        await RunService._distribute_resources(db, session)
 
         now = _now()
         session.status = SessionStatus.ACTIVE
@@ -448,16 +448,16 @@ class SessionService:
         await db.commit()
 
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session.id)
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.id == session.id)
+            .options(selectinload(GameRun.players))
         )
         return _session_response(result.scalar_one())
 
     @staticmethod
     async def player_start_session(
-        db: AsyncSession, session_id: uuid.UUID, player: SessionPlayer
-    ) -> GameSessionResponse:
+        db: AsyncSession, session_id: uuid.UUID, player: RunPlayer
+    ) -> GameRunResponse:
         """Solo mode: start this player's quest. Distributes resources only for the requesting player."""
         if player.session_id != session_id:
             raise HTTPException(
@@ -475,7 +475,7 @@ class SessionService:
                 detail="Session is not active",
             )
 
-        await SessionService._distribute_resources_for_player(db, session, player)
+        await RunService._distribute_resources_for_player(db, session, player)
 
         now = _now()
         if session.status != SessionStatus.ACTIVE:
@@ -487,14 +487,14 @@ class SessionService:
         await db.commit()
 
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session.id)
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.id == session.id)
+            .options(selectinload(GameRun.players))
         )
         return _session_response(result.scalar_one())
 
     @staticmethod
-    async def _distribute_resources(db: AsyncSession, session: GameSession) -> None:
+    async def _distribute_resources(db: AsyncSession, session: GameRun) -> None:
         quest_result = await db.execute(
             select(Quest)
             .where(Quest.id == session.quest_id)
@@ -533,7 +533,7 @@ class SessionService:
             )
             for i, qr in enumerate(player_resources):
                 db.add(
-                    SessionProgress(
+                    RunProgress(
                         session_id=session.id,
                         player_id=player.id,
                         resource_id=qr.resource_id,
@@ -546,7 +546,7 @@ class SessionService:
 
     @staticmethod
     async def _distribute_resources_for_player(
-        db: AsyncSession, session: GameSession, player: SessionPlayer
+        db: AsyncSession, session: GameRun, player: RunPlayer
     ) -> None:
         """Solo mode: give all quest resources to one player."""
         quest_result = await db.execute(
@@ -573,7 +573,7 @@ class SessionService:
         first_obj = random.choice(interactive_objects) if interactive_objects else None
         for i, qr in enumerate(resources):
             db.add(
-                SessionProgress(
+                RunProgress(
                     session_id=session.id,
                     player_id=player.id,
                     resource_id=qr.resource_id,
@@ -585,7 +585,7 @@ class SessionService:
 
     @staticmethod
     async def _distribute_resources_for_team(
-        db: AsyncSession, session: GameSession, team: SessionTeam
+        db: AsyncSession, session: GameRun, team: RunTeam
     ) -> None:
         """Team mode: texts go to ALL players, questions balanced by points among players."""
         quest_result = await db.execute(
@@ -649,7 +649,7 @@ class SessionService:
             if res.type == "text":
                 for player in players:
                     db.add(
-                        SessionProgress(
+                        RunProgress(
                             session_id=session.id,
                             team_id=team.id,
                             player_id=player.id,
@@ -663,7 +663,7 @@ class SessionService:
                 assigned_pid = question_assignment.get(step_order)
                 if assigned_pid:
                     db.add(
-                        SessionProgress(
+                        RunProgress(
                             session_id=session.id,
                             team_id=team.id,
                             player_id=assigned_pid,
@@ -690,8 +690,8 @@ class SessionService:
 
     @staticmethod
     async def player_timeout(
-        db: AsyncSession, session_id: uuid.UUID, player: SessionPlayer
-    ) -> SessionPlayer:
+        db: AsyncSession, session_id: uuid.UUID, player: RunPlayer
+    ) -> RunPlayer:
         """Mark a player FINISHED due to time limit expiry.
 
         Idempotent — safe to call even if the player is already FINISHED.
@@ -716,7 +716,7 @@ class SessionService:
     @staticmethod
     async def stop_session(
         db: AsyncSession, session_id: uuid.UUID, teacher_id: uuid.UUID
-    ) -> GameSessionResponse:
+    ) -> GameRunResponse:
         session = await _load_own_session(db, session_id, teacher_id)
         now = _now()
         session.status = SessionStatus.STOPPED
@@ -731,20 +731,20 @@ class SessionService:
         await db.commit()
 
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session.id)
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.id == session.id)
+            .options(selectinload(GameRun.players))
         )
         return _session_response(result.scalar_one())
 
     @staticmethod
     async def get_session_results(
         db: AsyncSession, session_id: uuid.UUID, guest_token: str
-    ) -> GameSessionResultResponse:
+    ) -> GameRunResultResponse:
         player_result = await db.execute(
-            select(SessionPlayer).where(
-                SessionPlayer.guest_token == guest_token,
-                SessionPlayer.session_id == session_id,
+            select(RunPlayer).where(
+                RunPlayer.guest_token == guest_token,
+                RunPlayer.session_id == session_id,
             )
         )
         player = player_result.scalar_one_or_none()
@@ -754,7 +754,7 @@ class SessionService:
             )
         now = _now()
         session_for_check_result = await db.execute(
-            select(GameSession).where(GameSession.id == session_id)
+            select(GameRun).where(GameRun.id == session_id)
         )
         session_for_check = session_for_check_result.scalar_one_or_none()
         time_expired = False
@@ -799,15 +799,15 @@ class SessionService:
             await db.flush()
 
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
+            select(GameRun)
+            .where(GameRun.id == session_id)
             .options(
-                selectinload(GameSession.players),
-                selectinload(GameSession.progress)
-                .selectinload(SessionProgress.resource)
+                selectinload(GameRun.players),
+                selectinload(GameRun.progress)
+                .selectinload(RunProgress.resource)
                 .selectinload(Resource.question),
-                selectinload(GameSession.chat_messages).selectinload(
-                    SessionChat.player
+                selectinload(GameRun.chat_messages).selectinload(
+                    RunChat.player
                 ),
             )
         )
@@ -815,7 +815,7 @@ class SessionService:
         show_correct = session.show_correct_answers
 
         chat_messages = [
-            SessionChatMessage(
+            RunChatMessage(
                 id=m.id,
                 session_id=m.session_id,
                 player_id=m.player_id,
@@ -826,7 +826,7 @@ class SessionService:
             for m in session.chat_messages
         ]
 
-        enriched_progress: List[SessionProgressResultResponse] = []
+        enriched_progress: List[RunProgressResultResponse] = []
         for p in session.progress:
             question_data: Optional[QuestionResultData] = None
             resource_title: Optional[str] = None
@@ -855,8 +855,8 @@ class SessionService:
                     points=q.points if hasattr(q, "points") else 1,
                 )
             enriched_progress.append(
-                SessionProgressResultResponse(
-                    **SessionProgressResponse.model_validate(p).model_dump(),
+                RunProgressResultResponse(
+                    **RunProgressResponse.model_validate(p).model_dump(),
                     resource_title=resource_title,
                     question=question_data,
                 )
@@ -879,7 +879,7 @@ class SessionService:
                 seen_resource_ids.add(p.resource_id)
                 total_question_points += p.resource.question.points
 
-        return GameSessionResultResponse(
+        return GameRunResultResponse(
             id=session.id,
             quest_id=session.quest_id,
             session_code=session.session_code,
@@ -923,7 +923,7 @@ class SessionService:
         )
 
         progress_result = await db.execute(
-            select(SessionProgress).where(SessionProgress.session_id == session_id)
+            select(RunProgress).where(RunProgress.session_id == session_id)
         )
         all_progress = list(progress_result.scalars().all())
 
@@ -1039,24 +1039,24 @@ class SessionService:
         db: AsyncSession,
         session_id: uuid.UUID,
         teacher_id: uuid.UUID,
-        data: SessionUpdateRequest,
-    ) -> GameSessionResponse:
+        data: RunUpdateRequest,
+    ) -> GameRunResponse:
         session = await _load_own_session(db, session_id, teacher_id)
         update = data.model_dump(exclude_unset=True)
         for field, value in update.items():
             setattr(session, field, value)
         await db.commit()
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session.id)
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.id == session.id)
+            .options(selectinload(GameRun.players))
         )
         return _session_response(result.scalar_one())
 
     @staticmethod
     async def restart_session(
         db: AsyncSession, session_id: uuid.UUID, teacher_id: uuid.UUID
-    ) -> GameSessionResponse:
+    ) -> GameRunResponse:
         session = await _load_own_session(db, session_id, teacher_id)
         if session.status not in (SessionStatus.STOPPED, SessionStatus.COMPLETED):
             raise HTTPException(
@@ -1070,27 +1070,27 @@ class SessionService:
 
         if non_finished_ids:
             await db.execute(
-                sa_delete(SessionProgress).where(
-                    SessionProgress.player_id.in_(non_finished_ids)
+                sa_delete(RunProgress).where(
+                    RunProgress.player_id.in_(non_finished_ids)
                 )
             )
 
         teams_result = await db.execute(
-            select(SessionTeam).where(SessionTeam.session_id == session_id)
+            select(RunTeam).where(RunTeam.session_id == session_id)
         )
         for team in teams_result.scalars().all():
             team.hint_player_id = None
         await db.flush()
 
         await db.execute(
-            sa_delete(SessionTeam).where(SessionTeam.session_id == session_id)
+            sa_delete(RunTeam).where(RunTeam.session_id == session_id)
         )
         await db.flush()
 
         db.expire_all()
 
         players_result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.session_id == session_id)
+            select(RunPlayer).where(RunPlayer.session_id == session_id)
         )
         players = players_result.scalars().all()
 
@@ -1107,9 +1107,9 @@ class SessionService:
 
         await db.commit()
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.id == session_id)
+            .options(selectinload(GameRun.players))
         )
         return _session_response(result.scalar_one())
 
@@ -1117,7 +1117,7 @@ class SessionService:
     async def get_game_info(
         db: AsyncSession,
         session_id: uuid.UUID,
-        player: SessionPlayer,
+        player: RunPlayer,
         lang: str = "uk",
     ) -> GameInfoResponse:
         from app.models.quest import Quest, QuestSettings
@@ -1129,12 +1129,12 @@ class SessionService:
             )
 
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
+            select(GameRun)
+            .where(GameRun.id == session_id)
             .options(
-                selectinload(GameSession.quest).selectinload(Quest.translations),
-                selectinload(GameSession.quest).selectinload(Quest.settings),
-                selectinload(GameSession.quest).selectinload(Quest.map),
+                selectinload(GameRun.quest).selectinload(Quest.translations),
+                selectinload(GameRun.quest).selectinload(Quest.settings),
+                selectinload(GameRun.quest).selectinload(Quest.map),
             )
         )
         session = result.scalar_one_or_none()
@@ -1151,7 +1151,7 @@ class SessionService:
         map_slug = quest.map.slug if quest.map else None
 
         quest_settings = quest.settings
-        settings_obj = SessionSettingsPublic(
+        settings_obj = RunSettingsPublic(
             time_limit_minutes=quest_settings.time_limit_minutes
             if quest_settings
             else None,
@@ -1172,13 +1172,13 @@ class SessionService:
         player_id: uuid.UUID,
         teacher_id: uuid.UUID,
         new_guest_name: Optional[str],
-    ) -> SessionPlayerResponse:
+    ) -> RunPlayerResponse:
         await _load_own_session(db, session_id, teacher_id)
 
         player_result = await db.execute(
-            select(SessionPlayer).where(
-                SessionPlayer.id == player_id,
-                SessionPlayer.session_id == session_id,
+            select(RunPlayer).where(
+                RunPlayer.id == player_id,
+                RunPlayer.session_id == session_id,
             )
         )
         player = player_result.scalar_one_or_none()
@@ -1222,9 +1222,9 @@ class SessionService:
     ) -> None:
         await _load_own_session(db, session_id, teacher_id)
         player_result = await db.execute(
-            select(SessionPlayer).where(
-                SessionPlayer.id == player_id,
-                SessionPlayer.session_id == session_id,
+            select(RunPlayer).where(
+                RunPlayer.id == player_id,
+                RunPlayer.session_id == session_id,
             )
         )
         player = player_result.scalar_one_or_none()
@@ -1234,10 +1234,10 @@ class SessionService:
             )
 
         await db.execute(
-            sa_delete(SessionProgress).where(SessionProgress.player_id == player_id)
+            sa_delete(RunProgress).where(RunProgress.player_id == player_id)
         )
         await db.execute(
-            sa_delete(SessionChat).where(SessionChat.player_id == player_id)
+            sa_delete(RunChat).where(RunChat.player_id == player_id)
         )
         await db.delete(player)
         await db.commit()
@@ -1246,12 +1246,12 @@ class SessionService:
     @staticmethod
     async def get_session_with_players(
         db: AsyncSession, session_id: uuid.UUID
-    ) -> Optional[GameSession]:
+    ) -> Optional[GameRun]:
         """Load a session with its players eagerly, returning None if not found."""
         result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
+            select(GameRun)
+            .where(GameRun.id == session_id)
+            .options(selectinload(GameRun.players))
         )
         return result.scalar_one_or_none()
 
@@ -1269,7 +1269,7 @@ class SessionService:
     async def get_session_timing(db: AsyncSession, session_id: uuid.UUID) -> dict:
         """Return started_at / ends_at for a session as ISO strings."""
         result = await db.execute(
-            select(GameSession).where(GameSession.id == session_id)
+            select(GameRun).where(GameRun.id == session_id)
         )
         session = result.scalar_one_or_none()
         return {
@@ -1283,9 +1283,9 @@ class SessionService:
 
     @staticmethod
     async def get_team_players(db: AsyncSession, team_id: uuid.UUID) -> list:
-        """Return all SessionPlayer rows that belong to a team."""
+        """Return all RunPlayer rows that belong to a team."""
         result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.team_id == team_id)
+            select(RunPlayer).where(RunPlayer.team_id == team_id)
         )
         return list(result.scalars().all())
 
@@ -1296,18 +1296,18 @@ class SessionService:
         player_id: uuid.UUID,
         map_object_id: uuid.UUID,
         exclude_progress_id: uuid.UUID,
-    ) -> "SessionProgress | None":
+    ) -> "RunProgress | None":
         """Return the most recently assigned progress on a map object for a
         player, excluding the progress item that was just answered."""
         result = await db.execute(
-            select(SessionProgress)
+            select(RunProgress)
             .where(
-                SessionProgress.session_id == session_id,
-                SessionProgress.player_id == player_id,
-                SessionProgress.map_object_id == map_object_id,
-                SessionProgress.id != exclude_progress_id,
+                RunProgress.session_id == session_id,
+                RunProgress.player_id == player_id,
+                RunProgress.map_object_id == map_object_id,
+                RunProgress.id != exclude_progress_id,
             )
-            .order_by(SessionProgress.assigned_at.desc())
+            .order_by(RunProgress.assigned_at.desc())
             .limit(1)
         )
         return result.scalar_one_or_none()

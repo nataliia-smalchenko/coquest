@@ -5,7 +5,7 @@ from httpx import AsyncClient
 async def test_create_and_list_sessions(client: AsyncClient, teacher_headers: dict, db_quest):
     # Create the session
     create = await client.post(
-        "/api/sessions/",
+        "/api/runs/",
         json={
             "quest_id": str(db_quest.id),
             "max_players": 1,
@@ -21,7 +21,7 @@ async def test_create_and_list_sessions(client: AsyncClient, teacher_headers: di
     session_code = data["session_code"]
     
     # List sessions
-    list_resp = await client.get("/api/sessions/", headers=teacher_headers)
+    list_resp = await client.get("/api/runs/", headers=teacher_headers)
     assert list_resp.status_code == 200
     sessions = list_resp.json()
     assert len(sessions) >= 1
@@ -31,7 +31,7 @@ async def test_create_and_list_sessions(client: AsyncClient, teacher_headers: di
 async def test_join_session_as_guest(client: AsyncClient, teacher_headers: dict, db_quest):
     # Teacher creates session
     create = await client.post(
-        "/api/sessions/",
+        "/api/runs/",
         json={"quest_id": str(db_quest.id), "max_players": 1},
         headers=teacher_headers
     )
@@ -39,7 +39,7 @@ async def test_join_session_as_guest(client: AsyncClient, teacher_headers: dict,
 
     # Student joins via code
     join = await client.post(
-        "/api/sessions/join",
+        "/api/runs/join",
         json={"session_code": session_code, "guest_name": "TestGuest"}
     )
     assert join.status_code == 200
@@ -48,7 +48,7 @@ async def test_join_session_as_guest(client: AsyncClient, teacher_headers: dict,
     assert "guest_token" in player_data
     
     # Check that player cannot use the teacher endpoints
-    list_resp = await client.get("/api/sessions/", headers={"Authorization": f"Bearer {player_data['guest_token']}"})
+    list_resp = await client.get("/api/runs/", headers={"Authorization": f"Bearer {player_data['guest_token']}"})
     # Since guest_token is not a JWT, it will be 401 unauthenticated for the teacher endpoint
     assert list_resp.status_code in [401, 403]
 
@@ -56,7 +56,7 @@ async def test_join_session_as_guest(client: AsyncClient, teacher_headers: dict,
 async def test_rejoin_session(client: AsyncClient, teacher_headers: dict, db_quest):
     # Teacher creates session
     create = await client.post(
-        "/api/sessions/",
+        "/api/runs/",
         json={"quest_id": str(db_quest.id), "max_players": 1},
         headers=teacher_headers
     )
@@ -64,14 +64,14 @@ async def test_rejoin_session(client: AsyncClient, teacher_headers: dict, db_que
 
     # Join
     join = await client.post(
-        "/api/sessions/join",
+        "/api/runs/join",
         json={"session_code": session_code, "guest_name": "Rejoiner"}
     )
     token = join.json()["guest_token"]
     
     # Rejoin
     rejoin = await client.post(
-        "/api/sessions/rejoin",
+        "/api/runs/rejoin",
         json={"session_code": session_code, "guest_token": token}
     )
     assert rejoin.status_code == 200
@@ -80,40 +80,40 @@ async def test_rejoin_session(client: AsyncClient, teacher_headers: dict, db_que
 @pytest.mark.asyncio
 async def test_start_session(client: AsyncClient, teacher_headers: dict, db_quest):
     # Create
-    create = await client.post("/api/sessions/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
+    create = await client.post("/api/runs/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
     session_id = create.json()["id"]
 
     # Start
-    start = await client.post(f"/api/sessions/{session_id}/start", headers=teacher_headers)
+    start = await client.post(f"/api/runs/{session_id}/start", headers=teacher_headers)
     assert start.status_code == 200
     assert start.json()["status"] == "active"
     assert start.json()["started_at"] is not None
 
 @pytest.mark.asyncio
 async def test_player_start_session(client: AsyncClient, teacher_headers: dict, db_quest):
-    create = await client.post("/api/sessions/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
+    create = await client.post("/api/runs/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
     session_id = create.json()["id"]
     code = create.json()["session_code"]
 
     # Player joins
-    join = await client.post("/api/sessions/join", json={"session_code": code, "guest_name": "P1"})
+    join = await client.post("/api/runs/join", json={"session_code": code, "guest_name": "P1"})
     token = join.json()["guest_token"]
 
     # Teacher starts session
-    await client.post(f"/api/sessions/{session_id}/start", headers=teacher_headers)
+    await client.post(f"/api/runs/{session_id}/start", headers=teacher_headers)
 
     # Player calls player-start
     # They should send the guest_token in headers as x-guest-token or query param
-    p_start = await client.post(f"/api/sessions/{session_id}/player-start", headers={"x-guest-token": token})
+    p_start = await client.post(f"/api/runs/{session_id}/player-start", headers={"x-guest-token": token})
     assert p_start.status_code == 200
     
 @pytest.mark.asyncio
 async def test_teacher_monitor(client: AsyncClient, teacher_headers: dict, db_quest):
-    create = await client.post("/api/sessions/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
+    create = await client.post("/api/runs/", json={"quest_id": str(db_quest.id), "max_players": 1}, headers=teacher_headers)
     session_id = create.json()["id"]
 
     # Call monitor
-    monitor = await client.get(f"/api/sessions/{session_id}/monitor", headers=teacher_headers)
+    monitor = await client.get(f"/api/runs/{session_id}/monitor", headers=teacher_headers)
     assert monitor.status_code == 200
     assert "session" in monitor.json()
     assert "players_progress" in monitor.json()

@@ -293,7 +293,7 @@ async def ws_session_and_player(
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         teacher_headers = {"Authorization": f"Bearer {ws_teacher_token}"}
         create = await client.post(
-            "/api/sessions/",
+            "/api/runs/",
             json={"quest_id": str(ws_quest.id), "max_players": 1},
             headers=teacher_headers,
         )
@@ -301,7 +301,7 @@ async def ws_session_and_player(
         session_data = create.json()
 
         join = await client.post(
-            "/api/sessions/join",
+            "/api/runs/join",
             json={
                 "session_code": session_data["session_code"],
                 "guest_name": "WSPlayer",

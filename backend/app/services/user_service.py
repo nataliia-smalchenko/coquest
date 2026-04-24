@@ -31,7 +31,7 @@ class UserService:
 
         if not bypass_checks and user.role == UserRole.TEACHER and new_role == UserRole.STUDENT:
             # Lazy imports to avoid circular dependencies at module load time.
-            from app.models.game_session import GameSession
+            from app.models.game_run import GameRun
             from app.models.quest import Quest
             from app.models.resource import Resource
 
@@ -42,8 +42,8 @@ class UserService:
                 select(func.count(Quest.id)).where(Quest.teacher_id == user.id)
             )
             has_sessions = await db.scalar(
-                select(func.count(GameSession.id)).where(
-                    GameSession.teacher_id == user.id
+                select(func.count(GameRun.id)).where(
+                    GameRun.teacher_id == user.id
                 )
             )
             if has_resources or has_quests or has_sessions:

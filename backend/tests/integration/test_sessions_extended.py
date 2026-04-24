@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 
 async def _create_session(client, teacher_headers, quest_id, max_players=1, **extra):
     resp = await client.post(
-        "/api/sessions/",
+        "/api/runs/",
         json={"quest_id": str(quest_id), "max_players": max_players, **extra},
         headers=teacher_headers,
     )
@@ -20,7 +20,7 @@ async def _create_session(client, teacher_headers, quest_id, max_players=1, **ex
 
 async def _join_session(client, session_code, guest_name="Tester"):
     resp = await client.post(
-        "/api/sessions/join",
+        "/api/runs/join",
         json={"session_code": session_code, "guest_name": guest_name},
     )
     assert resp.status_code == 200, resp.text
@@ -36,7 +36,7 @@ async def test_get_session_by_code(client: AsyncClient, teacher_headers, db_ques
     session = await _create_session(client, teacher_headers, db_quest.id)
     code = session["session_code"]
 
-    resp = await client.get(f"/api/sessions/code/{code}")
+    resp = await client.get(f"/api/runs/code/{code}")
     assert resp.status_code == 200
     assert resp.json()["session_code"] == code
 
@@ -46,13 +46,13 @@ async def test_get_session_by_code_lowercase(client: AsyncClient, teacher_header
     session = await _create_session(client, teacher_headers, db_quest.id)
     code = session["session_code"].lower()
 
-    resp = await client.get(f"/api/sessions/code/{code}")
+    resp = await client.get(f"/api/runs/code/{code}")
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_get_session_by_code_not_found(client: AsyncClient):
-    resp = await client.get("/api/sessions/code/XXXXXX")
+    resp = await client.get("/api/runs/code/XXXXXX")
     assert resp.status_code == 404
 
 
@@ -62,11 +62,11 @@ async def test_get_session_by_code_not_found(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_stop_session(client: AsyncClient, teacher_headers, db_quest):
-    with patch("app.routes.sessions.manager.broadcast_to_all", new_callable=AsyncMock):
+    with patch("app.routes.runs.manager.broadcast_to_all", new_callable=AsyncMock):
         session = await _create_session(client, teacher_headers, db_quest.id)
         sid = session["id"]
 
-        resp = await client.post(f"/api/sessions/{sid}/stop", headers=teacher_headers)
+        resp = await client.post(f"/api/runs/{sid}/stop", headers=teacher_headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "stopped"
 
@@ -75,7 +75,7 @@ async def test_stop_session(client: AsyncClient, teacher_headers, db_quest):
 async def test_stop_session_unauthorized(client: AsyncClient, db_quest, teacher_headers):
     session = await _create_session(client, teacher_headers, db_quest.id)
     sid = session["id"]
-    resp = await client.post(f"/api/sessions/{sid}/stop")
+    resp = await client.post(f"/api/runs/{sid}/stop")
     assert resp.status_code == 401
 
 
@@ -89,7 +89,7 @@ async def test_update_session_settings(client: AsyncClient, teacher_headers, db_
     sid = session["id"]
 
     resp = await client.patch(
-        f"/api/sessions/{sid}/settings",
+        f"/api/runs/{sid}/settings",
         json={"show_feedback_after_answer": False, "show_score_after": False},
         headers=teacher_headers,
     )
@@ -127,7 +127,7 @@ async def test_update_settings_wrong_teacher(
     other_headers = {"Authorization": f"Bearer {token}"}
 
     resp = await client.patch(
-        f"/api/sessions/{sid}/settings",
+        f"/api/runs/{sid}/settings",
         json={"max_players": 4},
         headers=other_headers,
     )
@@ -140,15 +140,15 @@ async def test_update_settings_wrong_teacher(
 
 @pytest.mark.asyncio
 async def test_restart_session(client: AsyncClient, teacher_headers, db_quest):
-    with patch("app.routes.sessions.manager.broadcast_to_all", new_callable=AsyncMock):
+    with patch("app.routes.runs.manager.broadcast_to_all", new_callable=AsyncMock):
         session = await _create_session(client, teacher_headers, db_quest.id)
         sid = session["id"]
 
         # Stop it first
-        await client.post(f"/api/sessions/{sid}/stop", headers=teacher_headers)
+        await client.post(f"/api/runs/{sid}/stop", headers=teacher_headers)
 
         # Restart
-        resp = await client.post(f"/api/sessions/{sid}/restart", headers=teacher_headers)
+        resp = await client.post(f"/api/runs/{sid}/restart", headers=teacher_headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "waiting"
 
@@ -162,11 +162,11 @@ async def test_delete_session(client: AsyncClient, teacher_headers, db_quest):
     session = await _create_session(client, teacher_headers, db_quest.id)
     sid = session["id"]
 
-    resp = await client.delete(f"/api/sessions/{sid}", headers=teacher_headers)
+    resp = await client.delete(f"/api/runs/{sid}", headers=teacher_headers)
     assert resp.status_code == 204
 
     # Verify it's gone
-    list_resp = await client.get("/api/sessions/", headers=teacher_headers)
+    list_resp = await client.get("/api/runs/", headers=teacher_headers)
     ids = [s["id"] for s in list_resp.json()]
     assert sid not in ids
 
@@ -177,9 +177,9 @@ async def test_delete_active_session_blocked(client: AsyncClient, teacher_header
     sid = session["id"]
 
     # Start the session to make it ACTIVE
-    await client.post(f"/api/sessions/{sid}/start", headers=teacher_headers)
+    await client.post(f"/api/runs/{sid}/start", headers=teacher_headers)
 
-    resp = await client.delete(f"/api/sessions/{sid}", headers=teacher_headers)
+    resp = await client.delete(f"/api/runs/{sid}", headers=teacher_headers)
     assert resp.status_code == 400
 
 
@@ -197,7 +197,7 @@ async def test_get_game_info(client: AsyncClient, teacher_headers, db_quest):
     token = player["guest_token"]
 
     resp = await client.get(
-        f"/api/sessions/{sid}/game-info",
+        f"/api/runs/{sid}/game-info",
         headers={"x-guest-token": token},
     )
     assert resp.status_code == 200
@@ -219,7 +219,7 @@ async def test_get_my_progress_empty(client: AsyncClient, teacher_headers, db_qu
     token = player["guest_token"]
 
     resp = await client.get(
-        f"/api/sessions/{sid}/my-progress",
+        f"/api/runs/{sid}/my-progress",
         headers={"x-guest-token": token},
     )
     assert resp.status_code == 200
@@ -236,7 +236,7 @@ async def test_get_team_progress_empty(client: AsyncClient, teacher_headers, db_
     token = player["guest_token"]
 
     resp = await client.get(
-        f"/api/sessions/{sid}/team-progress",
+        f"/api/runs/{sid}/team-progress",
         headers={"x-guest-token": token},
     )
     assert resp.status_code == 200
@@ -257,7 +257,7 @@ async def test_update_player_guest_name(client: AsyncClient, teacher_headers, db
     pid = player["id"]
 
     resp = await client.patch(
-        f"/api/sessions/{sid}/players/{pid}/guest-name",
+        f"/api/runs/{sid}/players/{pid}/guest-name",
         json={"guest_name": "NewName"},
         headers=teacher_headers,
     )
@@ -279,7 +279,7 @@ async def test_delete_player(client: AsyncClient, teacher_headers, db_quest):
     pid = player["id"]
 
     resp = await client.delete(
-        f"/api/sessions/{sid}/players/{pid}",
+        f"/api/runs/{sid}/players/{pid}",
         headers=teacher_headers,
     )
     assert resp.status_code == 204
@@ -297,7 +297,7 @@ async def test_join_requires_guest_name_for_unauthenticated(
     code = session["session_code"]
 
     resp = await client.post(
-        "/api/sessions/join",
+        "/api/runs/join",
         json={"session_code": code},  # no guest_name
     )
     assert resp.status_code == 400
@@ -306,7 +306,7 @@ async def test_join_requires_guest_name_for_unauthenticated(
 @pytest.mark.asyncio
 async def test_join_nonexistent_session(client: AsyncClient):
     resp = await client.post(
-        "/api/sessions/join",
+        "/api/runs/join",
         json={"session_code": "XXXXXX", "guest_name": "Test"},
     )
     assert resp.status_code == 404
@@ -320,7 +320,7 @@ async def test_join_nonexistent_session(client: AsyncClient):
 async def test_guest_token_required_for_my_progress(client: AsyncClient, teacher_headers, db_quest):
     session = await _create_session(client, teacher_headers, db_quest.id)
     sid = session["id"]
-    resp = await client.get(f"/api/sessions/{sid}/my-progress")
+    resp = await client.get(f"/api/runs/{sid}/my-progress")
     assert resp.status_code == 401
 
 
@@ -329,7 +329,7 @@ async def test_invalid_guest_token_rejected(client: AsyncClient, teacher_headers
     session = await _create_session(client, teacher_headers, db_quest.id)
     sid = session["id"]
     resp = await client.get(
-        f"/api/sessions/{sid}/my-progress",
+        f"/api/runs/{sid}/my-progress",
         headers={"x-guest-token": "totally_invalid_token"},
     )
     assert resp.status_code == 401
@@ -349,11 +349,11 @@ async def test_player_timeout(client: AsyncClient, teacher_headers, db_quest):
     token = player["guest_token"]
 
     # Start session first so player is PLAYING
-    await client.post(f"/api/sessions/{sid}/start", headers=teacher_headers)
+    await client.post(f"/api/runs/{sid}/start", headers=teacher_headers)
 
-    with patch("app.routes.sessions.manager.broadcast_to_all", new_callable=AsyncMock):
+    with patch("app.routes.runs.manager.broadcast_to_all", new_callable=AsyncMock):
         resp = await client.post(
-            f"/api/sessions/{sid}/player-timeout",
+            f"/api/runs/{sid}/player-timeout",
             headers={"x-guest-token": token},
         )
     assert resp.status_code == 204
@@ -367,7 +367,7 @@ async def test_player_timeout(client: AsyncClient, teacher_headers, db_quest):
 async def test_results_requires_token(client: AsyncClient, teacher_headers, db_quest):
     session = await _create_session(client, teacher_headers, db_quest.id)
     sid = session["id"]
-    resp = await client.get(f"/api/sessions/{sid}/results")
+    resp = await client.get(f"/api/runs/{sid}/results")
     assert resp.status_code == 422  # missing required guest_token query param
 
 
@@ -375,7 +375,7 @@ async def test_results_requires_token(client: AsyncClient, teacher_headers, db_q
 async def test_results_invalid_token(client: AsyncClient, teacher_headers, db_quest):
     session = await _create_session(client, teacher_headers, db_quest.id)
     sid = session["id"]
-    resp = await client.get(f"/api/sessions/{sid}/results?guest_token=invalid")
+    resp = await client.get(f"/api/runs/{sid}/results?guest_token=invalid")
     assert resp.status_code == 404
 
 

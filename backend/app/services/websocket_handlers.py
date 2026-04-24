@@ -6,12 +6,12 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
-from app.models.game_session import GameSession, SessionStatus
-from app.models.session_chat import SessionChat
-from app.models.session_player import PlayerStatus, SessionPlayer
-from app.models.session_progress import ProgressStatus, SessionProgress
-from app.models.session_team import SessionTeam, TeamStatus
-from app.schemas.session import ReviewAnswerRequest, SubmitAnswerRequest
+from app.models.game_run import GameRun, SessionStatus
+from app.models.run_chat import RunChat
+from app.models.run_player import PlayerStatus, RunPlayer
+from app.models.run_progress import ProgressStatus, RunProgress
+from app.models.run_team import RunTeam, TeamStatus
+from app.schemas.run import ReviewAnswerRequest, SubmitAnswerRequest
 from app.schemas.websocket import (
     ChatMessage,
     MarkViewedMessage,
@@ -22,7 +22,7 @@ from app.schemas.websocket import (
     player_message_adapter,
     teacher_message_adapter,
 )
-from app.services import session_service as svc
+from app.services import run_service as svc
 from app.services.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt else None
 
 
-def _progress_dict(p: SessionProgress) -> dict:
+def _progress_dict(p: RunProgress) -> dict:
     return {
         "id": str(p.id),
         "session_id": str(p.session_id),
@@ -95,13 +95,13 @@ async def _handle_submit_answer(
     async with AsyncSessionLocal() as db:
         # Load player
         player_result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.id == uuid.UUID(player_id))
+            select(RunPlayer).where(RunPlayer.id == uuid.UUID(player_id))
         )
         player = player_result.scalar_one_or_none()
         if not player:
             return
 
-        result, team_step_info = await svc.SessionService.submit_answer(
+        result, team_step_info = await svc.RunService.submit_answer(
             db, progress_id, player, request
         )
 
@@ -115,7 +115,7 @@ async def _handle_submit_answer(
             player_id,
             {
                 "type": "answer_result",
-                "progress": _progress_dict(await db.get(SessionProgress, progress_id)),
+                "progress": _progress_dict(await db.get(RunProgress, progress_id)),
                 "correct": correct,
                 "score": result.score,
             },
@@ -123,7 +123,7 @@ async def _handle_submit_answer(
 
         if player.team_id and team_step_info:
             team_players_result = await db.execute(
-                select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
+                select(RunPlayer).where(RunPlayer.team_id == player.team_id)
             )
             team_players = team_players_result.scalars().all()
             step_event = {
@@ -137,14 +137,14 @@ async def _handle_submit_answer(
         # Check if a new resource was assigned to the same map_object (solo only)
         if not player.team_id and result.map_object_id:
             new_p_result = await db.execute(
-                select(SessionProgress)
+                select(RunProgress)
                 .where(
-                    SessionProgress.session_id == uuid.UUID(session_id),
-                    SessionProgress.player_id == uuid.UUID(player_id),
-                    SessionProgress.map_object_id == result.map_object_id,
-                    SessionProgress.status == ProgressStatus.ASSIGNED,
+                    RunProgress.session_id == uuid.UUID(session_id),
+                    RunProgress.player_id == uuid.UUID(player_id),
+                    RunProgress.map_object_id == result.map_object_id,
+                    RunProgress.status == ProgressStatus.ASSIGNED,
                 )
-                .order_by(SessionProgress.assigned_at.desc())
+                .order_by(RunProgress.assigned_at.desc())
                 .limit(1)
             )
             new_p = new_p_result.scalar_one_or_none()
@@ -185,7 +185,7 @@ async def _handle_submit_answer(
         if player_finished and player.team_id:
             async with AsyncSessionLocal() as db2:
                 team_result = await db2.execute(
-                    select(SessionTeam).where(SessionTeam.id == player.team_id)
+                    select(RunTeam).where(RunTeam.id == player.team_id)
                 )
                 team = team_result.scalar_one_or_none()
                 if team and team.status == TeamStatus.COMPLETED:
@@ -199,7 +199,7 @@ async def _handle_submit_answer(
 
         # Check session completed
         session_result = await db.execute(
-            select(GameSession).where(GameSession.id == uuid.UUID(session_id))
+            select(GameRun).where(GameRun.id == uuid.UUID(session_id))
         )
         session = session_result.scalar_one_or_none()
         if session and session.status == SessionStatus.COMPLETED:
@@ -219,19 +219,19 @@ async def _handle_mark_viewed(
 
     async with AsyncSessionLocal() as db:
         player_result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.id == uuid.UUID(player_id))
+            select(RunPlayer).where(RunPlayer.id == uuid.UUID(player_id))
         )
         player = player_result.scalar_one_or_none()
         if not player:
             return
 
-        result, team_step_info, viewers = await svc.SessionService.mark_text_viewed(
+        result, team_step_info, viewers = await svc.RunService.mark_text_viewed(
             db, progress_id, player
         )
 
         if player.team_id:
             team_players_result = await db.execute(
-                select(SessionPlayer).where(SessionPlayer.team_id == player.team_id)
+                select(RunPlayer).where(RunPlayer.team_id == player.team_id)
             )
             team_players = team_players_result.scalars().all()
 
@@ -283,7 +283,7 @@ async def _handle_mark_viewed(
         if player_finished and player.team_id:
             async with AsyncSessionLocal() as db2:
                 team_result = await db2.execute(
-                    select(SessionTeam).where(SessionTeam.id == player.team_id)
+                    select(RunTeam).where(RunTeam.id == player.team_id)
                 )
                 team = team_result.scalar_one_or_none()
                 if team and team.status == TeamStatus.COMPLETED:
@@ -296,7 +296,7 @@ async def _handle_mark_viewed(
                     )
 
         session_result = await db.execute(
-            select(GameSession).where(GameSession.id == uuid.UUID(session_id))
+            select(GameRun).where(GameRun.id == uuid.UUID(session_id))
         )
         session = session_result.scalar_one_or_none()
         if session and session.status == SessionStatus.COMPLETED:
@@ -317,13 +317,13 @@ async def _handle_chat_message(
 
     async with AsyncSessionLocal() as db:
         player_result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.id == uuid.UUID(player_id))
+            select(RunPlayer).where(RunPlayer.id == uuid.UUID(player_id))
         )
         player = player_result.scalar_one_or_none()
         if not player:
             return
 
-        chat = SessionChat(
+        chat = RunChat(
             session_id=uuid.UUID(session_id),
             player_id=uuid.UUID(player_id),
             message=message_text,
@@ -379,7 +379,7 @@ async def handle_teacher_message(session_id: str, teacher_id: str, data: dict) -
 
 async def _handle_start_session(session_id: str, teacher_id: str) -> None:
     async with AsyncSessionLocal() as db:
-        result = await svc.SessionService.start_session(
+        result = await svc.RunService.start_session(
             db, uuid.UUID(session_id), uuid.UUID(teacher_id)
         )
 
@@ -387,10 +387,10 @@ async def _handle_start_session(session_id: str, teacher_id: str) -> None:
         for player_resp in result.players:
             pid = str(player_resp.id)
             progress_result = await db.execute(
-                select(SessionProgress).where(
-                    SessionProgress.session_id == uuid.UUID(session_id),
-                    SessionProgress.player_id == player_resp.id,
-                    SessionProgress.map_object_id != None,  # noqa: E711
+                select(RunProgress).where(
+                    RunProgress.session_id == uuid.UUID(session_id),
+                    RunProgress.player_id == player_resp.id,
+                    RunProgress.map_object_id != None,  # noqa: E711
                 )
             )
             visible = progress_result.scalars().all()
@@ -421,7 +421,7 @@ async def _handle_start_session(session_id: str, teacher_id: str) -> None:
 
 async def _handle_stop_session(session_id: str, teacher_id: str) -> None:
     async with AsyncSessionLocal() as db:
-        await svc.SessionService.stop_session(
+        await svc.RunService.stop_session(
             db, uuid.UUID(session_id), uuid.UUID(teacher_id)
         )
     await manager.broadcast_to_all(
@@ -440,7 +440,7 @@ async def _handle_review_answer(
     request = ReviewAnswerRequest(score=msg.score, feedback=msg.feedback)
 
     async with AsyncSessionLocal() as db:
-        result = await svc.SessionService.review_answer(
+        result = await svc.RunService.review_answer(
             db, progress_id, uuid.UUID(teacher_id), request
         )
 

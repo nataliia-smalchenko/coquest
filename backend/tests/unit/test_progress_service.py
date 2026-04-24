@@ -3,8 +3,8 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.progress_service import _auto_score, _now, ProgressService
-from app.models.session_progress import SessionProgress, ProgressStatus
-from app.models.session_player import SessionPlayer, PlayerStatus
+from app.models.run_progress import RunProgress, ProgressStatus
+from app.models.run_player import RunPlayer, PlayerStatus
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ class TestAutoScore:
 class TestGetPlayerVisibleProgress:
     @pytest.mark.asyncio
     async def test_returns_progress_with_map_object(self):
-        prog = MagicMock(spec=SessionProgress)
+        prog = MagicMock(spec=RunProgress)
         prog.map_object_id = uuid.uuid4()
 
         exec_result = MagicMock()

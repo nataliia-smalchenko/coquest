@@ -11,10 +11,10 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.quest import Quest
     from app.models.user import User
-    from app.models.session_team import SessionTeam
-    from app.models.session_player import SessionPlayer
-    from app.models.session_progress import SessionProgress
-    from app.models.session_chat import SessionChat
+    from app.models.run_team import RunTeam
+    from app.models.run_player import RunPlayer
+    from app.models.run_progress import RunProgress
+    from app.models.run_chat import RunChat
 
 
 class SessionStatus(str, enum.Enum):
@@ -25,8 +25,8 @@ class SessionStatus(str, enum.Enum):
     SCHEDULED = "scheduled"
 
 
-class GameSession(Base):
-    __tablename__ = "game_sessions"
+class GameRun(Base):
+    __tablename__ = "game_runs"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     quest_id: Mapped[uuid.UUID] = mapped_column(
@@ -78,22 +78,22 @@ class GameSession(Base):
     )
 
     # Relationships
-    teams: Mapped[List["SessionTeam"]] = relationship(
-        "SessionTeam", back_populates="session", cascade="all, delete-orphan"
+    teams: Mapped[List["RunTeam"]] = relationship(
+        "RunTeam", back_populates="run", cascade="all, delete-orphan"
     )
-    players: Mapped[List["SessionPlayer"]] = relationship(
-        "SessionPlayer", back_populates="session", cascade="all, delete-orphan"
+    players: Mapped[List["RunPlayer"]] = relationship(
+        "RunPlayer", back_populates="run", cascade="all, delete-orphan"
     )
-    progress: Mapped[List["SessionProgress"]] = relationship(
-        "SessionProgress", back_populates="session", cascade="all, delete-orphan"
+    progress: Mapped[List["RunProgress"]] = relationship(
+        "RunProgress", back_populates="run", cascade="all, delete-orphan"
     )
-    chat_messages: Mapped[List["SessionChat"]] = relationship(
-        "SessionChat", back_populates="session", cascade="all, delete-orphan"
+    chat_messages: Mapped[List["RunChat"]] = relationship(
+        "RunChat", back_populates="run", cascade="all, delete-orphan"
     )
-    quest: Mapped["Quest"] = relationship("Quest", back_populates="sessions")
+    quest: Mapped["Quest"] = relationship("Quest", back_populates="runs")
     teacher: Mapped["User"] = relationship(
-        "User", back_populates="teaching_sessions", foreign_keys=[teacher_id]
+        "User", back_populates="teaching_runs", foreign_keys=[teacher_id]
     )
 
     def __repr__(self) -> str:
-        return f"<GameSession code={self.session_code!r} status={self.status!r}>"
+        return f"<GameRun code={self.session_code!r} status={self.status!r}>"
