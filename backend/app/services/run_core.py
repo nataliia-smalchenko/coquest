@@ -142,6 +142,16 @@ async def _load_own_session(
     return session
 
 
+async def _reload_session_response(db: AsyncSession, session_id: uuid.UUID) -> GameRunResponse:
+    """Reload a session with players after mutations and return the response schema."""
+    result = await db.execute(
+        select(GameRun)
+        .where(GameRun.id == session_id)
+        .options(selectinload(GameRun.players))
+    )
+    return _session_response(result.scalar_one())
+
+
 class RunCoreService:
     @staticmethod
     async def get_player_by_token(
@@ -258,13 +268,7 @@ class RunCoreService:
         )
         db.add(session)
         await db.commit()
-
-        result = await db.execute(
-            select(GameRun)
-            .where(GameRun.id == session.id)
-            .options(selectinload(GameRun.players))
-        )
-        return _session_response(result.scalar_one())
+        return await _reload_session_response(db, session.id)
 
     @staticmethod
     async def get_session_by_code(
@@ -445,13 +449,7 @@ class RunCoreService:
                 player.started_at = now
 
         await db.commit()
-
-        result = await db.execute(
-            select(GameRun)
-            .where(GameRun.id == session.id)
-            .options(selectinload(GameRun.players))
-        )
-        return _session_response(result.scalar_one())
+        return await _reload_session_response(db, session.id)
 
     @staticmethod
     async def player_start_session(
@@ -486,13 +484,7 @@ class RunCoreService:
         player.started_at = now
         player.status = PlayerStatus.PLAYING
         await db.commit()
-
-        result = await db.execute(
-            select(GameRun)
-            .where(GameRun.id == session.id)
-            .options(selectinload(GameRun.players))
-        )
-        return _session_response(result.scalar_one())
+        return await _reload_session_response(db, session.id)
 
     @staticmethod
     async def player_timeout(
@@ -535,13 +527,7 @@ class RunCoreService:
             player.results_available_until = results_until
 
         await db.commit()
-
-        result = await db.execute(
-            select(GameRun)
-            .where(GameRun.id == session.id)
-            .options(selectinload(GameRun.players))
-        )
-        return _session_response(result.scalar_one())
+        return await _reload_session_response(db, session.id)
 
     @staticmethod
     async def delete_session(
@@ -568,12 +554,7 @@ class RunCoreService:
         for field, value in update.items():
             setattr(session, field, value)
         await db.commit()
-        result = await db.execute(
-            select(GameRun)
-            .where(GameRun.id == session.id)
-            .options(selectinload(GameRun.players))
-        )
-        return _session_response(result.scalar_one())
+        return await _reload_session_response(db, session.id)
 
     @staticmethod
     async def restart_session(
@@ -628,12 +609,7 @@ class RunCoreService:
         session.ends_at = None
 
         await db.commit()
-        result = await db.execute(
-            select(GameRun)
-            .where(GameRun.id == session_id)
-            .options(selectinload(GameRun.players))
-        )
-        return _session_response(result.scalar_one())
+        return await _reload_session_response(db, session_id)
 
     @staticmethod
     async def get_game_info(
@@ -724,10 +700,7 @@ class RunCoreService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Guest must have a name",
                 )
-            user_result = await db.execute(
-                select(User).where(User.id == player.user_id)
-            )
-            user = user_result.scalar_one_or_none()
+            user = await db.get(User, player.user_id)
             player.guest_name = None
             player.display_name = user.full_name if user else player.display_name
 

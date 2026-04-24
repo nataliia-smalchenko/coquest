@@ -44,6 +44,23 @@ def _iso(dt: Optional[datetime]) -> Optional[str]:
     return dt.isoformat() if dt else None
 
 
+def _progress_dict(p: RunProgressResponse) -> dict:
+    return {
+        "id": str(p.id),
+        "session_id": str(p.session_id),
+        "player_id": str(p.player_id),
+        "resource_id": str(p.resource_id) if p.resource_id else None,
+        "map_object_id": str(p.map_object_id) if p.map_object_id else None,
+        "step_order": getattr(p, "step_order", None),
+        "status": p.status.value if hasattr(p.status, "value") else p.status,
+        "score": p.score,
+        "answer": p.answer,
+        "requires_review": p.requires_review,
+        "assigned_at": _iso(p.assigned_at),
+        "completed_at": _iso(p.completed_at),
+    }
+
+
 router = APIRouter(prefix="/api/runs", tags=["Runs"])
 
 _optional_bearer = HTTPBearer(auto_error=False)
@@ -207,26 +224,7 @@ async def player_start_session(
                     "ends_at": _iso(result.ends_at),
                 },
                 "player_started_at": _iso(player_resp.started_at),
-                "progress": [
-                    {
-                        "id": str(p.id),
-                        "session_id": str(p.session_id),
-                        "player_id": str(p.player_id),
-                        "resource_id": str(p.resource_id) if p.resource_id else None,
-                        "map_object_id": str(p.map_object_id)
-                        if p.map_object_id
-                        else None,
-                        "status": p.status.value
-                        if hasattr(p.status, "value")
-                        else p.status,
-                        "score": p.score,
-                        "answer": p.answer,
-                        "requires_review": p.requires_review,
-                        "assigned_at": _iso(p.assigned_at),
-                        "completed_at": _iso(p.completed_at),
-                    }
-                    for p in visible
-                ],
+                "progress": [_progress_dict(p) for p in visible],
             },
         )
 
@@ -302,27 +300,7 @@ async def start_team(
                 "session": session_timing,
                 "player_started_at": _iso(p.started_at),
                 "step_info": step_info,
-                "progress": [
-                    {
-                        "id": str(pr.id),
-                        "session_id": str(pr.session_id),
-                        "player_id": str(pr.player_id),
-                        "resource_id": str(pr.resource_id) if pr.resource_id else None,
-                        "map_object_id": str(pr.map_object_id)
-                        if pr.map_object_id
-                        else None,
-                        "step_order": pr.step_order,
-                        "status": pr.status.value
-                        if hasattr(pr.status, "value")
-                        else pr.status,
-                        "score": pr.score,
-                        "answer": pr.answer,
-                        "requires_review": pr.requires_review,
-                        "assigned_at": _iso(pr.assigned_at),
-                        "completed_at": _iso(pr.completed_at),
-                    }
-                    for pr in visible
-                ],
+                "progress": [_progress_dict(pr) for pr in visible],
             },
         )
 

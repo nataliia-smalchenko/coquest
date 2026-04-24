@@ -1,7 +1,10 @@
-from fastapi import Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.utils.security import verify_token
@@ -65,3 +68,8 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
             detail="Not authorized. Admin role required.",
         )
     return current_user
+
+
+def get_language(accept_language: Optional[str] = Header(None)) -> str:
+    from app.services.i18n_service import I18nService
+    return I18nService.detect_language_from_header(accept_language)

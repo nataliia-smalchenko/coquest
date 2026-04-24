@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.models.game_run import GameRun
 from app.models.map import MapObject
+from app.models.quest import Quest
 from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.run_progress import ProgressStatus, RunProgress
 from app.models.run_team import RunTeam, TeamStatus
@@ -117,21 +118,19 @@ async def _advance_queue(
     completed_map_object_id: uuid.UUID,
 ) -> None:
     """Assign the next queued progress item to the next available map object in sequence."""
-    # Get the session's quest map
-    session_result = await db.execute(
-        select(GameRun)
+    map_id_result = await db.execute(
+        select(Quest.map_id)
+        .join(GameRun, GameRun.quest_id == Quest.id)
         .where(GameRun.id == session_id)
-        .options(selectinload(GameRun.quest))
     )
-    session = session_result.scalar_one_or_none()
-    if not session or not session.quest or not session.quest.map_id:
+    map_id = map_id_result.scalar_one_or_none()
+    if not map_id:
         return
 
-    # Get all interactive map objects ordered
     objects_result = await db.execute(
         select(MapObject)
         .where(
-            MapObject.map_id == session.quest.map_id,
+            MapObject.map_id == map_id,
             MapObject.is_interactive == True,  # noqa: E712
         )
         .order_by(MapObject.order_index)
@@ -218,17 +217,15 @@ async def _advance_team_step(
     resource = await db.get(Resource, resource_id)
     resource_type = resource.type if resource else "question"
 
-    # Get session quest map_id
-    session_result = await db.execute(
-        select(GameRun)
+    map_id_result = await db.execute(
+        select(Quest.map_id)
+        .join(GameRun, GameRun.quest_id == Quest.id)
         .where(GameRun.id == session_id)
-        .options(selectinload(GameRun.quest))
     )
-    session_obj = session_result.scalar_one_or_none()
-    if not session_obj or not session_obj.quest or not session_obj.quest.map_id:
+    map_id = map_id_result.scalar_one_or_none()
+    if not map_id:
         return None
 
-    # Find an available map object (not yet used by this team)
     used_result = await db.execute(
         select(RunProgress.map_object_id)
         .where(
@@ -243,7 +240,7 @@ async def _advance_team_step(
     objects_result = await db.execute(
         select(MapObject)
         .where(
-            MapObject.map_id == session_obj.quest.map_id,
+            MapObject.map_id == map_id,
             MapObject.is_interactive == True,  # noqa: E712
         )
         .order_by(MapObject.order_index)

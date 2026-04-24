@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request, status, Header
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import limiter
@@ -17,15 +17,9 @@ from app.schemas.user import (
 )
 from app.services.auth_service import AuthService
 from app.services.oauth_service import OAuthService
-from app.services.i18n_service import I18nService
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, get_language
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
-
-
-def get_language(accept_language: Optional[str] = Header(None)) -> str:
-    """Extracts and detects language from Accept-Language header automatically"""
-    return I18nService.detect_language_from_header(accept_language)
 
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)

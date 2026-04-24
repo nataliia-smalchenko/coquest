@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Uuid, func
-from sqlalchemy import Integer  # noqa: F401 (imported for type consistency)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base

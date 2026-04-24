@@ -1,18 +1,14 @@
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.map import MapListItem, MapResponse
-from app.services.i18n_service import I18nService
 from app.services.map_service import MapService
+from app.utils.dependencies import get_language
 
 router = APIRouter(prefix="/api/maps", tags=["Maps"])
-
-
-def get_language(accept_language: Optional[str] = Header(None)) -> str:
-    return I18nService.detect_language_from_header(accept_language)
 
 
 @router.get("/", response_model=List[MapListItem])

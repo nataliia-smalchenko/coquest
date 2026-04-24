@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 async def list_users(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
-    _admin: User = Depends(get_current_admin),
+    _: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Return a paginated list of all users."""
@@ -28,7 +28,7 @@ async def list_users(
 async def change_user_role(
     user_id: uuid.UUID,
     data: AdminChangeRoleRequest,
-    _admin: User = Depends(get_current_admin),
+    _: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Change the role of any user.
@@ -43,7 +43,7 @@ async def change_user_role(
 @router.delete("/users/{user_id}", status_code=204)
 async def delete_user(
     user_id: uuid.UUID,
-    _admin: User = Depends(get_current_admin),
+    _: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Permanently delete a user and all their associated data.

@@ -1,21 +1,16 @@
 import uuid
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
 from app.schemas.quest import QuestCreate, QuestListItem, QuestResponse, QuestUpdate
-from app.services.i18n_service import I18nService
 from app.services.quest_service import QuestService
-from app.utils.dependencies import get_current_teacher
+from app.utils.dependencies import get_current_teacher, get_language
 
 router = APIRouter(prefix="/api/quests", tags=["Quests"])
-
-
-def get_language(accept_language: Optional[str] = Header(None)) -> str:
-    return I18nService.detect_language_from_header(accept_language)
 
 
 @router.get("/", response_model=List[QuestListItem])

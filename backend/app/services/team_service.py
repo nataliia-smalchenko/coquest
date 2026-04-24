@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete as sa_delete, func, select
+from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -194,19 +194,14 @@ class TeamService:
         )
         session = session_result.scalar_one_or_none()
 
-        # Remove player from old team
+        # Delete old team if this player was the only member (checked before detach).
+        team_will_be_empty = len(old_team.players) == 1
         player.team_id = None
         await db.flush()
 
-        # Delete old team if now empty
-        count_result = await db.execute(
-            select(func.count()).where(RunPlayer.team_id == old_team_id)
-        )
-        if count_result.scalar_one() == 0:
-            stale_team = await db.get(RunTeam, old_team_id)
-            if stale_team:
-                await db.delete(stale_team)
-                await db.flush()
+        if team_will_be_empty:
+            await db.delete(old_team)
+            await db.flush()
 
         # Assign to a new waiting team
         new_team = await _find_or_create_team_excluding(db, session, old_team_id)

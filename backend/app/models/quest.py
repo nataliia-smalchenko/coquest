@@ -127,7 +127,7 @@ class QuestResource(Base):
         Uuid, ForeignKey("quests.id", ondelete="CASCADE"), nullable=False, index=True
     )
     resource_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("resources.id", ondelete="CASCADE"), nullable=False
+        Uuid, ForeignKey("resources.id", ondelete="CASCADE"), nullable=False, index=True
     )
     order_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

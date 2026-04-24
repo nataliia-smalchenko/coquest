@@ -1,6 +1,7 @@
 """Results service: session results for players and teacher monitor."""
 
 import uuid
+from collections import defaultdict
 from datetime import timedelta
 from typing import Dict, List, Optional
 
@@ -52,30 +53,25 @@ class RunResultsService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Invalid token or session"
             )
         now = _now()
-        session_for_check_result = await db.execute(
-            select(GameRun).where(GameRun.id == session_id)
+        session_for_check = await db.get(GameRun, session_id)
+        time_expired = bool(
+            session_for_check
+            and session_for_check.ends_at is not None
+            and session_for_check.ends_at < now
         )
-        session_for_check = session_for_check_result.scalar_one_or_none()
-        time_expired = False
-        if session_for_check:
-            if (
-                session_for_check.ends_at is not None
-                and session_for_check.ends_at < now
-            ):
-                time_expired = True
-            if not time_expired and player.started_at:
-                settings_res = await db.execute(
-                    select(QuestSettings).where(
-                        QuestSettings.quest_id == session_for_check.quest_id
-                    )
+        if not time_expired and session_for_check and player.started_at:
+            settings_res = await db.execute(
+                select(QuestSettings).where(
+                    QuestSettings.quest_id == session_for_check.quest_id
                 )
-                settings_obj = settings_res.scalar_one_or_none()
-                if settings_obj and settings_obj.time_limit_minutes:
-                    player_ends_at = player.started_at + timedelta(
-                        minutes=settings_obj.time_limit_minutes
-                    )
-                    if player_ends_at < now:
-                        time_expired = True
+            )
+            settings_obj = settings_res.scalar_one_or_none()
+            if settings_obj and settings_obj.time_limit_minutes:
+                player_ends_at = player.started_at + timedelta(
+                    minutes=settings_obj.time_limit_minutes
+                )
+                if player_ends_at < now:
+                    time_expired = True
 
         if not player.results_available_until and not time_expired:
             raise HTTPException(
@@ -238,9 +234,13 @@ class RunResultsService:
 
         monitor_total_q_points = sum(points_map.values()) if points_map else None
 
+        progress_by_player: Dict = defaultdict(list)
+        for p in all_progress:
+            progress_by_player[p.player_id].append(p)
+
         players_progress: List[PlayerProgressSummary] = []
         for player in session.players:
-            p_items = [p for p in all_progress if p.player_id == player.id]
+            p_items = progress_by_player[player.id]
             total = len(p_items)
             completed = sum(
                 1
