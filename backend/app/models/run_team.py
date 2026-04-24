@@ -50,6 +50,7 @@ class RunTeam(Base):
             name="fk_run_teams_hint_player_id",
         ),
         nullable=True,
+        index=True,  # supports lookups by current hint holder
     )
 
     # Relationships

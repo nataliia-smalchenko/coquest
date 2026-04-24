@@ -36,6 +36,7 @@ cloudinary==1.44.1
 
 # Utils
 python-dotenv==1.2.2
+structlog==25.5.0
 greenlet==3.3.2
 
 # Sockets

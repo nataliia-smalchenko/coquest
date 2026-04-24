@@ -1,7 +1,7 @@
-import logging
 import uuid
 from datetime import datetime
 
+import structlog
 from pydantic import ValidationError
 from sqlalchemy import select
 
@@ -25,7 +25,7 @@ from app.schemas.websocket import (
 from app.services import run_service as svc
 from app.services.websocket_manager import manager
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 def _iso(dt: datetime | None) -> str | None:
@@ -53,11 +53,11 @@ async def handle_player_message(session_id: str, player_id: str, data: dict) -> 
     try:
         msg = player_message_adapter.validate_python(data)
     except ValidationError as exc:
-        logger.warning(
-            "Invalid player WS message session=%s player=%s: %s",
-            session_id,
-            player_id,
-            exc,
+        log.warning(
+            "invalid_player_ws_message",
+            session_id=session_id,
+            player_id=player_id,
+            error=str(exc),
         )
         await manager.send_to_player(
             session_id, player_id, {"type": "error", "detail": "Invalid message format"}
@@ -72,12 +72,11 @@ async def handle_player_message(session_id: str, player_id: str, data: dict) -> 
         elif isinstance(msg, ChatMessage):
             await _handle_chat_message(session_id, player_id, msg)
     except Exception as exc:
-        logger.exception(
-            "Error handling player message type=%s session=%s player=%s: %s",
-            msg.type,
-            session_id,
-            player_id,
-            exc,
+        log.exception(
+            "player_message_handler_error",
+            session_id=session_id,
+            player_id=player_id,
+            msg_type=msg.type,
         )
         await manager.send_to_player(
             session_id, player_id, {"type": "error", "detail": str(exc)}
@@ -347,11 +346,11 @@ async def handle_teacher_message(session_id: str, teacher_id: str, data: dict) -
     try:
         msg = teacher_message_adapter.validate_python(data)
     except ValidationError as exc:
-        logger.warning(
-            "Invalid teacher WS message session=%s teacher=%s: %s",
-            session_id,
-            teacher_id,
-            exc,
+        log.warning(
+            "invalid_teacher_ws_message",
+            session_id=session_id,
+            teacher_id=teacher_id,
+            error=str(exc),
         )
         await manager.send_to_teacher(
             session_id, {"type": "error", "detail": "Invalid message format"}
@@ -366,11 +365,11 @@ async def handle_teacher_message(session_id: str, teacher_id: str, data: dict) -
         elif isinstance(msg, ReviewAnswerMessage):
             await _handle_review_answer(session_id, teacher_id, msg)
     except Exception as exc:
-        logger.exception(
-            "Error handling teacher message type=%s session=%s: %s",
-            msg.type,
-            session_id,
-            exc,
+        log.exception(
+            "teacher_message_handler_error",
+            session_id=session_id,
+            teacher_id=teacher_id,
+            msg_type=msg.type,
         )
         await manager.send_to_teacher(session_id, {"type": "error", "detail": str(exc)})
 

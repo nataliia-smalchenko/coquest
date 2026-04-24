@@ -1,16 +1,16 @@
-import logging
 import secrets
 import asyncio
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import structlog
 import resend
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.config import settings
 from app.services.i18n_service import I18nService
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 resend.api_key = settings.RESEND_API_KEY
 
@@ -88,7 +88,7 @@ class EmailService:
 
             return await EmailService._send_email_task(params)
         except Exception as e:
-            logger.error("Error sending verification email to %s: %s", email, e, exc_info=True)
+            log.error("verification_email_failed", email=email, exc_info=True)
             raise
 
     @staticmethod
@@ -128,4 +128,4 @@ class EmailService:
 
             return await EmailService._send_email_task(params)
         except Exception as e:
-            logger.error("Error sending welcome email to %s: %s", email, e, exc_info=True)
+            log.error("welcome_email_failed", email=email, exc_info=True)

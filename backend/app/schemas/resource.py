@@ -25,6 +25,11 @@ class FolderCreate(BaseModel):
     parent_id: Optional[uuid.UUID] = None
 
 
+class FolderUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    parent_id: Optional[uuid.UUID] = None  # pass explicitly to move folder
+
+
 class FolderResponse(BaseModel):
     id: uuid.UUID
     name: str

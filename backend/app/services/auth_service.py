@@ -1,4 +1,4 @@
-import logging
+import structlog
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -16,7 +16,7 @@ from app.services.email_service import EmailService
 from app.services.i18n_service import I18nService
 from datetime import datetime, timezone
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 class AuthService:
@@ -69,7 +69,7 @@ class AuthService:
             return db_user
         except Exception as e:
             await db.rollback()
-            logger.error("Registration error for %s: %s", user_data.email, e, exc_info=True)
+            log.error("registration_failed", email=user_data.email, exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to send verification email",
@@ -114,7 +114,7 @@ class AuthService:
                 language=I18nService.get_user_language(user),
             )
         except Exception as e:
-            logger.warning("Failed to send welcome email to %s: %s", user.email, e, exc_info=True)
+            log.warning("welcome_email_failed", email=user.email, exc_info=True)
 
         return user
 
@@ -149,7 +149,7 @@ class AuthService:
             await db.commit()
         except Exception as e:
             await db.rollback()
-            logger.error("Resend verification error for %s: %s", email, e, exc_info=True)
+            log.error("resend_verification_failed", email=email, exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to resend verification email",

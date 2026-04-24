@@ -1,9 +1,10 @@
 import json
-import logging
 from pathlib import Path
 from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 class I18nService:
@@ -34,10 +35,10 @@ class I18nService:
             with open(file_path, "r", encoding="utf-8") as f:
                 translations = json.load(f)
         except FileNotFoundError:
-            logger.warning(f"Translation file missing entirely: {file_path}")
+            log.warning("translation_file_missing", path=str(file_path))
             translations = {}
         except json.JSONDecodeError:
-            logger.error(f"Invalid JSON in translation file: {file_path}")
+            log.error("translation_file_invalid_json", path=str(file_path))
             translations = {}
 
         cls._translations_cache[cache_key] = translations
@@ -68,7 +69,7 @@ class I18nService:
             try:
                 value = value.format(**kwargs)
             except (KeyError, ValueError, IndexError) as e:
-                logger.warning(f"Formatting error in translation key '{key}': {e}")
+                log.warning("translation_format_error", key=key, error=str(e))
                 pass
 
         # Ensure we always return a string (in case the final key points to a dict/list)

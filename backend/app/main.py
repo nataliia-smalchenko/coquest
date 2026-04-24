@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,8 +12,14 @@ from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
+from app.core.logger import configure_logging
 from app.core.rate_limit import limiter
 from app.services.redis_service import RedisService
+
+# Configure structlog before anything else logs
+configure_logging(json_logs=not settings.DEBUG if hasattr(settings, "DEBUG") else True)
+
+log = structlog.get_logger(__name__)
 
 from app.database import get_db
 from app.routes import admin
@@ -27,10 +34,10 @@ from app.routes import websocket as ws_routes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    log.info("startup", version=settings.VERSION)
     await RedisService.get_redis()
     yield
-    # Shutdown
+    log.info("shutdown")
     await RedisService.close_redis()
 
 

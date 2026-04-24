@@ -1,9 +1,9 @@
 import asyncio
-import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+import structlog
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -22,7 +22,7 @@ from app.utils.security import verify_token
 
 router = APIRouter(prefix="/api/ws", tags=["WebSocket"])
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 # Heartbeat helpers
@@ -206,11 +206,10 @@ async def ws_player(
             },
         )
     except Exception as exc:
-        logger.exception(
-            "Unexpected error in player WS session=%s player=%s: %s",
-            sid,
-            player_id,
-            exc,
+        log.exception(
+            "player_ws_unexpected_error",
+            session_id=sid,
+            player_id=player_id,
         )
         await manager.disconnect_player(sid, player_id)
     finally:
@@ -276,7 +275,7 @@ async def ws_teacher(
     except WebSocketDisconnect:
         await manager.disconnect_teacher(sid)
     except Exception as exc:
-        logger.exception("Unexpected error in teacher WS session=%s: %s", sid, exc)
+        log.exception("teacher_ws_unexpected_error", session_id=sid)
         await manager.disconnect_teacher(sid)
     finally:
         heartbeat_task.cancel()
