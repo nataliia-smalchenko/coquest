@@ -183,19 +183,18 @@ async def _handle_submit_answer(
             )
 
         if player_finished and player.team_id:
-            async with AsyncSessionLocal() as db2:
-                team_result = await db2.execute(
-                    select(RunTeam).where(RunTeam.id == player.team_id)
+            team_result = await db.execute(
+                select(RunTeam).where(RunTeam.id == player.team_id)
+            )
+            team = team_result.scalar_one_or_none()
+            if team and team.status == TeamStatus.COMPLETED:
+                await manager.broadcast_to_all(
+                    session_id,
+                    {
+                        "type": "team_completed",
+                        "team_id": str(player.team_id),
+                    },
                 )
-                team = team_result.scalar_one_or_none()
-                if team and team.status == TeamStatus.COMPLETED:
-                    await manager.broadcast_to_all(
-                        session_id,
-                        {
-                            "type": "team_completed",
-                            "team_id": str(player.team_id),
-                        },
-                    )
 
         # Check session completed
         session_result = await db.execute(
@@ -281,19 +280,18 @@ async def _handle_mark_viewed(
             )
 
         if player_finished and player.team_id:
-            async with AsyncSessionLocal() as db2:
-                team_result = await db2.execute(
-                    select(RunTeam).where(RunTeam.id == player.team_id)
+            team_result = await db.execute(
+                select(RunTeam).where(RunTeam.id == player.team_id)
+            )
+            team = team_result.scalar_one_or_none()
+            if team and team.status == TeamStatus.COMPLETED:
+                await manager.broadcast_to_all(
+                    session_id,
+                    {
+                        "type": "team_completed",
+                        "team_id": str(player.team_id),
+                    },
                 )
-                team = team_result.scalar_one_or_none()
-                if team and team.status == TeamStatus.COMPLETED:
-                    await manager.broadcast_to_all(
-                        session_id,
-                        {
-                            "type": "team_completed",
-                            "team_id": str(player.team_id),
-                        },
-                    )
 
         session_result = await db.execute(
             select(GameRun).where(GameRun.id == uuid.UUID(session_id))

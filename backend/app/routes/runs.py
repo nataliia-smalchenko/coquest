@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.rate_limit import limiter
 from app.database import get_db
 
 from app.models.run_player import PlayerStatus, RunPlayer
@@ -92,7 +93,9 @@ async def list_sessions(
 @router.post(
     "/", response_model=GameRunResponse, status_code=status.HTTP_201_CREATED
 )
+@limiter.limit("20/minute")
 async def create_session(
+    request: Request,
     data: RunCreate,
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),

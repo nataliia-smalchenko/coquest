@@ -93,6 +93,7 @@ class ResourceService:
             }
         except Exception:
             await db.rollback()
+            logger.error("Database error during rollback", exc_info=True)
             raise
 
     @staticmethod
@@ -110,6 +111,7 @@ class ResourceService:
             await db.commit()
         except Exception:
             await db.rollback()
+            logger.error("Database error during rollback", exc_info=True)
             raise
 
     @staticmethod
@@ -151,6 +153,7 @@ class ResourceService:
             await db.commit()
         except Exception:
             await db.rollback()
+            logger.error("Database error during rollback", exc_info=True)
             raise
 
     @staticmethod
@@ -233,6 +236,7 @@ class ResourceService:
             raise
         except Exception:
             await db.rollback()
+            logger.error("Database error during rollback", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database error while creating resource",
@@ -285,6 +289,7 @@ class ResourceService:
             return await ResourceService._load_resource(db, resource_id)
         except Exception:
             await db.rollback()
+            logger.error("Database error during rollback", exc_info=True)
             raise
 
     @staticmethod
@@ -333,6 +338,7 @@ class ResourceService:
             return content
         except Exception:
             await db.rollback()
+            logger.error("Database error during rollback", exc_info=True)
             raise
 
     @staticmethod
@@ -392,6 +398,7 @@ class ResourceService:
             return question
         except Exception:
             await db.rollback()
+            logger.error("Database error during rollback", exc_info=True)
             raise
 
     @staticmethod

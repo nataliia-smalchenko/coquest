@@ -280,7 +280,7 @@ async def ws_quest(ws_db: AsyncSession, ws_teacher: User, ws_map: Map) -> Quest:
 
 
 @pytest_asyncio.fixture()
-async def ws_session_and_player(
+async def ws_run_and_player(
     ws_db: AsyncSession,
     ws_teacher: User,
     ws_quest: Quest,

@@ -1,6 +1,6 @@
 import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.models.game_run import GameRun
 from app.models.map import MapObject
 from app.models.run_player import PlayerStatus, RunPlayer
@@ -73,8 +74,6 @@ async def _check_player_completion(
     The session itself stays ACTIVE until the teacher explicitly stops it —
     multiple teams/players can be playing concurrently in the same session.
     """
-    from datetime import timedelta
-
     remaining_result = await db.execute(
         select(func.count()).where(
             RunProgress.session_id == session_id,
@@ -87,7 +86,7 @@ async def _check_player_completion(
 
     player.status = PlayerStatus.FINISHED
     player.finished_at = _now()
-    player.results_available_until = _now() + timedelta(days=30)
+    player.results_available_until = _now() + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
     await db.flush()
 
     if player.team_id is not None:

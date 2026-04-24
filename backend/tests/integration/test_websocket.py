@@ -3,7 +3,7 @@ Integration tests for WebSocket endpoints.
 
 WebSocket handlers use their own AsyncSessionLocal (not the DI-injected get_db),
 so data must be committed to the test DB for them to see it.
-Fixtures for this are defined in conftest.py (ws_db, ws_session_and_player, etc.).
+Fixtures for this are defined in conftest.py (ws_db, ws_run_and_player, etc.).
 """
 
 import json
@@ -18,9 +18,9 @@ from app.main import app
 
 
 @pytest.mark.asyncio
-async def test_player_ws_connect_and_receive_connected(ws_session_and_player):
+async def test_player_ws_connect_and_receive_connected(ws_run_and_player):
     """Player connects via WS and receives a 'connected' message."""
-    info = ws_session_and_player
+    info = ws_run_and_player
     sid = info["session_id"]
 
     async with AsyncClient(
@@ -37,9 +37,9 @@ async def test_player_ws_connect_and_receive_connected(ws_session_and_player):
 
 
 @pytest.mark.asyncio
-async def test_teacher_ws_connect(ws_session_and_player):
+async def test_teacher_ws_connect(ws_run_and_player):
     """Teacher connects via WS and receives a 'connected' message."""
-    info = ws_session_and_player
+    info = ws_run_and_player
     sid = info["session_id"]
 
     async with AsyncClient(
@@ -56,9 +56,9 @@ async def test_teacher_ws_connect(ws_session_and_player):
 
 
 @pytest.mark.asyncio
-async def test_teacher_receives_player_joined(ws_session_and_player):
+async def test_teacher_receives_player_joined(ws_run_and_player):
     """When a player connects, the teacher gets a 'player_joined' event."""
-    info = ws_session_and_player
+    info = ws_run_and_player
     sid = info["session_id"]
 
     async with AsyncClient(
@@ -87,9 +87,9 @@ async def test_teacher_receives_player_joined(ws_session_and_player):
 
 
 @pytest.mark.asyncio
-async def test_player_sends_unknown_type_gets_error(ws_session_and_player):
+async def test_player_sends_unknown_type_gets_error(ws_run_and_player):
     """Sending an unknown message type returns an error."""
-    info = ws_session_and_player
+    info = ws_run_and_player
     sid = info["session_id"]
 
     async with AsyncClient(
@@ -108,9 +108,9 @@ async def test_player_sends_unknown_type_gets_error(ws_session_and_player):
 
 
 @pytest.mark.asyncio
-async def test_player_chat_message_broadcast(ws_session_and_player):
+async def test_player_chat_message_broadcast(ws_run_and_player):
     """Player sends a chat message and it gets broadcast to player and teacher."""
-    info = ws_session_and_player
+    info = ws_run_and_player
     sid = info["session_id"]
 
     async with AsyncClient(
@@ -152,9 +152,9 @@ async def test_player_chat_message_broadcast(ws_session_and_player):
 
 
 @pytest.mark.asyncio
-async def test_teacher_sends_unknown_type_gets_error(ws_session_and_player):
+async def test_teacher_sends_unknown_type_gets_error(ws_run_and_player):
     """Teacher sending an unknown message type returns an error."""
-    info = ws_session_and_player
+    info = ws_run_and_player
     sid = info["session_id"]
 
     async with AsyncClient(
