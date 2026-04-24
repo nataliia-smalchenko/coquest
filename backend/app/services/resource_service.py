@@ -186,7 +186,9 @@ class ResourceService:
             for tid in tag_ids:
                 stmt = stmt.where(Resource.tags.any(Tag.id == tid))
         if search:
-            stmt = stmt.where(Resource.title.ilike(f"%{search}%"))
+            # Escape LIKE metacharacters; backslash must go first.
+            _esc = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            stmt = stmt.where(Resource.title.ilike(f"%{_esc}%", escape="\\"))
         if difficulty is not None:
             subq = select(Question.resource_id).where(Question.difficulty == difficulty)
             stmt = stmt.where(Resource.id.in_(subq))

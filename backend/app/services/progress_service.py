@@ -86,7 +86,9 @@ async def _check_player_completion(
 
     player.status = PlayerStatus.FINISHED
     player.finished_at = _now()
-    player.results_available_until = _now() + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
+    player.results_available_until = _now() + timedelta(
+        days=settings.RESULTS_AVAILABLE_DAYS
+    )
     await db.flush()
 
     if player.team_id is not None:
@@ -315,9 +317,8 @@ class ProgressService:
         result = await db.execute(
             select(RunProgress)
             .where(RunProgress.id == progress_id)
-            .options(
-                selectinload(RunProgress.resource).selectinload(Resource.question)
-            )
+            .options(selectinload(RunProgress.resource).selectinload(Resource.question))
+            .with_for_update()
         )
         progress = result.scalar_one_or_none()
         if not progress:
@@ -406,16 +407,19 @@ class ProgressService:
         viewers: Optional[List[str]] = None
 
         if player.team_id and progress.map_object_id:
-            # Count team members
-            total_result = await db.execute(
-                select(func.count()).where(
-                    RunPlayer.team_id == player.team_id,
-                    RunPlayer.session_id == progress.session_id,
-                )
+            # Serialize concurrent "all viewed?" checks via RunTeam row lock.
+            team_lock_result = await db.execute(
+                select(RunTeam)
+                .where(RunTeam.id == player.team_id)
+                .options(selectinload(RunTeam.players))
+                .with_for_update()
             )
-            total_in_team = total_result.scalar_one()
+            locked_team = team_lock_result.scalar_one_or_none()
+            if locked_team is None:
+                return RunProgressResponse.model_validate(progress), None, None
 
-            # Count who has already viewed/answered this step
+            total_in_team = len(locked_team.players)
+
             viewed_result = await db.execute(
                 select(RunProgress).where(
                     RunProgress.team_id == player.team_id,
@@ -504,9 +508,7 @@ class ProgressService:
                 RunProgress.session_id == session_id,
                 RunProgress.player_id == player_id,
             )
-            .options(
-                selectinload(RunProgress.resource).selectinload(Resource.question)
-            )
+            .options(selectinload(RunProgress.resource).selectinload(Resource.question))
             .order_by(RunProgress.assigned_at)
         )
         items = result.scalars().all()

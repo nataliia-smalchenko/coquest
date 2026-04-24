@@ -50,12 +50,22 @@ def _now() -> datetime:
 
 
 async def _maybe_expire_session(db: AsyncSession, session: GameRun) -> bool:
-    """Auto-stop a session if ends_at has passed. Returns True if the session was expired."""
+    """Auto-stop a session if ends_at has passed. Returns True if expired."""
     if session.status != SessionStatus.ACTIVE or session.ends_at is None:
         return False
     now = _now()
     if session.ends_at >= now:
         return False
+
+    # Skip if another transaction is already expiring this session.
+    lock_result = await db.execute(
+        select(GameRun.id)
+        .where(GameRun.id == session.id, GameRun.status == SessionStatus.ACTIVE)
+        .with_for_update(skip_locked=True)
+    )
+    if lock_result.scalar_one_or_none() is None:
+        return False
+
     session.status = SessionStatus.STOPPED
     results_until = now + timedelta(days=settings.RESULTS_AVAILABLE_DAYS)
     for player in session.players:
