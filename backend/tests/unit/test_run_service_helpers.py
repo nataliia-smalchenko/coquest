@@ -130,6 +130,10 @@ class TestMaybeExpireSession:
             players=[player],
         )
         db = _make_db()
+        # Simulate acquiring the FOR UPDATE SKIP LOCKED lock
+        lock_exec = MagicMock()
+        lock_exec.scalar_one_or_none.return_value = session.id
+        db.execute.return_value = lock_exec
         result = await _maybe_expire_session(db, session)
         assert result is True
         assert session.status == SessionStatus.STOPPED
@@ -306,7 +310,13 @@ class TestListSessions:
             ends_at=datetime.now(timezone.utc) - timedelta(hours=1),
             players=[],
         )
-        db = _make_db(scalars=[session])
+        # First call: list query returns sessions
+        # Second call: FOR UPDATE SKIP LOCKED lock — non-None means lock acquired
+        list_exec = _exec(scalars=[session])
+        lock_exec = MagicMock()
+        lock_exec.scalar_one_or_none.return_value = session.id
+        db = _make_db()
+        db.execute.side_effect = [list_exec, lock_exec]
         await RunService.list_sessions(db, uuid.uuid4())
         db.commit.assert_called_once()
 
