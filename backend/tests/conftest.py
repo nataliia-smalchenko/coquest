@@ -61,6 +61,14 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 # Async client fixture
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    from app.core.rate_limit import limiter
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
+
+
 @pytest_asyncio.fixture()
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Override the dependency
