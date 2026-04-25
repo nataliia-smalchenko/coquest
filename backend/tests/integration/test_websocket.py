@@ -27,9 +27,10 @@ async def test_player_ws_connect_and_receive_connected(ws_run_and_player):
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/player?guest_token={info['guest_token']}",
+            f"/api/ws/session/{sid}/player",
             client,
         ) as ws:
+            await ws.send_text(json.dumps({"token": info["guest_token"]}))
             msg = json.loads(await ws.receive_text())
             assert msg["type"] == "connected"
             assert msg["player_id"] == info["player_id"]
@@ -74,9 +75,10 @@ async def test_teacher_receives_player_joined(ws_run_and_player):
 
             # Now player connects
             async with aconnect_ws(
-                f"/api/ws/session/{sid}/player?guest_token={info['guest_token']}",
+                f"/api/ws/session/{sid}/player",
                 client,
             ) as player_ws:
+                await player_ws.send_text(json.dumps({"token": info["guest_token"]}))
                 p_msg = json.loads(await player_ws.receive_text())
                 assert p_msg["type"] == "connected"
 
@@ -96,9 +98,10 @@ async def test_player_sends_unknown_type_gets_error(ws_run_and_player):
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/player?guest_token={info['guest_token']}",
+            f"/api/ws/session/{sid}/player",
             client,
         ) as ws:
+            await ws.send_text(json.dumps({"token": info["guest_token"]}))
             _ = await ws.receive_text()  # connected
 
             await ws.send_text(json.dumps({"type": "nonsense"}))
@@ -125,9 +128,10 @@ async def test_player_chat_message_broadcast(ws_run_and_player):
 
             # Player connects
             async with aconnect_ws(
-                f"/api/ws/session/{sid}/player?guest_token={info['guest_token']}",
+                f"/api/ws/session/{sid}/player",
                 client,
             ) as player_ws:
+                await player_ws.send_text(json.dumps({"token": info["guest_token"]}))
                 _ = await player_ws.receive_text()  # connected
 
                 # Teacher receives exactly one 'player_joined' (broadcast_to_session includes teacher)
@@ -182,9 +186,10 @@ async def test_invalid_guest_token_rejected():
     ) as client:
         try:
             async with aconnect_ws(
-                f"/api/ws/session/{fake_session_id}/player?guest_token=bad_token",
+                f"/api/ws/session/{fake_session_id}/player",
                 client,
             ) as ws:
+                await ws.send_text(json.dumps({"token": "bad_token"}))
                 try:
                     await ws.receive_text()
                     pytest.fail("Expected WebSocket to be closed")
