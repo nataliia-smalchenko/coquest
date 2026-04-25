@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,7 +60,9 @@ async def resend_verification(
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def login(request: Request, credentials: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(
+    request: Request, credentials: UserLogin, db: AsyncSession = Depends(get_db)
+):
     """Login with email/password"""
     user = await AuthService.authenticate_user(db, credentials)
     tokens = AuthService.create_tokens(user)
@@ -80,7 +80,9 @@ async def google_auth(
 ):
     """Login or register with Google"""
     # Verify ID token locally using Google public keys cached in Redis
-    google_user_info = await OAuthService.verify_google_id_token(google_request.credential)
+    google_user_info = await OAuthService.verify_google_id_token(
+        google_request.credential
+    )
 
     # Add requested role to the data if it's a new user
     google_user_info["requested_role"] = getattr(google_request, "role", "student")

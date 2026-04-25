@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 
 from app.services.email_service import EmailService
 
@@ -49,15 +49,24 @@ class TestIsTokenExpired:
 
     def test_naive_datetime_treated_as_utc(self):
         # Naive datetime (no tzinfo) should be treated as UTC
-        sent_at = datetime.now().replace(tzinfo=None) - timedelta(hours=1)  # naive datetime, no tzinfo
+        sent_at = datetime.now().replace(tzinfo=None) - timedelta(
+            hours=1
+        )  # naive datetime, no tzinfo
         assert EmailService.is_token_expired(sent_at) is False
 
 
 class TestSendEmailTask:
     @pytest.mark.asyncio
     async def test_calls_resend_emails_send(self):
-        params = {"from": "a@b.com", "to": ["c@d.com"], "subject": "Test", "html": "<p>Hi</p>"}
-        with patch("app.services.email_service.resend.Emails.send", return_value={"id": "abc"}) as mock_send:
+        params = {
+            "from": "a@b.com",
+            "to": ["c@d.com"],
+            "subject": "Test",
+            "html": "<p>Hi</p>",
+        }
+        with patch(
+            "app.services.email_service.resend.Emails.send", return_value={"id": "abc"}
+        ) as mock_send:
             result = await EmailService._send_email_task(params)
         mock_send.assert_called_once_with(params)
         assert result == {"id": "abc"}
@@ -66,9 +75,11 @@ class TestSendEmailTask:
 class TestSendVerificationEmail:
     @pytest.mark.asyncio
     async def test_sends_email_with_correct_params(self):
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.return_value = {"id": "123"}
-            result = await EmailService.send_verification_email(
+            await EmailService.send_verification_email(
                 email="user@example.com",
                 full_name="Test User",
                 token="abc123",
@@ -83,7 +94,9 @@ class TestSendVerificationEmail:
 
     @pytest.mark.asyncio
     async def test_sends_in_english(self):
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.return_value = {"id": "456"}
             await EmailService.send_verification_email(
                 email="user@example.com",
@@ -97,7 +110,9 @@ class TestSendVerificationEmail:
 
     @pytest.mark.asyncio
     async def test_raises_on_send_failure(self):
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.side_effect = Exception("SMTP error")
             with pytest.raises(Exception, match="SMTP error"):
                 await EmailService.send_verification_email(
@@ -108,7 +123,9 @@ class TestSendVerificationEmail:
 
     @pytest.mark.asyncio
     async def test_verification_url_contains_token_and_language(self):
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.return_value = {}
             await EmailService.send_verification_email(
                 email="u@e.com",
@@ -125,7 +142,9 @@ class TestSendVerificationEmail:
 class TestSendWelcomeEmail:
     @pytest.mark.asyncio
     async def test_sends_welcome_email(self):
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.return_value = {"id": "789"}
             await EmailService.send_welcome_email(
                 email="user@example.com",
@@ -141,7 +160,9 @@ class TestSendWelcomeEmail:
 
     @pytest.mark.asyncio
     async def test_sends_welcome_email_in_english(self):
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.return_value = {}
             await EmailService.send_welcome_email(
                 email="user@example.com",
@@ -154,7 +175,9 @@ class TestSendWelcomeEmail:
     @pytest.mark.asyncio
     async def test_does_not_raise_on_send_failure(self):
         """send_welcome_email swallows exceptions (fire-and-forget)."""
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.side_effect = Exception("network error")
             # Should not raise
             await EmailService.send_welcome_email(
@@ -165,7 +188,9 @@ class TestSendWelcomeEmail:
 
     @pytest.mark.asyncio
     async def test_uses_default_language(self):
-        with patch.object(EmailService, "_send_email_task", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            EmailService, "_send_email_task", new_callable=AsyncMock
+        ) as mock_send:
             mock_send.return_value = {}
             await EmailService.send_welcome_email(email="u@e.com", full_name="N")
 

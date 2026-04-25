@@ -5,7 +5,7 @@ import secrets
 import string
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete as sa_delete, select
@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.game_run import GameRun, SessionStatus
-from app.models.map import MapObject
 from app.models.quest import Quest, QuestSettings, QuestTranslation
 from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.run_progress import RunProgress
@@ -142,7 +141,9 @@ async def _load_own_session(
     return session
 
 
-async def _reload_session_response(db: AsyncSession, session_id: uuid.UUID) -> GameRunResponse:
+async def _reload_session_response(
+    db: AsyncSession, session_id: uuid.UUID
+) -> GameRunResponse:
     """Reload a session with players after mutations and return the response schema."""
     result = await db.execute(
         select(GameRun)
@@ -154,9 +155,7 @@ async def _reload_session_response(db: AsyncSession, session_id: uuid.UUID) -> G
 
 class RunCoreService:
     @staticmethod
-    async def get_player_by_token(
-        db: AsyncSession, token: str
-    ) -> Optional[RunPlayer]:
+    async def get_player_by_token(db: AsyncSession, token: str) -> Optional[RunPlayer]:
         result = await db.execute(
             select(RunPlayer).where(RunPlayer.guest_token == token)
         )
@@ -474,7 +473,9 @@ class RunCoreService:
                 detail="Session is not active",
             )
 
-        await RunDistributionService._distribute_resources_for_player(db, session, player)
+        await RunDistributionService._distribute_resources_for_player(
+            db, session, player
+        )
 
         now = _now()
         if session.status != SessionStatus.ACTIVE:
@@ -585,9 +586,7 @@ class RunCoreService:
             team.hint_player_id = None
         await db.flush()
 
-        await db.execute(
-            sa_delete(RunTeam).where(RunTeam.session_id == session_id)
-        )
+        await db.execute(sa_delete(RunTeam).where(RunTeam.session_id == session_id))
         await db.flush()
 
         db.expire_all()
@@ -618,7 +617,7 @@ class RunCoreService:
         player: RunPlayer,
         lang: str = "uk",
     ) -> GameInfoResponse:
-        from app.models.quest import Quest, QuestSettings
+        from app.models.quest import Quest
         from app.models.map import Map  # noqa: F401
 
         if player.session_id != session_id:
@@ -731,9 +730,7 @@ class RunCoreService:
         await db.execute(
             sa_delete(RunProgress).where(RunProgress.player_id == player_id)
         )
-        await db.execute(
-            sa_delete(RunChat).where(RunChat.player_id == player_id)
-        )
+        await db.execute(sa_delete(RunChat).where(RunChat.player_id == player_id))
         await db.delete(player)
         await db.commit()
 
@@ -763,9 +760,7 @@ class RunCoreService:
     @staticmethod
     async def get_session_timing(db: AsyncSession, session_id: uuid.UUID) -> dict:
         """Return started_at / ends_at for a session as ISO strings."""
-        result = await db.execute(
-            select(GameRun).where(GameRun.id == session_id)
-        )
+        result = await db.execute(select(GameRun).where(GameRun.id == session_id))
         session = result.scalar_one_or_none()
         return {
             "started_at": session.started_at.isoformat()
@@ -779,9 +774,7 @@ class RunCoreService:
     @staticmethod
     async def get_team_players(db: AsyncSession, team_id: uuid.UUID) -> list:
         """Return all RunPlayer rows that belong to a team."""
-        result = await db.execute(
-            select(RunPlayer).where(RunPlayer.team_id == team_id)
-        )
+        result = await db.execute(select(RunPlayer).where(RunPlayer.team_id == team_id))
         return list(result.scalars().all())
 
     @staticmethod

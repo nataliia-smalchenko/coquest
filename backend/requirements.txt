@@ -50,3 +50,6 @@ pytest-env==1.6.0
 fakeredis==2.34.1
 pytest-cov==7.1.0
 httpx-ws==0.9.0
+
+# Format
+ruff==0.15.12

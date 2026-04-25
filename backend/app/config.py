@@ -1,4 +1,3 @@
-import os
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -49,8 +48,12 @@ class Settings(BaseSettings):
     CLOUDINARY_UPLOAD_PRESET: str = "coquest_preset"
 
     # Game session business rules
-    RESULTS_AVAILABLE_DAYS: int = 30  # how long results are accessible after a session ends
-    TEAM_WAIT_TIMEOUT_MINUTES: int = 30  # max time a WAITING team can exist before cleanup
+    RESULTS_AVAILABLE_DAYS: int = (
+        30  # how long results are accessible after a session ends
+    )
+    TEAM_WAIT_TIMEOUT_MINUTES: int = (
+        30  # max time a WAITING team can exist before cleanup
+    )
 
     # WebSocket
     WS_HEARTBEAT_INTERVAL_SECONDS: int = 30  # interval between server → client pings

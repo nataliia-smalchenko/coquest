@@ -20,7 +20,10 @@ class RunChat(Base):
         Uuid, ForeignKey("game_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     player_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("run_players.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid,
+        ForeignKey("run_players.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     message: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -28,9 +31,7 @@ class RunChat(Base):
     )
 
     # Relationships
-    run: Mapped["GameRun"] = relationship(
-        "GameRun", back_populates="chat_messages"
-    )
+    run: Mapped["GameRun"] = relationship("GameRun", back_populates="chat_messages")
     player: Mapped["RunPlayer"] = relationship(
         "RunPlayer", back_populates="chat_messages"
     )

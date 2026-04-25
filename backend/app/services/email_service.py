@@ -87,7 +87,7 @@ class EmailService:
             }
 
             return await EmailService._send_email_task(params)
-        except Exception as e:
+        except Exception:
             log.error("verification_email_failed", email=email, exc_info=True)
             raise
 
@@ -127,5 +127,5 @@ class EmailService:
             }
 
             return await EmailService._send_email_task(params)
-        except Exception as e:
+        except Exception:
             log.error("welcome_email_failed", email=email, exc_info=True)

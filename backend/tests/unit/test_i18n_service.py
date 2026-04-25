@@ -33,7 +33,13 @@ class TestLoadTranslations:
         lang_dir.mkdir()
         (lang_dir / "emails.json").write_text(json.dumps(SAMPLE_TRANSLATIONS))
 
-        with patch.object(Path, "__truediv__", side_effect=lambda self, other: tmp_path / other if str(self).endswith("translations") else self / other):
+        with patch.object(
+            Path,
+            "__truediv__",
+            side_effect=lambda self, other: (
+                tmp_path / other if str(self).endswith("translations") else self / other
+            ),
+        ):
             pass
 
         # Directly patch the translations_dir path inside _load_translations
@@ -44,14 +50,17 @@ class TestLoadTranslations:
             mock_path_instance.__truediv__ = MagicMock(return_value=mock_path_instance)
             mock_path_instance.parent = mock_path_instance
 
-            translations_dir = tmp_path
-            file_path = translations_dir / "uk" / "emails.json"
-
             # Use real file
-            result = I18nService._load_translations.__func__(I18nService, "uk", "emails") if False else None
+            result = (
+                I18nService._load_translations.__func__(I18nService, "uk", "emails")
+                if False
+                else None
+            )
 
         # Alternative: patch open and exists
-        with patch("builtins.open", mock_open(read_data=json.dumps(SAMPLE_TRANSLATIONS))):
+        with patch(
+            "builtins.open", mock_open(read_data=json.dumps(SAMPLE_TRANSLATIONS))
+        ):
             with patch("pathlib.Path.exists", return_value=True):
                 cache_key = "uk:emails"
                 I18nService._translations_cache[cache_key] = SAMPLE_TRANSLATIONS
@@ -76,7 +85,9 @@ class TestLoadTranslations:
             return "uk" in str(self)
 
         with patch("pathlib.Path.exists", fake_exists):
-            with patch("builtins.open", mock_open(read_data=json.dumps(SAMPLE_TRANSLATIONS))):
+            with patch(
+                "builtins.open", mock_open(read_data=json.dumps(SAMPLE_TRANSLATIONS))
+            ):
                 # Pre-load into cache simulating fallback
                 I18nService._translations_cache["uk:emails"] = SAMPLE_TRANSLATIONS
                 result = I18nService._load_translations("fr", "emails")
@@ -112,7 +123,9 @@ class TestGetTranslation:
         assert result == "Verify your email"
 
     def test_variable_substitution(self):
-        result = I18nService.get_translation("uk", "emails", "verification.greeting", name="Alice")
+        result = I18nService.get_translation(
+            "uk", "emails", "verification.greeting", name="Alice"
+        )
         assert result == "Hello, Alice!"
 
     def test_returns_key_when_not_found(self):
@@ -126,11 +139,15 @@ class TestGetTranslation:
 
     def test_returns_key_when_intermediate_is_not_dict(self):
         # "verification.subject" is a string, not a dict — accessing deeper key should return key
-        result = I18nService.get_translation("uk", "emails", "verification.subject.nested")
+        result = I18nService.get_translation(
+            "uk", "emails", "verification.subject.nested"
+        )
         assert result == "verification.subject.nested"
 
     def test_handles_formatting_error_gracefully(self):
-        I18nService._translations_cache["uk:emails"]["bad"] = {"key": "Hello {missing_var}"}
+        I18nService._translations_cache["uk:emails"]["bad"] = {
+            "key": "Hello {missing_var}"
+        }
         result = I18nService.get_translation("uk", "emails", "bad.key", wrong_var="x")
         # Should return the unformatted string, not raise
         assert "Hello" in result or result == "bad.key"
@@ -175,6 +192,7 @@ class TestGetUserLanguage:
     def test_returns_default_when_no_preferred_language_attr(self):
         class UserWithoutLang:
             pass
+
         assert I18nService.get_user_language(UserWithoutLang()) == "uk"
 
 

@@ -1,6 +1,5 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone
 from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
@@ -64,6 +63,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(autouse=True)
 def disable_rate_limiting():
     from app.core.rate_limit import limiter
+
     limiter.enabled = False
     yield
     limiter.enabled = True

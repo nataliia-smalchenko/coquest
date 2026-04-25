@@ -72,4 +72,5 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
 
 def get_language(accept_language: Optional[str] = Header(None)) -> str:
     from app.services.i18n_service import I18nService
+
     return I18nService.detect_language_from_header(accept_language)

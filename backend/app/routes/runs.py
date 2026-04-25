@@ -14,7 +14,6 @@ from app.models.user import User
 from app.schemas.resource import ResourceDetailPublicResponse
 from app.schemas.run import (
     GameInfoResponse,
-    GameRunDetailResponse,
     GameRunResultResponse,
     GameRunResponse,
     JoinRunRequest,
@@ -107,9 +106,7 @@ async def list_sessions(
     return await RunService.list_sessions(db, teacher.id)
 
 
-@router.post(
-    "/", response_model=GameRunResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/", response_model=GameRunResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")
 async def create_session(
     request: Request,
@@ -348,9 +345,7 @@ async def update_session_settings(
     db: AsyncSession = Depends(get_db),
     teacher: User = Depends(get_current_teacher),
 ):
-    return await RunService.update_session_settings(
-        db, session_id, teacher.id, data
-    )
+    return await RunService.update_session_settings(db, session_id, teacher.id, data)
 
 
 @router.post("/{session_id}/restart", response_model=GameRunResponse)

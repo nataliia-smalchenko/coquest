@@ -50,8 +50,12 @@ class RunService:
 
     # --- Distribution ---
     _distribute_resources = RunDistributionService._distribute_resources
-    _distribute_resources_for_player = RunDistributionService._distribute_resources_for_player
-    _distribute_resources_for_team = RunDistributionService._distribute_resources_for_team
+    _distribute_resources_for_player = (
+        RunDistributionService._distribute_resources_for_player
+    )
+    _distribute_resources_for_team = (
+        RunDistributionService._distribute_resources_for_team
+    )
 
     # --- Results ---
     get_session_results = RunResultsService.get_session_results

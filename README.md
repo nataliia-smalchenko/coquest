@@ -230,6 +230,7 @@ npm run format
 # Backend
 cd backend
 ruff check .
+ruff format .
 ```
 
 3. Open a pull request against `develop`

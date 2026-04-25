@@ -21,15 +21,15 @@ configure_logging(json_logs=not settings.DEBUG if hasattr(settings, "DEBUG") els
 
 log = structlog.get_logger(__name__)
 
-from app.database import get_db
-from app.routes import admin
-from app.routes import auth
-from app.routes import user
-from app.routes import resources
-from app.routes import maps
-from app.routes import quests
-from app.routes import runs
-from app.routes import websocket as ws_routes
+from app.database import get_db  # noqa: E402
+from app.routes import admin  # noqa: E402
+from app.routes import auth  # noqa: E402
+from app.routes import user  # noqa: E402
+from app.routes import resources  # noqa: E402
+from app.routes import maps  # noqa: E402
+from app.routes import quests  # noqa: E402
+from app.routes import runs  # noqa: E402
+from app.routes import websocket as ws_routes  # noqa: E402
 
 
 @asynccontextmanager

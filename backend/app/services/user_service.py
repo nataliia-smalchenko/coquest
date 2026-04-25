@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User, UserRole, UserLanguage
+from app.models.user import User, UserRole
 
 
 class UserService:
@@ -29,7 +29,11 @@ class UserService:
         if new_role == user.role:
             return
 
-        if not bypass_checks and user.role == UserRole.TEACHER and new_role == UserRole.STUDENT:
+        if (
+            not bypass_checks
+            and user.role == UserRole.TEACHER
+            and new_role == UserRole.STUDENT
+        ):
             # Lazy imports to avoid circular dependencies at module load time.
             from app.models.game_run import GameRun
             from app.models.quest import Quest
@@ -42,9 +46,7 @@ class UserService:
                 select(func.count(Quest.id)).where(Quest.teacher_id == user.id)
             )
             has_sessions = await db.scalar(
-                select(func.count(GameRun.id)).where(
-                    GameRun.teacher_id == user.id
-                )
+                select(func.count(GameRun.id)).where(GameRun.teacher_id == user.id)
             )
             if has_resources or has_quests or has_sessions:
                 raise HTTPException(

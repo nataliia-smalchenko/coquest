@@ -311,4 +311,3 @@ async def test_quests_isolated_between_teachers(
     response = await client.get("/api/quests/", headers=headers_b)
     assert response.status_code == 200
     assert len(response.json()) == 0
-

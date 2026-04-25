@@ -49,7 +49,10 @@ class RunProgress(Base):
         Uuid, ForeignKey("resources.id", ondelete="SET NULL"), nullable=True, index=True
     )
     map_object_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        Uuid, ForeignKey("map_objects.id", ondelete="SET NULL"), nullable=True, index=True
+        Uuid,
+        ForeignKey("map_objects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     status: Mapped[ProgressStatus] = mapped_column(
         Enum(ProgressStatus, native_enum=False),
@@ -70,15 +73,11 @@ class RunProgress(Base):
     )
 
     # Relationships
-    run: Mapped["GameRun"] = relationship(
-        "GameRun", back_populates="progress"
-    )
+    run: Mapped["GameRun"] = relationship("GameRun", back_populates="progress")
     team: Mapped[Optional["RunTeam"]] = relationship(
         "RunTeam", back_populates="progress"
     )
-    player: Mapped["RunPlayer"] = relationship(
-        "RunPlayer", back_populates="progress"
-    )
+    player: Mapped["RunPlayer"] = relationship("RunPlayer", back_populates="progress")
     resource: Mapped[Optional["Resource"]] = relationship(
         "Resource", back_populates="progress_items", foreign_keys=[resource_id]
     )

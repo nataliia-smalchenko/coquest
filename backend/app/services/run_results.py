@@ -101,9 +101,7 @@ class RunResultsService:
                 selectinload(GameRun.progress)
                 .selectinload(RunProgress.resource)
                 .selectinload(Resource.question),
-                selectinload(GameRun.chat_messages).selectinload(
-                    RunChat.player
-                ),
+                selectinload(GameRun.chat_messages).selectinload(RunChat.player),
             )
         )
         session = result.scalar_one()
@@ -231,8 +229,6 @@ class RunResultsService:
                 )
             )
             points_map = {str(row.resource_id): row.points for row in pts_result}
-
-        monitor_total_q_points = sum(points_map.values()) if points_map else None
 
         progress_by_player: Dict = defaultdict(list)
         for p in all_progress:

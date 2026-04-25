@@ -10,7 +10,6 @@ from app.database import AsyncSessionLocal
 from app.models.game_run import GameRun, SessionStatus
 from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.user import UserRole
-from app.schemas.run import GameRunResponse, RunPlayerResponse
 from app.services.run_service import RunService
 from app.services.user_service import UserService
 from app.services.websocket_handlers import (
@@ -205,7 +204,7 @@ async def ws_player(
                 "player_id": player_id,
             },
         )
-    except Exception as exc:
+    except Exception:
         log.exception(
             "player_ws_unexpected_error",
             session_id=sid,
@@ -274,7 +273,7 @@ async def ws_teacher(
             await handle_teacher_message(sid, teacher_id, data)
     except WebSocketDisconnect:
         await manager.disconnect_teacher(sid)
-    except Exception as exc:
+    except Exception:
         log.exception("teacher_ws_unexpected_error", session_id=sid)
         await manager.disconnect_teacher(sid)
     finally:

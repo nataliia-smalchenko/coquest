@@ -18,7 +18,7 @@ def configure_logging(json_logs: bool = True, log_level: str = "INFO") -> None:
     """Set up structlog with shared processors for both stdlib and structlog loggers."""
 
     shared_processors: list[structlog.types.Processor] = [
-        structlog.contextvars.merge_contextvars,       # thread-local/async context
+        structlog.contextvars.merge_contextvars,  # thread-local/async context
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),

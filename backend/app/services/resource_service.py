@@ -7,21 +7,13 @@ from typing import Any, Optional, List, Dict
 import cloudinary.utils
 import structlog
 from fastapi import HTTPException, status
-from sqlalchemy import text
-
-log = structlog.get_logger(__name__)
-
-# Whitelist: only alphanumeric characters, hyphens, and underscores are allowed
-# in a folder segment. Slashes, dots, and other special characters are rejected
-# to prevent path traversal attacks against the Cloudinary namespace.
-_FOLDER_SEGMENT_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.models.question import Question, DifficultyLevel
+from app.models.question import Question
 from app.models.resource import Resource, ResourceType
 from app.models.resource_folder import ResourceFolder
 from app.models.resource_tag import ResourceTag
@@ -36,6 +28,13 @@ from app.schemas.resource import (
     TagCreate,
     TextContentCreate,
 )
+
+log = structlog.get_logger(__name__)
+
+# Whitelist: only alphanumeric characters, hyphens, and underscores are allowed
+# in a folder segment. Slashes, dots, and other special characters are rejected
+# to prevent path traversal attacks against the Cloudinary namespace.
+_FOLDER_SEGMENT_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 class ResourceService:
@@ -362,7 +361,9 @@ class ResourceService:
                 detail="Resource not found",
             )
         resource.has_content = bool(resource.text_content or resource.question)
-        resource.difficulty = resource.question.difficulty if resource.question else None
+        resource.difficulty = (
+            resource.question.difficulty if resource.question else None
+        )
         return resource
 
     @staticmethod

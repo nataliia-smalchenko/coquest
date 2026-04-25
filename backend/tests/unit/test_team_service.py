@@ -1,14 +1,13 @@
 import uuid
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException
 
 from app.services.team_service import (
     TeamService,
     _team_response,
     _find_or_create_team,
-    _find_or_create_team_excluding,
     _cleanup_stale_teams,
     _now,
 )
@@ -20,6 +19,7 @@ from app.models.game_run import GameRun
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_player(**kw):
     p = MagicMock(spec=RunPlayer)
@@ -79,6 +79,7 @@ def _make_db(scalar=None, scalars=None):
 # _now
 # ---------------------------------------------------------------------------
 
+
 def test_now_is_utc():
     result = _now()
     assert result.tzinfo == timezone.utc
@@ -87,6 +88,7 @@ def test_now_is_utc():
 # ---------------------------------------------------------------------------
 # _team_response
 # ---------------------------------------------------------------------------
+
 
 class TestTeamResponse:
     def test_maps_team_with_players(self):
@@ -107,6 +109,7 @@ class TestTeamResponse:
 # _find_or_create_team
 # ---------------------------------------------------------------------------
 
+
 class TestFindOrCreateTeam:
     @pytest.mark.asyncio
     async def test_returns_existing_team_with_open_slot(self):
@@ -125,7 +128,7 @@ class TestFindOrCreateTeam:
         session = _make_session(max_players=2)
         db = _make_db(scalars=[full_team])
         db.flush = AsyncMock()
-        result = await _find_or_create_team(db, session)
+        await _find_or_create_team(db, session)
         db.add.assert_called_once()
 
     @pytest.mark.asyncio
@@ -140,6 +143,7 @@ class TestFindOrCreateTeam:
 # ---------------------------------------------------------------------------
 # _cleanup_stale_teams
 # ---------------------------------------------------------------------------
+
 
 class TestCleanupStaleTeams:
     @pytest.mark.asyncio
@@ -178,6 +182,7 @@ class TestCleanupStaleTeams:
 # ---------------------------------------------------------------------------
 # TeamService.get_team
 # ---------------------------------------------------------------------------
+
 
 class TestGetTeam:
     @pytest.mark.asyncio
@@ -224,6 +229,7 @@ class TestGetTeam:
 # TeamService.leave_team — error paths
 # ---------------------------------------------------------------------------
 
+
 class TestLeaveTeam:
     @pytest.mark.asyncio
     async def test_raises_403_when_wrong_session(self):
@@ -257,6 +263,7 @@ class TestLeaveTeam:
 # ---------------------------------------------------------------------------
 # TeamService.start_team — error paths
 # ---------------------------------------------------------------------------
+
 
 class TestStartTeam:
     @pytest.mark.asyncio

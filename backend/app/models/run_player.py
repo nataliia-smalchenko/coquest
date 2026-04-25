@@ -68,9 +68,7 @@ class RunPlayer(Base):
     )
 
     # Relationships
-    run: Mapped["GameRun"] = relationship(
-        "GameRun", back_populates="players"
-    )
+    run: Mapped["GameRun"] = relationship("GameRun", back_populates="players")
     team: Mapped[Optional["RunTeam"]] = relationship(
         "RunTeam",
         back_populates="players",

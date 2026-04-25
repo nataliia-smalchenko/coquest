@@ -1,18 +1,19 @@
 import uuid
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from app.services.progress_service import _auto_score, _now, ProgressService
-from app.models.run_progress import RunProgress, ProgressStatus
-from app.models.run_player import RunPlayer, PlayerStatus
+from app.models.run_progress import RunProgress
 
 
 # ---------------------------------------------------------------------------
 # _now
 # ---------------------------------------------------------------------------
 
+
 def test_now_returns_aware_datetime():
     from datetime import timezone
+
     result = _now()
     assert result.tzinfo is not None
     assert result.tzinfo == timezone.utc
@@ -21,6 +22,7 @@ def test_now_returns_aware_datetime():
 # ---------------------------------------------------------------------------
 # _auto_score
 # ---------------------------------------------------------------------------
+
 
 class TestAutoScore:
     def _make_question(self, q_type, options=None, correct_answers=None):
@@ -32,71 +34,95 @@ class TestAutoScore:
 
     # --- single ---
     def test_single_correct(self):
-        question = self._make_question("single", options=[
-            {"id": "a", "is_correct": True},
-            {"id": "b", "is_correct": False},
-        ])
+        question = self._make_question(
+            "single",
+            options=[
+                {"id": "a", "is_correct": True},
+                {"id": "b", "is_correct": False},
+            ],
+        )
         score, requires_review = _auto_score(question, {"option_id": "a"})
         assert score == 1.0
         assert requires_review is False
 
     def test_single_incorrect(self):
-        question = self._make_question("single", options=[
-            {"id": "a", "is_correct": True},
-            {"id": "b", "is_correct": False},
-        ])
+        question = self._make_question(
+            "single",
+            options=[
+                {"id": "a", "is_correct": True},
+                {"id": "b", "is_correct": False},
+            ],
+        )
         score, requires_review = _auto_score(question, {"option_id": "b"})
         assert score == 0.0
         assert requires_review is False
 
     def test_single_empty_answer(self):
-        question = self._make_question("single", options=[
-            {"id": "a", "is_correct": True},
-        ])
+        question = self._make_question(
+            "single",
+            options=[
+                {"id": "a", "is_correct": True},
+            ],
+        )
         score, _ = _auto_score(question, {})
         assert score == 0.0
 
     # --- multiple ---
     def test_multiple_all_correct(self):
-        question = self._make_question("multiple", options=[
-            {"id": "a", "is_correct": True},
-            {"id": "b", "is_correct": True},
-            {"id": "c", "is_correct": False},
-        ])
+        question = self._make_question(
+            "multiple",
+            options=[
+                {"id": "a", "is_correct": True},
+                {"id": "b", "is_correct": True},
+                {"id": "c", "is_correct": False},
+            ],
+        )
         score, requires_review = _auto_score(question, {"option_ids": ["a", "b"]})
         assert score == 1.0
         assert requires_review is False
 
     def test_multiple_partial_correct(self):
-        question = self._make_question("multiple", options=[
-            {"id": "a", "is_correct": True},
-            {"id": "b", "is_correct": True},
-            {"id": "c", "is_correct": False},
-        ])
+        question = self._make_question(
+            "multiple",
+            options=[
+                {"id": "a", "is_correct": True},
+                {"id": "b", "is_correct": True},
+                {"id": "c", "is_correct": False},
+            ],
+        )
         score, _ = _auto_score(question, {"option_ids": ["a"]})
         assert 0.0 < score < 1.0
 
     def test_multiple_wrong_selection(self):
-        question = self._make_question("multiple", options=[
-            {"id": "a", "is_correct": True},
-            {"id": "b", "is_correct": False},
-        ])
+        question = self._make_question(
+            "multiple",
+            options=[
+                {"id": "a", "is_correct": True},
+                {"id": "b", "is_correct": False},
+            ],
+        )
         score, _ = _auto_score(question, {"option_ids": ["b"]})
         assert score == 0.0
 
     def test_multiple_no_correct_answers_returns_zero(self):
-        question = self._make_question("multiple", options=[
-            {"id": "a", "is_correct": False},
-        ])
+        question = self._make_question(
+            "multiple",
+            options=[
+                {"id": "a", "is_correct": False},
+            ],
+        )
         score, _ = _auto_score(question, {"option_ids": ["a"]})
         assert score == 0.0
 
     def test_multiple_mixed_correct_and_wrong(self):
-        question = self._make_question("multiple", options=[
-            {"id": "a", "is_correct": True},
-            {"id": "b", "is_correct": True},
-            {"id": "c", "is_correct": False},
-        ])
+        question = self._make_question(
+            "multiple",
+            options=[
+                {"id": "a", "is_correct": True},
+                {"id": "b", "is_correct": True},
+                {"id": "c", "is_correct": False},
+            ],
+        )
         # Selects one correct + one wrong → penalized
         score, _ = _auto_score(question, {"option_ids": ["a", "c"]})
         assert score == 0.0  # max(0, (1-1)/2) = 0
@@ -142,6 +168,7 @@ class TestAutoScore:
 # ProgressService.get_player_visible_progress
 # ---------------------------------------------------------------------------
 
+
 class TestGetPlayerVisibleProgress:
     @pytest.mark.asyncio
     async def test_returns_progress_with_map_object(self):
@@ -156,7 +183,9 @@ class TestGetPlayerVisibleProgress:
 
         session_id = uuid.uuid4()
         player_id = uuid.uuid4()
-        result = await ProgressService.get_player_visible_progress(db, session_id, player_id)
+        result = await ProgressService.get_player_visible_progress(
+            db, session_id, player_id
+        )
 
         assert result == [prog]
         db.execute.assert_called_once()

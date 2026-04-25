@@ -12,9 +12,7 @@ class MapService:
     @staticmethod
     async def list_maps(db: AsyncSession) -> List[Map]:
         """Return all maps with translations eagerly loaded."""
-        result = await db.execute(
-            select(Map).options(selectinload(Map.translations))
-        )
+        result = await db.execute(select(Map).options(selectinload(Map.translations)))
         return list(result.scalars().all())
 
     @staticmethod

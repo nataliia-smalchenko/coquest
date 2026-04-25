@@ -6,18 +6,35 @@ from urllib.parse import urlparse
 import nh3
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.models.question import DifficultyLevel, QuestionType
+from app.models.resource import ResourceType
+
 # Tags allowed in Tiptap-produced HTML; everything else is stripped.
-_TIPTAP_TAGS = frozenset({
-    "p", "br", "strong", "em", "u", "s", "ul", "ol", "li",
-    "h1", "h2", "h3", "h4", "blockquote", "code", "pre", "hr",
-})
+_TIPTAP_TAGS = frozenset(
+    {
+        "p",
+        "br",
+        "strong",
+        "em",
+        "u",
+        "s",
+        "ul",
+        "ol",
+        "li",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "blockquote",
+        "code",
+        "pre",
+        "hr",
+    }
+)
 
 
 def _strip_html(v: str) -> str:
     return nh3.clean(v, tags=set())
-
-from app.models.question import DifficultyLevel, QuestionType
-from app.models.resource import ResourceType
 
 
 class FolderCreate(BaseModel):

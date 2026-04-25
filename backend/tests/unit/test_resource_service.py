@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 
@@ -15,6 +15,7 @@ from app.models.question import Question
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _exec_result(scalar=None, scalars=None):
     r = MagicMock()
@@ -67,6 +68,7 @@ def _make_folder(**kwargs) -> ResourceFolder:
 # list_folders
 # ---------------------------------------------------------------------------
 
+
 class TestListFolders:
     @pytest.mark.asyncio
     async def test_returns_empty_list(self):
@@ -98,12 +100,19 @@ class TestListFolders:
         folder = _make_folder()
         db = _make_db(scalars=[folder])
         result = await ResourceService.list_folders(db, uuid.uuid4())
-        assert set(result[0].keys()) == {"id", "name", "parent_id", "created_at", "children_count"}
+        assert set(result[0].keys()) == {
+            "id",
+            "name",
+            "parent_id",
+            "created_at",
+            "children_count",
+        }
 
 
 # ---------------------------------------------------------------------------
 # create_folder
 # ---------------------------------------------------------------------------
+
 
 class TestCreateFolder:
     @pytest.mark.asyncio
@@ -173,6 +182,7 @@ class TestCreateFolder:
 # delete_folder
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteFolder:
     @pytest.mark.asyncio
     async def test_deletes_folder(self):
@@ -221,6 +231,7 @@ class TestDeleteFolder:
 # ---------------------------------------------------------------------------
 # list_tags / create_tag / delete_tag
 # ---------------------------------------------------------------------------
+
 
 class TestListTags:
     @pytest.mark.asyncio
@@ -308,6 +319,7 @@ class TestDeleteTag:
 # list_resources
 # ---------------------------------------------------------------------------
 
+
 class TestListResources:
     @pytest.mark.asyncio
     async def test_returns_resources_with_has_content_flag(self):
@@ -362,6 +374,7 @@ class TestListResources:
 # create_resource
 # ---------------------------------------------------------------------------
 
+
 class TestCreateResource:
     @pytest.mark.asyncio
     async def test_creates_resource_without_folder(self):
@@ -375,7 +388,9 @@ class TestCreateResource:
         data.title = "My Resource"
         data.tag_ids = []
 
-        with patch.object(ResourceService, "_load_resource", new_callable=AsyncMock) as mock_load:
+        with patch.object(
+            ResourceService, "_load_resource", new_callable=AsyncMock
+        ) as mock_load:
             mock_load.return_value = resource
             result = await ResourceService.create_resource(db, uuid.uuid4(), data)
 
@@ -414,8 +429,12 @@ class TestCreateResource:
         data.title = "Tagged"
         data.tag_ids = tag_ids
 
-        with patch.object(ResourceService, "_set_resource_tags", new_callable=AsyncMock) as mock_tags:
-            with patch.object(ResourceService, "_load_resource", new_callable=AsyncMock) as mock_load:
+        with patch.object(
+            ResourceService, "_set_resource_tags", new_callable=AsyncMock
+        ) as mock_tags:
+            with patch.object(
+                ResourceService, "_load_resource", new_callable=AsyncMock
+            ) as mock_load:
                 mock_load.return_value = resource
                 with patch("app.services.resource_service.Resource") as MockRes:
                     MockRes.return_value = resource
@@ -444,6 +463,7 @@ class TestCreateResource:
 # ---------------------------------------------------------------------------
 # get_resource
 # ---------------------------------------------------------------------------
+
 
 class TestGetResource:
     @pytest.mark.asyncio
@@ -483,6 +503,7 @@ class TestGetResource:
 # update_resource
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateResource:
     @pytest.mark.asyncio
     async def test_updates_title(self):
@@ -495,11 +516,15 @@ class TestUpdateResource:
         data.title = "Updated"
         data.tag_ids = None
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
-            with patch.object(ResourceService, "_load_resource", new_callable=AsyncMock) as mock_load:
+            with patch.object(
+                ResourceService, "_load_resource", new_callable=AsyncMock
+            ) as mock_load:
                 mock_load.return_value = updated
-                result = await ResourceService.update_resource(
+                await ResourceService.update_resource(
                     db, uuid.uuid4(), resource.id, data
                 )
 
@@ -519,11 +544,17 @@ class TestUpdateResource:
         data.folder_id = new_folder_id
         data.tag_ids = None
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
-            with patch.object(ResourceService, "_load_resource", new_callable=AsyncMock) as mock_load:
+            with patch.object(
+                ResourceService, "_load_resource", new_callable=AsyncMock
+            ) as mock_load:
                 mock_load.return_value = updated
-                await ResourceService.update_resource(db, uuid.uuid4(), resource.id, data)
+                await ResourceService.update_resource(
+                    db, uuid.uuid4(), resource.id, data
+                )
 
         assert resource.folder_id == new_folder_id
 
@@ -539,12 +570,20 @@ class TestUpdateResource:
         data.title = None
         data.tag_ids = tag_ids
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
-            with patch.object(ResourceService, "_set_resource_tags", new_callable=AsyncMock) as mock_tags:
-                with patch.object(ResourceService, "_load_resource", new_callable=AsyncMock) as mock_load:
+            with patch.object(
+                ResourceService, "_set_resource_tags", new_callable=AsyncMock
+            ) as mock_tags:
+                with patch.object(
+                    ResourceService, "_load_resource", new_callable=AsyncMock
+                ) as mock_load:
                     mock_load.return_value = updated
-                    await ResourceService.update_resource(db, uuid.uuid4(), resource.id, data)
+                    await ResourceService.update_resource(
+                        db, uuid.uuid4(), resource.id, data
+                    )
 
         mock_tags.assert_called_once()
 
@@ -554,10 +593,16 @@ class TestUpdateResource:
         data = MagicMock()
         data.model_fields_set = set()
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = HTTPException(status_code=404, detail="Resource not found")
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.side_effect = HTTPException(
+                status_code=404, detail="Resource not found"
+            )
             with pytest.raises(HTTPException) as exc_info:
-                await ResourceService.update_resource(db, uuid.uuid4(), uuid.uuid4(), data)
+                await ResourceService.update_resource(
+                    db, uuid.uuid4(), uuid.uuid4(), data
+                )
         assert exc_info.value.status_code == 404
 
 
@@ -565,12 +610,15 @@ class TestUpdateResource:
 # delete_resource
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteResource:
     @pytest.mark.asyncio
     async def test_deletes_resource(self):
         resource = _make_resource()
         db = _make_db()
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             await ResourceService.delete_resource(db, uuid.uuid4(), resource.id)
 
@@ -580,8 +628,12 @@ class TestDeleteResource:
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
         db = _make_db()
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = HTTPException(status_code=404, detail="Resource not found")
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.side_effect = HTTPException(
+                status_code=404, detail="Resource not found"
+            )
             with pytest.raises(HTTPException) as exc_info:
                 await ResourceService.delete_resource(db, uuid.uuid4(), uuid.uuid4())
         assert exc_info.value.status_code == 404
@@ -590,6 +642,7 @@ class TestDeleteResource:
 # ---------------------------------------------------------------------------
 # upsert_text_content
 # ---------------------------------------------------------------------------
+
 
 class TestUpsertTextContent:
     @pytest.mark.asyncio
@@ -604,7 +657,9 @@ class TestUpsertTextContent:
         data.body = {"type": "doc", "content": []}
         data.images = [img]
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             await ResourceService.upsert_text_content(
                 db, uuid.uuid4(), resource.id, data
@@ -626,9 +681,11 @@ class TestUpsertTextContent:
         data.body = {"type": "doc", "content": [{"type": "paragraph"}]}
         data.images = [img]
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
-            result = await ResourceService.upsert_text_content(
+            await ResourceService.upsert_text_content(
                 db, uuid.uuid4(), resource.id, data
             )
 
@@ -640,7 +697,9 @@ class TestUpsertTextContent:
         resource = _make_resource(type=ResourceType.QUESTION)
         db = _make_db()
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             with pytest.raises(HTTPException) as exc_info:
                 await ResourceService.upsert_text_content(
@@ -653,8 +712,11 @@ class TestUpsertTextContent:
 # upsert_question
 # ---------------------------------------------------------------------------
 
+
 class TestUpsertQuestion:
-    def _make_question_data(self, question_type="open", correct_answers=None, options=None):
+    def _make_question_data(
+        self, question_type="open", correct_answers=None, options=None
+    ):
         data = MagicMock()
         data.question_type = question_type
         data.body = {"type": "doc", "content": []}
@@ -674,7 +736,9 @@ class TestUpsertQuestion:
         data = self._make_question_data()
         data.options = []
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             await ResourceService.upsert_question(db, uuid.uuid4(), resource.id, data)
 
@@ -690,7 +754,9 @@ class TestUpsertQuestion:
         data = self._make_question_data(question_type="open")
         data.options = []
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             await ResourceService.upsert_question(db, uuid.uuid4(), resource.id, data)
 
@@ -702,7 +768,9 @@ class TestUpsertQuestion:
         resource = _make_resource(type=ResourceType.TEXT)
         db = _make_db()
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             with pytest.raises(HTTPException) as exc_info:
                 await ResourceService.upsert_question(
@@ -725,10 +793,14 @@ class TestUpsertQuestion:
             correct_answers=["nonexistent-id"],
         )
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             with pytest.raises(HTTPException) as exc_info:
-                await ResourceService.upsert_question(db, uuid.uuid4(), resource.id, data)
+                await ResourceService.upsert_question(
+                    db, uuid.uuid4(), resource.id, data
+                )
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
@@ -746,7 +818,9 @@ class TestUpsertQuestion:
             correct_answers=["opt-1"],
         )
 
-        with patch.object(ResourceService, "_get_resource_or_404", new_callable=AsyncMock) as mock_get:
+        with patch.object(
+            ResourceService, "_get_resource_or_404", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = resource
             await ResourceService.upsert_question(db, uuid.uuid4(), resource.id, data)
 
@@ -757,9 +831,13 @@ class TestUpsertQuestion:
 # get_cloudinary_signature
 # ---------------------------------------------------------------------------
 
+
 class TestGetCloudinarySignature:
     def test_returns_required_fields(self):
-        with patch("app.services.resource_service.cloudinary.utils.api_sign_request", return_value="sig123"):
+        with patch(
+            "app.services.resource_service.cloudinary.utils.api_sign_request",
+            return_value="sig123",
+        ):
             result = ResourceService.get_cloudinary_signature("teacher-id", "questions")
 
         assert "signature" in result
@@ -773,7 +851,10 @@ class TestGetCloudinarySignature:
         assert "questions" in result["folder"]
 
     def test_upload_preset_is_coquest_preset(self):
-        with patch("app.services.resource_service.cloudinary.utils.api_sign_request", return_value="s"):
+        with patch(
+            "app.services.resource_service.cloudinary.utils.api_sign_request",
+            return_value="s",
+        ):
             result = ResourceService.get_cloudinary_signature("t", "f")
         assert result["upload_preset"] == "coquest_preset"
 
@@ -782,12 +863,15 @@ class TestGetCloudinarySignature:
 # _get_resource_or_404
 # ---------------------------------------------------------------------------
 
+
 class TestGetResourceOr404:
     @pytest.mark.asyncio
     async def test_returns_resource(self):
         resource = _make_resource()
         db = _make_db(scalar=resource)
-        result = await ResourceService._get_resource_or_404(db, uuid.uuid4(), resource.id)
+        result = await ResourceService._get_resource_or_404(
+            db, uuid.uuid4(), resource.id
+        )
         assert result is resource
 
     @pytest.mark.asyncio
@@ -801,6 +885,7 @@ class TestGetResourceOr404:
 # ---------------------------------------------------------------------------
 # _set_resource_tags
 # ---------------------------------------------------------------------------
+
 
 class TestSetResourceTags:
     @pytest.mark.asyncio
@@ -816,7 +901,9 @@ class TestSetResourceTags:
         tag_id = uuid.uuid4()
         db = _make_db(scalars=[])  # no tags returned
         with pytest.raises(HTTPException) as exc_info:
-            await ResourceService._set_resource_tags(db, uuid.uuid4(), uuid.uuid4(), [tag_id])
+            await ResourceService._set_resource_tags(
+                db, uuid.uuid4(), uuid.uuid4(), [tag_id]
+            )
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
@@ -829,6 +916,8 @@ class TestSetResourceTags:
         db.add = MagicMock()
 
         tag_ids = [tag.id]
-        await ResourceService._set_resource_tags(db, uuid.uuid4(), uuid.uuid4(), tag_ids)
+        await ResourceService._set_resource_tags(
+            db, uuid.uuid4(), uuid.uuid4(), tag_ids
+        )
 
         db.add.assert_called_once()

@@ -1,6 +1,5 @@
-import random
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from datetime import timedelta
 
 from fastapi import HTTPException, status
@@ -109,16 +108,12 @@ async def _cleanup_stale_teams(
             team.hint_player_id = None
             await db.flush()
             await db.execute(
-                sa_delete(RunProgress).where(
-                    RunProgress.player_id.in_(player_ids)
-                )
+                sa_delete(RunProgress).where(RunProgress.player_id.in_(player_ids))
             )
             await db.execute(
                 sa_delete(RunChat).where(RunChat.player_id.in_(player_ids))
             )
-            await db.execute(
-                sa_delete(RunPlayer).where(RunPlayer.id.in_(player_ids))
-            )
+            await db.execute(sa_delete(RunPlayer).where(RunPlayer.id.in_(player_ids)))
         await db.delete(team)
 
     await db.flush()

@@ -78,7 +78,9 @@ class MarkViewedMessage(BaseModel):
 class ChatMessage(BaseModel):
     type: Literal["chat_message"]
     # strip_whitespace prevents blank messages slipping past min_length=1
-    message: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    message: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
+    ]
 
 
 PlayerMessage = Annotated[

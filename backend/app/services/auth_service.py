@@ -67,7 +67,7 @@ class AuthService:
             await db.commit()
             await db.refresh(db_user)
             return db_user
-        except Exception as e:
+        except Exception:
             await db.rollback()
             log.error("registration_failed", email=user_data.email, exc_info=True)
             raise HTTPException(
@@ -113,7 +113,7 @@ class AuthService:
                 full_name=user.full_name,
                 language=I18nService.get_user_language(user),
             )
-        except Exception as e:
+        except Exception:
             log.warning("welcome_email_failed", email=user.email, exc_info=True)
 
         return user
@@ -147,7 +147,7 @@ class AuthService:
                 language=I18nService.get_user_language(user),
             )
             await db.commit()
-        except Exception as e:
+        except Exception:
             await db.rollback()
             log.error("resend_verification_failed", email=email, exc_info=True)
             raise HTTPException(

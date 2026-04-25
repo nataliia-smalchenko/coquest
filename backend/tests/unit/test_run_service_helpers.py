@@ -1,7 +1,7 @@
 import uuid
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException
 
 from app.services.run_service import (
@@ -20,6 +20,7 @@ from app.models.run_player import RunPlayer, PlayerStatus
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_player(**kw):
     p = MagicMock(spec=RunPlayer)
@@ -85,6 +86,7 @@ def _make_db(scalar=None, scalars=None):
 # _now
 # ---------------------------------------------------------------------------
 
+
 def test_now_is_utc_aware():
     result = _now()
     assert result.tzinfo is not None
@@ -94,6 +96,7 @@ def test_now_is_utc_aware():
 # ---------------------------------------------------------------------------
 # _maybe_expire_session
 # ---------------------------------------------------------------------------
+
 
 class TestMaybeExpireSession:
     @pytest.mark.asyncio
@@ -160,6 +163,7 @@ class TestMaybeExpireSession:
 # _player_response
 # ---------------------------------------------------------------------------
 
+
 class TestPlayerResponse:
     def test_maps_all_fields(self):
         player = _make_player()
@@ -181,6 +185,7 @@ class TestPlayerResponse:
 # _session_response
 # ---------------------------------------------------------------------------
 
+
 class TestSessionResponse:
     def test_maps_all_fields(self):
         player = _make_player()
@@ -199,6 +204,7 @@ class TestSessionResponse:
 # ---------------------------------------------------------------------------
 # _load_session
 # ---------------------------------------------------------------------------
+
 
 class TestLoadSession:
     @pytest.mark.asyncio
@@ -219,6 +225,7 @@ class TestLoadSession:
 # ---------------------------------------------------------------------------
 # _load_own_session
 # ---------------------------------------------------------------------------
+
 
 class TestLoadOwnSession:
     @pytest.mark.asyncio
@@ -242,6 +249,7 @@ class TestLoadOwnSession:
 # RunService.get_player_by_token
 # ---------------------------------------------------------------------------
 
+
 class TestGetPlayerByToken:
     @pytest.mark.asyncio
     async def test_returns_player(self):
@@ -260,6 +268,7 @@ class TestGetPlayerByToken:
 # ---------------------------------------------------------------------------
 # RunService.get_session_by_code
 # ---------------------------------------------------------------------------
+
 
 class TestGetSessionByCode:
     @pytest.mark.asyncio
@@ -287,6 +296,7 @@ class TestGetSessionByCode:
 # ---------------------------------------------------------------------------
 # RunService.list_sessions
 # ---------------------------------------------------------------------------
+
 
 class TestListSessions:
     @pytest.mark.asyncio
@@ -325,12 +335,14 @@ class TestListSessions:
 # RunService.create_session — error paths
 # ---------------------------------------------------------------------------
 
+
 class TestCreateSession:
     @pytest.mark.asyncio
     async def test_raises_404_when_quest_not_found(self):
         db = _make_db(scalar=None)
 
         from app.schemas.run import RunCreate
+
         data = MagicMock(spec=RunCreate)
         data.quest_id = uuid.uuid4()
 
@@ -345,6 +357,7 @@ class TestCreateSession:
         db = _make_db(scalar=quest)
 
         from app.schemas.run import RunCreate
+
         data = MagicMock(spec=RunCreate)
         data.quest_id = uuid.uuid4()
 
@@ -357,6 +370,7 @@ class TestCreateSession:
 # ---------------------------------------------------------------------------
 # RunService.player_start_session — error path
 # ---------------------------------------------------------------------------
+
 
 class TestPlayerStartSession:
     @pytest.mark.asyncio
