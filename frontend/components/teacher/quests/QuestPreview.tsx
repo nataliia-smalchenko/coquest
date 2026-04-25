@@ -238,7 +238,7 @@ export default function QuestPreview({ questId }: Props) {
             {quest.status === "published" && (
               <button
                 onClick={() =>
-                  router.push(`/teacher/sessions/new?quest_id=${quest.id}`)
+                  router.push(`/teacher/runs/new?quest_id=${quest.id}`)
                 }
                 style={{
                   display: "inline-flex",

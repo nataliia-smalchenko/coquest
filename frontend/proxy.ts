@@ -7,8 +7,8 @@ const intlMiddleware = createMiddleware(routing);
 // Languages that map to Ukrainian interface
 const UKRAINIAN_LANGS = new Set(["uk", "ru"]);
 
-// Routes that require an authenticated session (checked against locale-stripped path)
-const PROTECTED_PREFIXES = ["/teacher", "/student", "/profile", "/session"];
+// Routes that require an authenticated user (checked against locale-stripped path)
+const PROTECTED_PREFIXES = ["/teacher", "/student", "/profile", "/run"];
 
 function detectLocale(acceptLanguage: string | null): "uk" | "en" {
   if (!acceptLanguage) return "en";

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from app.models.run_chat import RunChat
 
 
-class SessionStatus(str, enum.Enum):
+class RunStatus(str, enum.Enum):
     WAITING = "waiting"
     ACTIVE = "active"
     COMPLETED = "completed"
@@ -35,13 +35,13 @@ class GameRun(Base):
     teacher_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    session_code: Mapped[str] = mapped_column(
+    join_code: Mapped[str] = mapped_column(
         String(6), nullable=False, unique=True, index=True
     )
     name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    status: Mapped[SessionStatus] = mapped_column(
-        Enum(SessionStatus, native_enum=False),
-        default=SessionStatus.WAITING,
+    status: Mapped[RunStatus] = mapped_column(
+        Enum(RunStatus, native_enum=False),
+        default=RunStatus.WAITING,
         nullable=False,
     )
     started_at: Mapped[Optional[datetime]] = mapped_column(
@@ -96,4 +96,4 @@ class GameRun(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<GameRun code={self.session_code!r} status={self.status!r}>"
+        return f"<GameRun code={self.join_code!r} status={self.status!r}>"

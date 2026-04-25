@@ -21,53 +21,53 @@ from app.main import app
 async def test_player_ws_connect_and_receive_connected(ws_run_and_player):
     """Player connects via WS and receives a 'connected' message."""
     info = ws_run_and_player
-    sid = info["session_id"]
+    sid = info["run_id"]
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/player",
+            f"/api/ws/run/{sid}/player",
             client,
         ) as ws:
             await ws.send_text(json.dumps({"token": info["guest_token"]}))
             msg = json.loads(await ws.receive_text())
             assert msg["type"] == "connected"
             assert msg["player_id"] == info["player_id"]
-            assert "session" in msg
+            assert "run" in msg
 
 
 @pytest.mark.asyncio
 async def test_teacher_ws_connect(ws_run_and_player):
     """Teacher connects via WS and receives a 'connected' message."""
     info = ws_run_and_player
-    sid = info["session_id"]
+    sid = info["run_id"]
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/teacher?token={info['teacher_token']}",
+            f"/api/ws/run/{sid}/teacher?token={info['teacher_token']}",
             client,
         ) as ws:
             msg = json.loads(await ws.receive_text())
             assert msg["type"] == "connected"
             assert msg["role"] == "teacher"
-            assert msg["session"]["id"] == sid
+            assert msg["run"]["id"] == sid
 
 
 @pytest.mark.asyncio
 async def test_teacher_receives_player_joined(ws_run_and_player):
     """When a player connects, the teacher gets a 'player_joined' event."""
     info = ws_run_and_player
-    sid = info["session_id"]
+    sid = info["run_id"]
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         # Teacher connects first
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/teacher?token={info['teacher_token']}",
+            f"/api/ws/run/{sid}/teacher?token={info['teacher_token']}",
             client,
         ) as teacher_ws:
             t_msg = json.loads(await teacher_ws.receive_text())
@@ -75,7 +75,7 @@ async def test_teacher_receives_player_joined(ws_run_and_player):
 
             # Now player connects
             async with aconnect_ws(
-                f"/api/ws/session/{sid}/player",
+                f"/api/ws/run/{sid}/player",
                 client,
             ) as player_ws:
                 await player_ws.send_text(json.dumps({"token": info["guest_token"]}))
@@ -92,13 +92,13 @@ async def test_teacher_receives_player_joined(ws_run_and_player):
 async def test_player_sends_unknown_type_gets_error(ws_run_and_player):
     """Sending an unknown message type returns an error."""
     info = ws_run_and_player
-    sid = info["session_id"]
+    sid = info["run_id"]
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/player",
+            f"/api/ws/run/{sid}/player",
             client,
         ) as ws:
             await ws.send_text(json.dumps({"token": info["guest_token"]}))
@@ -114,21 +114,21 @@ async def test_player_sends_unknown_type_gets_error(ws_run_and_player):
 async def test_player_chat_message_broadcast(ws_run_and_player):
     """Player sends a chat message and it gets broadcast to player and teacher."""
     info = ws_run_and_player
-    sid = info["session_id"]
+    sid = info["run_id"]
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         # Teacher connects first
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/teacher?token={info['teacher_token']}",
+            f"/api/ws/run/{sid}/teacher?token={info['teacher_token']}",
             client,
         ) as teacher_ws:
             _ = await teacher_ws.receive_text()  # connected
 
             # Player connects
             async with aconnect_ws(
-                f"/api/ws/session/{sid}/player",
+                f"/api/ws/run/{sid}/player",
                 client,
             ) as player_ws:
                 await player_ws.send_text(json.dumps({"token": info["guest_token"]}))
@@ -159,13 +159,13 @@ async def test_player_chat_message_broadcast(ws_run_and_player):
 async def test_teacher_sends_unknown_type_gets_error(ws_run_and_player):
     """Teacher sending an unknown message type returns an error."""
     info = ws_run_and_player
-    sid = info["session_id"]
+    sid = info["run_id"]
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         async with aconnect_ws(
-            f"/api/ws/session/{sid}/teacher?token={info['teacher_token']}",
+            f"/api/ws/run/{sid}/teacher?token={info['teacher_token']}",
             client,
         ) as ws:
             _ = await ws.receive_text()  # connected
@@ -179,14 +179,14 @@ async def test_teacher_sends_unknown_type_gets_error(ws_run_and_player):
 @pytest.mark.asyncio
 async def test_invalid_guest_token_rejected():
     """A player with an invalid guest_token should be disconnected."""
-    fake_session_id = str(uuid.uuid4())
+    fake_run_id = str(uuid.uuid4())
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         try:
             async with aconnect_ws(
-                f"/api/ws/session/{fake_session_id}/player",
+                f"/api/ws/run/{fake_run_id}/player",
                 client,
             ) as ws:
                 await ws.send_text(json.dumps({"token": "bad_token"}))
@@ -202,14 +202,14 @@ async def test_invalid_guest_token_rejected():
 @pytest.mark.asyncio
 async def test_invalid_teacher_token_rejected():
     """A teacher with an invalid JWT should be disconnected."""
-    fake_session_id = str(uuid.uuid4())
+    fake_run_id = str(uuid.uuid4())
 
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
         try:
             async with aconnect_ws(
-                f"/api/ws/session/{fake_session_id}/teacher?token=bad_jwt_token",
+                f"/api/ws/run/{fake_run_id}/teacher?token=bad_jwt_token",
                 client,
             ) as ws:
                 try:

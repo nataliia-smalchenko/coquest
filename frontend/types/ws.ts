@@ -2,15 +2,15 @@
  * WebSocket message type definitions — mirrors backend app/schemas/websocket.py
  *
  * Teacher → Server (outgoing from teacher client):
- *   start_run  — trigger session start
- *   stop_run   — trigger session stop
+ *   start_run  — trigger run start
+ *   stop_run   — trigger run stop
  *   review_answer — grade an open-ended answer
  *
  * Player → Server (outgoing from player client):
  *   submit_answer, mark_viewed, chat_message
  *
  * Server → Client (incoming on both sides):
- *   connected, session_started, session_stopped, session_completed, …
+ *   connected, run_started, run_stopped, run_completed, …
  */
 
 // Teacher → Server

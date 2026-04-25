@@ -14,14 +14,14 @@ import {
 } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import Image from "next/image";
-import { getResults } from "@/lib/api/sessions";
-import { clearSessionStorage, getSessionStorage } from "@/hooks/useGameSession";
+import { getResults } from "@/lib/api/runs";
+import { clearRunStorage, getRunStorage } from "@/hooks/useGameSession";
 import type {
-  GameSessionResultResponse,
-  SessionProgressResult,
-  SessionPlayer,
+  GameRunResultResponse,
+  RunProgressResult,
+  RunPlayer,
   QuestionResultOption,
-} from "@/types/session";
+} from "@/types/run";
 
 // helpers
 function getSelectedOptionIds(answer: unknown, questionType: string): string[] {
@@ -50,7 +50,7 @@ function QuestionDetail({
   showCorrectAnswers,
   t,
 }: {
-  progress: SessionProgressResult;
+  progress: RunProgressResult;
   showCorrectAnswers: boolean;
   t: ReturnType<typeof useTranslations<"game.results">>;
 }) {
@@ -168,12 +168,12 @@ export default function ResultsPage() {
   const t = useTranslations("game.results");
   const params = useParams();
   const router = useRouter();
-  const sessionId = params.id as string;
+  const runId = params.id as string;
 
-  const [results, setResults] = useState<GameSessionResultResponse | null>(
+  const [results, setResults] = useState<GameRunResultResponse | null>(
     null,
   );
-  const [myPlayer, setMyPlayer] = useState<SessionPlayer | null>(null);
+  const [myPlayer, setMyPlayer] = useState<RunPlayer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenInput, setTokenInput] = useState("");
@@ -193,9 +193,9 @@ export default function ResultsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getResults(sessionId, token);
+      const data = await getResults(runId, token);
       setResults(data);
-      const stored = getSessionStorage(sessionId);
+      const stored = getRunStorage(runId);
       if (stored) {
         const me = data.players.find((p) => p.id === stored.player_id);
         setMyPlayer(me ?? null);
@@ -208,16 +208,16 @@ export default function ResultsPage() {
   };
 
   useEffect(() => {
-    const stored = getSessionStorage(sessionId);
+    const stored = getRunStorage(runId);
     if (stored) {
       loadResults(stored.guest_token);
     } else {
       setNeedToken(true);
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [runId]);
 
-  const myProgress: SessionProgressResult[] = myPlayer
+  const myProgress: RunProgressResult[] = myPlayer
     ? (results?.progress ?? []).filter(
         (p) => p.player_id === myPlayer.id && p.question !== null,
       )
@@ -235,7 +235,7 @@ export default function ResultsPage() {
       : [];
 
   // Each teammate's answered questions
-  const teammateProgress = (pid: string): SessionProgressResult[] =>
+  const teammateProgress = (pid: string): RunProgressResult[] =>
     (results?.progress ?? []).filter(
       (p) =>
         p.player_id === pid && p.question !== null && p.status === "answered",
@@ -584,11 +584,11 @@ export default function ResultsPage() {
           })}
 
         {/* Play again */}
-        {results.session_code && (
+        {results.join_code && (
           <button
             onClick={() => {
-              clearSessionStorage(sessionId);
-              router.push(`/join?code=${results.session_code}`);
+              clearRunStorage(runId);
+              router.push(`/join?code=${results.join_code}`);
             }}
             className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors text-sm"
           >

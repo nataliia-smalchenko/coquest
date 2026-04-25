@@ -1,11 +1,11 @@
 "use client";
 
 import type { MapObject, MapResponse } from "@/types/map";
-import type { SessionProgress } from "@/types/session";
+import type { RunProgress } from "@/types/run";
 
 interface MapInteractiveProps {
   map: MapResponse;
-  progress: SessionProgress[];
+  progress: RunProgress[];
   onObjectClick: (mapObjectId: string, progressId: string) => void;
   activeObjectId?: string | null;
   highlightObjectId?: string | null;
@@ -33,7 +33,7 @@ export default function MapInteractive({
 }: MapInteractiveProps) {
   const aspectRatio = map.original_width / map.original_height;
 
-  const progressByObject = new Map<string, SessionProgress>();
+  const progressByObject = new Map<string, RunProgress>();
   for (const p of progress) {
     if (p.map_object_id) {
       const existing = progressByObject.get(p.map_object_id);

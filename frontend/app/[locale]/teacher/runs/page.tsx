@@ -12,18 +12,18 @@ import {
   Users,
 } from "lucide-react";
 import { useLocale } from "next-intl";
-import { listSessions, deleteSession } from "@/lib/api/sessions";
+import { listRuns, deleteRun } from "@/lib/api/runs";
 import { useAuth } from "@/hooks/useAuth";
-import type { SessionListItem, SessionStatus } from "@/types/session";
+import type { RunListItem, RunStatus } from "@/types/run";
 
-function effectiveStatus(s: SessionListItem): SessionStatus {
+function effectiveStatus(s: RunListItem): RunStatus {
   if (s.status === "active" && s.ends_at && new Date(s.ends_at) < new Date()) {
     return "stopped";
   }
   return s.status;
 }
 
-const STATUS_STYLE: Record<SessionStatus, string> = {
+const STATUS_STYLE: Record<RunStatus, string> = {
   waiting: "bg-gray-100 text-gray-600",
   active: "bg-green-100 text-green-700",
   completed: "bg-blue-100 text-blue-700",
@@ -47,12 +47,12 @@ export default function TeacherSessionsPage() {
   const router = useRouter();
   useAuth();
 
-  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [runs, setSessions] = useState<RunListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const STATUS_LABEL: Record<SessionStatus, string> = {
+  const STATUS_LABEL: Record<RunStatus, string> = {
     waiting: t("statusWaiting"),
     active: t("statusActive"),
     completed: t("statusCompleted"),
@@ -61,7 +61,7 @@ export default function TeacherSessionsPage() {
   };
 
   useEffect(() => {
-    listSessions()
+    listRuns()
       .then(setSessions)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -71,7 +71,7 @@ export default function TeacherSessionsPage() {
     if (!deleteId) return;
     setDeleting(true);
     try {
-      await deleteSession(deleteId);
+      await deleteRun(deleteId);
       setSessions((prev) => prev.filter((s) => s.id !== deleteId));
       setDeleteId(null);
     } catch {
@@ -94,21 +94,21 @@ export default function TeacherSessionsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{t("title")}</h1>
         <p className="text-gray-500 text-sm mt-1">
-          {t("sessionsCount", { count: sessions.length })}
+          {t("runsCount", { count: runs.length })}
         </p>
       </div>
 
-      {sessions.length === 0 ? (
+      {runs.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">
           <Activity size={40} className="mx-auto mb-3 opacity-30" />
           <p>{t("noSessions")}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {sessions.map((s) => (
+          {runs.map((s) => (
             <Link
               key={s.id}
-              href={`/teacher/sessions/${s.id}/monitor`}
+              href={`/teacher/runs/${s.id}/monitor`}
               style={{
                 display: "block",
                 textDecoration: "none",
@@ -134,7 +134,7 @@ export default function TeacherSessionsPage() {
                   )}
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono font-bold text-gray-900 text-lg tracking-widest">
-                      {s.session_code}
+                      {s.join_code}
                     </span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[effectiveStatus(s)]}`}
@@ -178,7 +178,7 @@ export default function TeacherSessionsPage() {
                   {effectiveStatus(s) === "active" && (
                     <button
                       onClick={() =>
-                        router.push(`/teacher/sessions/${s.id}/monitor`)
+                        router.push(`/teacher/runs/${s.id}/monitor`)
                       }
                       className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                     >
@@ -190,7 +190,7 @@ export default function TeacherSessionsPage() {
                     effectiveStatus(s) === "stopped") && (
                     <button
                       onClick={() =>
-                        router.push(`/teacher/sessions/${s.id}/monitor`)
+                        router.push(`/teacher/runs/${s.id}/monitor`)
                       }
                       className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                     >
@@ -214,7 +214,7 @@ export default function TeacherSessionsPage() {
         </div>
       )}
 
-      {/* Confirm delete session dialog */}
+      {/* Confirm delete run dialog */}
       {deleteId && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"

@@ -101,25 +101,25 @@ function useWebSocket(url: string | null, onMessage: (data: unknown) => void) {
 }
 
 export function usePlayerWebSocket(
-  sessionId: string,
+  runId: string,
   guestToken: string,
   onMessage: (data: unknown) => void,
 ) {
   const url =
-    sessionId && guestToken
-      ? `${WS_BASE}/api/ws/session/${sessionId}/player?guest_token=${guestToken}`
+    runId && guestToken
+      ? `${WS_BASE}/api/ws/session/${runId}/player?guest_token=${guestToken}`
       : null;
   return useWebSocket(url, onMessage);
 }
 
 export function useTeacherWebSocket(
-  sessionId: string,
+  runId: string,
   token: string,
   onMessage: (data: unknown) => void,
 ) {
   const url =
-    sessionId && token
-      ? `${WS_BASE}/api/ws/session/${sessionId}/teacher?token=${token}`
+    runId && token
+      ? `${WS_BASE}/api/ws/session/${runId}/teacher?token=${token}`
       : null;
   return useWebSocket(url, onMessage);
 }

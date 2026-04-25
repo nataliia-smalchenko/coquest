@@ -311,7 +311,7 @@ async def ws_run_and_player(
         join = await client.post(
             "/api/runs/join",
             json={
-                "session_code": session_data["session_code"],
+                "join_code": session_data["join_code"],
                 "guest_name": "WSPlayer",
             },
         )
@@ -319,8 +319,8 @@ async def ws_run_and_player(
         player_data = join.json()
 
     return {
-        "session_id": session_data["id"],
-        "session_code": session_data["session_code"],
+        "run_id": session_data["id"],
+        "join_code": session_data["join_code"],
         "player_id": player_data["id"],
         "guest_token": player_data["guest_token"],
         "teacher_token": ws_teacher_token,

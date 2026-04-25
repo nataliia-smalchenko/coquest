@@ -26,25 +26,25 @@ import { useTeacherWebSocket } from "@/hooks/useWebSocket";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   deletePlayer,
-  deleteSession,
+  deleteRun,
   getMonitor,
   getPlayerProgressDetail,
-  restartSession,
+  restartRun,
   reviewAnswer,
-  startSession,
-  stopSession,
+  startRun,
+  stopRun,
   updateGuestName,
-  updateSessionSettings,
-} from "@/lib/api/sessions";
+  updateRunSettings,
+} from "@/lib/api/runs";
 import { sanitizeHtml } from "@/lib/sanitize";
 import Image from "next/image";
 import type {
-  GameSession,
+  GameRun,
   PlayerProgressSummary,
-  SessionProgressResult,
-  SessionUpdate,
+  RunProgressResult,
+  RunUpdate,
   TeacherMonitorResponse,
-} from "@/types/session";
+} from "@/types/run";
 
 // helpers
 function formatDate(iso: string, locale: string) {
@@ -166,29 +166,29 @@ function SegmentLegend({
 // Player detail drawer
 
 function PlayerDetailDrawer({
-  sessionId,
+  runId,
   pp,
   onClose,
   onReviewed,
   t,
   tCommon,
 }: {
-  sessionId: string;
+  runId: string;
   pp: PlayerProgressSummary;
   onClose: () => void;
   onReviewed: () => void;
   t: ReturnType<typeof useTranslations<"game.monitor">>;
   tCommon: ReturnType<typeof useTranslations<"common">>;
 }) {
-  const [items, setItems] = useState<SessionProgressResult[] | null>(null);
+  const [items, setItems] = useState<RunProgressResult[] | null>(null);
   const [reviewScores, setReviewScores] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   useEffect(() => {
-    getPlayerProgressDetail(sessionId, pp.player.id)
+    getPlayerProgressDetail(runId, pp.player.id)
       .then(setItems)
       .catch(() => setItems([]));
-  }, [sessionId, pp.player.id]);
+  }, [runId, pp.player.id]);
 
   const handleReview = async (progressId: string) => {
     const raw = reviewScores[progressId];
@@ -199,7 +199,7 @@ function PlayerDetailDrawer({
       await reviewAnswer(progressId, score);
       onReviewed();
       // Refresh items
-      const updated = await getPlayerProgressDetail(sessionId, pp.player.id);
+      const updated = await getPlayerProgressDetail(runId, pp.player.id);
       setItems(updated);
     } catch {
       // ignore
@@ -564,11 +564,11 @@ const TEAM_PALETTE = [
 
 export default function MonitorPage() {
   const t = useTranslations("game.monitor");
-  const tSession = useTranslations("game.session");
+  const tSession = useTranslations("game.run");
   const tCommon = useTranslations("common");
   const params = useParams();
   const router = useRouter();
-  const sessionId = params.id as string;
+  const runId = params.id as string;
 
   const locale = useLocale();
   const token = Cookies.get("access_token") ?? "";
@@ -577,7 +577,7 @@ export default function MonitorPage() {
   const [loading, setLoading] = useState(true);
   const [stopping, setStopping] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [session, setSession] = useState<GameSession | null>(null);
+  const [run, setRun] = useState<GameRun | null>(null);
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
 
@@ -593,7 +593,7 @@ export default function MonitorPage() {
 
   // Edit settings
   const [showEditSettings, setShowEditSettings] = useState(false);
-  const [editForm, setEditForm] = useState<SessionUpdate>({});
+  const [editForm, setEditForm] = useState<RunUpdate>({});
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Restart
@@ -607,8 +607,8 @@ export default function MonitorPage() {
   const handleStart = async () => {
     setStarting(true);
     try {
-      const updated = await startSession(sessionId);
-      setSession(updated);
+      const updated = await startRun(runId);
+      setRun(updated);
     } catch {
       // ignore
     } finally {
@@ -617,8 +617,8 @@ export default function MonitorPage() {
   };
 
   const handleCopyLink = () => {
-    if (!session?.session_code) return;
-    const url = `${window.location.origin}/join?code=${session.session_code}`;
+    if (!run?.join_code) return;
+    const url = `${window.location.origin}/join?code=${run.join_code}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -628,8 +628,8 @@ export default function MonitorPage() {
   const handleDeleteSession = async () => {
     setDeletingSession(true);
     try {
-      await deleteSession(sessionId);
-      router.push("/teacher/sessions");
+      await deleteRun(runId);
+      router.push("/teacher/runs");
     } catch {
       // ignore
     } finally {
@@ -641,12 +641,12 @@ export default function MonitorPage() {
     if (!deletePlayerId) return;
     setDeletingPlayer(true);
     try {
-      await deletePlayer(sessionId, deletePlayerId);
+      await deletePlayer(runId, deletePlayerId);
       setDeletePlayerId(null);
-      const data = await getMonitor(sessionId);
+      const data = await getMonitor(runId);
       setMonitor(data);
-      setSession((s) =>
-        s ? { ...data.session, status: s.status } : data.session,
+      setRun((s) =>
+        s ? { ...data.run, status: s.status } : data.run,
       );
     } catch {
       // ignore
@@ -665,15 +665,15 @@ export default function MonitorPage() {
     setRenameSaving(true);
     try {
       await updateGuestName(
-        sessionId,
+        runId,
         renamePlayerId,
         renameValue.trim() || null,
       );
       setRenamePlayerId(null);
-      const data = await getMonitor(sessionId);
+      const data = await getMonitor(runId);
       setMonitor(data);
-      setSession((s) =>
-        s ? { ...data.session, status: s.status } : data.session,
+      setRun((s) =>
+        s ? { ...data.run, status: s.status } : data.run,
       );
     } catch {
       // ignore
@@ -683,15 +683,15 @@ export default function MonitorPage() {
   };
 
   const handleOpenEditSettings = () => {
-    if (!session) return;
+    if (!run) return;
     setEditForm({
-      name: session.name ?? "",
-      show_feedback_after_answer: session.show_feedback_after_answer,
-      show_score_after: session.show_score_after,
-      show_correct_answers: session.show_correct_answers,
-      keep_completed_in_materials: session.keep_completed_in_materials,
-      ends_at: session.ends_at ?? undefined,
-      scheduled_at: session.scheduled_at ?? undefined,
+      name: run.name ?? "",
+      show_feedback_after_answer: run.show_feedback_after_answer,
+      show_score_after: run.show_score_after,
+      show_correct_answers: run.show_correct_answers,
+      keep_completed_in_materials: run.keep_completed_in_materials,
+      ends_at: run.ends_at ?? undefined,
+      scheduled_at: run.scheduled_at ?? undefined,
     });
     setShowEditSettings(true);
   };
@@ -699,11 +699,11 @@ export default function MonitorPage() {
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
-      const payload: SessionUpdate = { ...editForm };
+      const payload: RunUpdate = { ...editForm };
       // Convert empty string name to null
       if (payload.name === "") payload.name = null;
-      const updated = await updateSessionSettings(sessionId, payload);
-      setSession((s) => (s ? { ...s, ...updated } : updated));
+      const updated = await updateRunSettings(runId, payload);
+      setRun((s) => (s ? { ...s, ...updated } : updated));
       setShowEditSettings(false);
     } catch {
       // ignore
@@ -715,10 +715,10 @@ export default function MonitorPage() {
   const handleRestart = async () => {
     setRestarting(true);
     try {
-      const updated = await restartSession(sessionId);
-      setSession(updated);
+      const updated = await restartRun(runId);
+      setRun(updated);
       setShowRestartConfirm(false);
-      const data = await getMonitor(sessionId);
+      const data = await getMonitor(runId);
       setMonitor(data);
     } catch {
       // ignore
@@ -734,11 +734,11 @@ export default function MonitorPage() {
 
   const refreshMonitor = useCallback(
     () =>
-      getMonitor(sessionId)
+      getMonitor(runId)
         .then((data) => {
           setMonitor(data);
-          setSession((s) =>
-            s ? { ...data.session, status: s.status } : data.session,
+          setRun((s) =>
+            s ? { ...data.run, status: s.status } : data.run,
           );
           // Sync detailPlayer panel if open
           const dp = detailPlayerRef.current;
@@ -750,33 +750,33 @@ export default function MonitorPage() {
           }
         })
         .catch(() => {}),
-    [sessionId, setMonitor, setSession, setDetailPlayer],
+    [runId, setMonitor, setRun, setDetailPlayer],
   );
 
   useEffect(() => {
-    getMonitor(sessionId)
+    getMonitor(runId)
       .then((data) => {
         setMonitor(data);
-        setSession(data.session);
+        setRun(data.run);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [runId]);
 
   const handleWsMessage = useCallback(
     (raw: unknown) => {
       const data = raw as Record<string, unknown>;
 
       if (
-        data.type === "session_completed" ||
-        data.type === "session_stopped"
+        data.type === "run_completed" ||
+        data.type === "run_stopped"
       ) {
-        setSession((s) =>
+        setRun((s) =>
           s
             ? {
                 ...s,
                 status:
-                  data.type === "session_completed" ? "completed" : "stopped",
+                  data.type === "run_completed" ? "completed" : "stopped",
               }
             : s,
         );
@@ -786,15 +786,15 @@ export default function MonitorPage() {
         refreshMonitor();
       }
     },
-    [setSession, refreshMonitor],
+    [setRun, refreshMonitor],
   );
 
-  useTeacherWebSocket(sessionId, token, handleWsMessage);
+  useTeacherWebSocket(runId, token, handleWsMessage);
 
   const handleStop = async () => {
     setStopping(true);
     try {
-      await stopSession(sessionId);
+      await stopRun(runId);
       setShowConfirm(false);
     } catch {
       // ignore
@@ -834,17 +834,17 @@ export default function MonitorPage() {
     scheduled: t("statusScheduled"),
   };
 
-  const sessionStatus =
-    session?.status === "active" &&
-    session.ends_at &&
-    new Date(session.ends_at) < new Date()
+  const runStatus =
+    run?.status === "active" &&
+    run.ends_at &&
+    new Date(run.ends_at) < new Date()
       ? "stopped"
-      : session?.status;
-  const isActive = sessionStatus === "active";
-  const canStart = sessionStatus === "waiting" || sessionStatus === "scheduled";
-  const canDelete = sessionStatus !== "active";
+      : run?.status;
+  const isActive = runStatus === "active";
+  const canStart = runStatus === "waiting" || runStatus === "scheduled";
+  const canDelete = runStatus !== "active";
   const canRestart =
-    sessionStatus === "stopped" || sessionStatus === "completed";
+    runStatus === "stopped" || runStatus === "completed";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -853,10 +853,10 @@ export default function MonitorPage() {
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900">
-              {session?.name ?? t("title")}
+              {run?.name ?? t("title")}
             </h1>
             <Link
-              href={`/teacher/quests/${session?.quest_id}`}
+              href={`/teacher/quests/${run?.quest_id}`}
               className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
             >
               <ExternalLink size={13} />
@@ -865,7 +865,7 @@ export default function MonitorPage() {
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="font-mono text-gray-500 text-sm">
-              {session?.session_code}
+              {run?.join_code}
             </span>
             <button
               onClick={handleCopyLink}
@@ -885,25 +885,25 @@ export default function MonitorPage() {
                   : "bg-gray-100 text-gray-600"
               }`}
             >
-              {STATUS_LABEL[sessionStatus ?? ""] ?? sessionStatus ?? "—"}
+              {STATUS_LABEL[runStatus ?? ""] ?? runStatus ?? "—"}
             </span>
           </div>
           <div className="flex items-center gap-4 mt-1.5 flex-wrap">
-            {session?.scheduled_at && (
+            {run?.scheduled_at && (
               <span className="flex items-center gap-1 text-xs text-gray-400">
                 <Clock size={12} />
-                {t("scheduleStart")}: {formatDate(session.scheduled_at, locale)}
+                {t("scheduleStart")}: {formatDate(run.scheduled_at, locale)}
               </span>
             )}
-            {session?.ends_at &&
-              session.status !== "stopped" &&
-              session.status !== "completed" && (
+            {run?.ends_at &&
+              run.status !== "stopped" &&
+              run.status !== "completed" && (
                 <span className="flex items-center gap-1 text-xs font-medium text-gray-600">
                   <Clock size={12} />
-                  {t("sessionEndsAt")}: {formatDate(session.ends_at, locale)}
-                  {isActive && new Date(session.ends_at) > new Date() && (
+                  {t("sessionEndsAt")}: {formatDate(run.ends_at, locale)}
+                  {isActive && new Date(run.ends_at) > new Date() && (
                     <span className="ml-1 text-gray-400 font-normal">
-                      (<TimerDisplay ends_at={session.ends_at} />{" "}
+                      (<TimerDisplay ends_at={run.ends_at} />{" "}
                       {t("timeLeft")})
                     </span>
                   )}
@@ -978,7 +978,7 @@ export default function MonitorPage() {
       </div>
 
       {/* Session settings */}
-      {session && (
+      {run && (
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
@@ -997,38 +997,38 @@ export default function MonitorPage() {
               className="inline-flex items-center gap-1.5 text-xs rounded-full bg-blue-50 text-blue-700 font-medium"
               style={{ padding: "3px 10px" }}
             >
-              {session.max_players === 1 ? (
+              {run.max_players === 1 ? (
                 <>
                   <User size={11} /> {tSession("solo")}
                 </>
               ) : (
                 <>
                   <Users size={11} /> {tSession("teamMode")} ·{" "}
-                  {session.max_players}
+                  {run.max_players}
                 </>
               )}
             </span>
-            {session.max_players > 1 && (
+            {run.max_players > 1 && (
               <SettingChip
-                on={session.allow_solo_in_team}
+                on={run.allow_solo_in_team}
                 label={tSession("allowSolo")}
               />
             )}
             <SettingChip
-              on={session.show_feedback_after_answer}
+              on={run.show_feedback_after_answer}
               label={tSession("showFeedback")}
             />
             <SettingChip
-              on={session.keep_completed_in_materials}
+              on={run.keep_completed_in_materials}
               label={tSession("keepCompleted")}
             />
             <SettingChip
-              on={session.show_score_after}
+              on={run.show_score_after}
               label={tSession("showScore")}
             />
-            {session.show_score_after && (
+            {run.show_score_after && (
               <SettingChip
-                on={session.show_correct_answers}
+                on={run.show_correct_answers}
                 label={tSession("showCorrect")}
               />
             )}
@@ -1195,7 +1195,7 @@ export default function MonitorPage() {
       {/* Player detail drawer */}
       {detailPlayer && (
         <PlayerDetailDrawer
-          sessionId={sessionId}
+          runId={runId}
           pp={detailPlayer}
           onClose={() => setDetailPlayer(null)}
           onReviewed={refreshMonitor}
@@ -1237,7 +1237,7 @@ export default function MonitorPage() {
         </div>
       )}
 
-      {/* Confirm delete session dialog */}
+      {/* Confirm delete run dialog */}
       {showDeleteSession && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -1273,7 +1273,7 @@ export default function MonitorPage() {
       )}
 
       {/* Edit settings modal */}
-      {showEditSettings && session && (
+      {showEditSettings && run && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
@@ -1328,7 +1328,7 @@ export default function MonitorPage() {
                 ["keep_completed_in_materials", tSession("keepCompleted")],
                 ["show_score_after", tSession("showScore")],
                 ["show_correct_answers", tSession("showCorrect")],
-              ] as [keyof SessionUpdate, string][]
+              ] as [keyof RunUpdate, string][]
             ).map(([key, label]) => (
               <label
                 key={key}

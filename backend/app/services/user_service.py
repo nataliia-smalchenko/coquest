@@ -19,7 +19,7 @@ class UserService:
         """Validate that a role change is allowed without mutating anything.
 
         Raises HTTPException 400 if ``bypass_checks`` is ``False`` and the
-        teacher has resources, quests, or sessions that would be orphaned.
+        teacher has resources, quests, or runs that would be orphaned.
         Does nothing when ``new_role == user.role`` or when the transition is
         not restricted.
 
@@ -45,10 +45,10 @@ class UserService:
             has_quests = await db.scalar(
                 select(func.count(Quest.id)).where(Quest.teacher_id == user.id)
             )
-            has_sessions = await db.scalar(
+            has_runs = await db.scalar(
                 select(func.count(GameRun.id)).where(GameRun.teacher_id == user.id)
             )
-            if has_resources or has_quests or has_sessions:
+            if has_resources or has_quests or has_runs:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="cannot_change_role",
@@ -145,7 +145,7 @@ class UserService:
 
         Cascade behaviour is defined on the SQLAlchemy relationships
         (``cascade="all, delete-orphan"``), so related resources, quests,
-        sessions, etc. are removed automatically.
+        runs, etc. are removed automatically.
 
         Note: soft-delete (``is_active`` flag) can be added in a future
         migration if the product requires it.

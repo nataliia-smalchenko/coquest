@@ -19,10 +19,10 @@ from app.models.run_team import RunTeam
 
 class RunDistributionService:
     @staticmethod
-    async def _distribute_resources(db: AsyncSession, session: GameRun) -> None:
+    async def _distribute_resources(db: AsyncSession, run: GameRun) -> None:
         quest_result = await db.execute(
             select(Quest)
-            .where(Quest.id == session.quest_id)
+            .where(Quest.id == run.quest_id)
             .options(
                 selectinload(Quest.settings),
                 selectinload(Quest.resources),
@@ -41,7 +41,7 @@ class RunDistributionService:
         interactive_objects: List[MapObject] = list(objects_result.scalars().all())
 
         # Only distribute to players who are waiting (skip those already finished)
-        players = [p for p in session.players if p.status != PlayerStatus.FINISHED]
+        players = [p for p in run.players if p.status != PlayerStatus.FINISHED]
         if not players:
             return
 
@@ -59,7 +59,7 @@ class RunDistributionService:
             for i, qr in enumerate(player_resources):
                 db.add(
                     RunProgress(
-                        session_id=session.id,
+                        run_id=run.id,
                         player_id=player.id,
                         resource_id=qr.resource_id,
                         map_object_id=first_obj.id if i == 0 and first_obj else None,
@@ -71,12 +71,12 @@ class RunDistributionService:
 
     @staticmethod
     async def _distribute_resources_for_player(
-        db: AsyncSession, session: GameRun, player: RunPlayer
+        db: AsyncSession, run: GameRun, player: RunPlayer
     ) -> None:
         """Solo mode: give all quest resources to one player."""
         quest_result = await db.execute(
             select(Quest)
-            .where(Quest.id == session.quest_id)
+            .where(Quest.id == run.quest_id)
             .options(selectinload(Quest.settings), selectinload(Quest.resources))
         )
         quest = quest_result.scalar_one()
@@ -99,7 +99,7 @@ class RunDistributionService:
         for i, qr in enumerate(resources):
             db.add(
                 RunProgress(
-                    session_id=session.id,
+                    run_id=run.id,
                     player_id=player.id,
                     resource_id=qr.resource_id,
                     map_object_id=first_obj.id if i == 0 and first_obj else None,
@@ -110,12 +110,12 @@ class RunDistributionService:
 
     @staticmethod
     async def _distribute_resources_for_team(
-        db: AsyncSession, session: GameRun, team: RunTeam
+        db: AsyncSession, run: GameRun, team: RunTeam
     ) -> None:
         """Team mode: texts go to ALL players, questions balanced by points among players."""
         quest_result = await db.execute(
             select(Quest)
-            .where(Quest.id == session.quest_id)
+            .where(Quest.id == run.quest_id)
             .options(selectinload(Quest.settings), selectinload(Quest.resources))
         )
         quest = quest_result.scalar_one()
@@ -175,7 +175,7 @@ class RunDistributionService:
                 for player in players:
                     db.add(
                         RunProgress(
-                            session_id=session.id,
+                            run_id=run.id,
                             team_id=team.id,
                             player_id=player.id,
                             resource_id=qr.resource_id,
@@ -189,7 +189,7 @@ class RunDistributionService:
                 if assigned_pid:
                     db.add(
                         RunProgress(
-                            session_id=session.id,
+                            run_id=run.id,
                             team_id=team.id,
                             player_id=assigned_pid,
                             resource_id=qr.resource_id,

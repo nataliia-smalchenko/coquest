@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { joinSession, rejoinSession } from "@/lib/api/sessions";
+import { joinRun, rejoinRun } from "@/lib/api/runs";
 import {
-  clearSessionStorage,
-  getSessionStorageByCode,
-  setSessionStorage,
+  clearRunStorage,
+  getRunStorageByCode,
+  setRunStorage,
 } from "@/hooks/useGameSession";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,9 +23,9 @@ export default function JoinPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stored session data for this code (if player previously joined)
+  // Stored run data for this code (if player previously joined)
   const [storedSession, setStoredSession] = useState<{
-    session_id: string;
+    run_id: string;
     guest_token: string;
     player_id: string;
     display_name?: string;
@@ -37,7 +37,7 @@ export default function JoinPage() {
     if (c) {
       const upper = c.toUpperCase();
       setCode(upper);
-      const stored = getSessionStorageByCode(upper);
+      const stored = getRunStorageByCode(upper);
       if (stored) {
         setStoredSession(stored);
         if (stored.display_name) setName(stored.display_name);
@@ -48,7 +48,7 @@ export default function JoinPage() {
   // When code reaches 6 chars, check localStorage
   useEffect(() => {
     if (code.length === 6) {
-      const stored = getSessionStorageByCode(code);
+      const stored = getRunStorageByCode(code);
       setStoredSession(stored);
       if (stored?.display_name && !name) setName(stored.display_name);
     } else {
@@ -58,7 +58,7 @@ export default function JoinPage() {
 
   const handleSwitchPlayer = () => {
     if (storedSession) {
-      clearSessionStorage(storedSession.session_id);
+      clearRunStorage(storedSession.run_id);
     }
     setStoredSession(null);
     setName("");
@@ -74,44 +74,44 @@ export default function JoinPage() {
       // Try rejoin first if we have a stored token for this code
       if (storedSession && !user) {
         try {
-          const player = await rejoinSession(
+          const player = await rejoinRun(
             code.toUpperCase(),
             storedSession.guest_token,
           );
-          setSessionStorage(player.session_id, {
+          setRunStorage(player.run_id, {
             guest_token: storedSession.guest_token,
             player_id: player.id,
-            session_code: code.toUpperCase(),
+            join_code: code.toUpperCase(),
             display_name: player.display_name,
           });
           if (player.status === "playing") {
-            router.push(`/session/${player.session_id}/game`);
+            router.push(`/run/${player.run_id}/game`);
           } else if (player.status === "finished") {
-            router.push(`/session/${player.session_id}/results`);
+            router.push(`/run/${player.run_id}/results`);
           } else {
-            router.push(`/session/${player.session_id}/lobby`);
+            router.push(`/run/${player.run_id}/lobby`);
           }
           return;
         } catch {
           // Rejoin failed (token expired / session deleted) — fall through to fresh join
-          clearSessionStorage(storedSession.session_id);
+          clearRunStorage(storedSession.run_id);
           setStoredSession(null);
         }
       }
 
-      const player = await joinSession({
-        session_code: code.toUpperCase(),
+      const player = await joinRun({
+        join_code: code.toUpperCase(),
         guest_name: user ? undefined : name.trim() || undefined,
       });
       if (player.guest_token) {
-        setSessionStorage(player.session_id, {
+        setRunStorage(player.run_id, {
           guest_token: player.guest_token,
           player_id: player.id,
-          session_code: code.toUpperCase(),
+          join_code: code.toUpperCase(),
           display_name: player.display_name,
         });
       }
-      router.push(`/session/${player.session_id}/lobby`);
+      router.push(`/run/${player.run_id}/lobby`);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;

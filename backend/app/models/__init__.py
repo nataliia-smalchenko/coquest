@@ -14,7 +14,7 @@ from app.models.quest import (
     QuestSettings,
     QuestResource,
 )
-from app.models.game_run import GameRun, SessionStatus
+from app.models.game_run import GameRun, RunStatus
 from app.models.run_team import RunTeam, TeamStatus
 from app.models.run_player import RunPlayer, PlayerStatus
 from app.models.run_progress import RunProgress, ProgressStatus
@@ -43,7 +43,7 @@ __all__ = [
     "QuestSettings",
     "QuestResource",
     "GameRun",
-    "SessionStatus",
+    "RunStatus",
     "RunTeam",
     "TeamStatus",
     "RunPlayer",

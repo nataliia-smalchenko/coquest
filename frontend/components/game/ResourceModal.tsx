@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { ResourceDetailPublicResponse } from "@/types/resource";
-import type { SessionProgress } from "@/types/session";
+import type { RunProgress } from "@/types/run";
 import QuestionForm from "./QuestionForm";
 
 interface AnswerResult {
@@ -18,7 +18,7 @@ interface AnswerResult {
 }
 
 interface ResourceModalProps {
-  progress: SessionProgress;
+  progress: RunProgress;
   resource: ResourceDetailPublicResponse | null;
   loading?: boolean;
   answerResult?: AnswerResult | null;

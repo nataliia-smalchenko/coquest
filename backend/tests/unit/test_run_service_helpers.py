@@ -6,14 +6,14 @@ from fastapi import HTTPException
 
 from app.services.run_service import (
     _now,
-    _maybe_expire_session,
+    _maybe_expire_run,
     _player_response,
-    _session_response,
-    _load_session,
-    _load_own_session,
+    _run_response,
+    _load_run,
+    _load_own_run,
     RunService,
 )
-from app.models.game_run import GameRun, SessionStatus
+from app.models.game_run import GameRun, RunStatus
 from app.models.run_player import RunPlayer, PlayerStatus
 
 
@@ -25,7 +25,7 @@ from app.models.run_player import RunPlayer, PlayerStatus
 def _make_player(**kw):
     p = MagicMock(spec=RunPlayer)
     p.id = kw.get("id", uuid.uuid4())
-    p.session_id = kw.get("session_id", uuid.uuid4())
+    p.run_id = kw.get("run_id", uuid.uuid4())
     p.user_id = kw.get("user_id", None)
     p.guest_name = kw.get("guest_name", "Guest")
     p.display_name = kw.get("display_name", "Guest")
@@ -39,14 +39,14 @@ def _make_player(**kw):
     return p
 
 
-def _make_session(**kw):
+def _make_run(**kw):
     s = MagicMock(spec=GameRun)
     s.id = kw.get("id", uuid.uuid4())
     s.quest_id = kw.get("quest_id", uuid.uuid4())
     s.teacher_id = kw.get("teacher_id", uuid.uuid4())
-    s.session_code = kw.get("session_code", "ABC123")
+    s.join_code = kw.get("join_code", "ABC123")
     s.name = kw.get("name", "Test Session")
-    s.status = kw.get("status", SessionStatus.WAITING)
+    s.status = kw.get("status", RunStatus.WAITING)
     s.started_at = kw.get("started_at", None)
     s.ends_at = kw.get("ends_at", None)
     s.scheduled_at = kw.get("scheduled_at", None)
@@ -94,52 +94,52 @@ def test_now_is_utc_aware():
 
 
 # ---------------------------------------------------------------------------
-# _maybe_expire_session
+# _maybe_expire_run
 # ---------------------------------------------------------------------------
 
 
 class TestMaybeExpireSession:
     @pytest.mark.asyncio
     async def test_no_op_when_not_active(self):
-        session = _make_session(status=SessionStatus.STOPPED)
+        run = _make_run(status=RunStatus.STOPPED)
         db = _make_db()
-        result = await _maybe_expire_session(db, session)
+        result = await _maybe_expire_run(db, run)
         assert result is False
         db.flush.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_op_when_ends_at_is_none(self):
-        session = _make_session(status=SessionStatus.ACTIVE, ends_at=None)
+        run = _make_run(status=RunStatus.ACTIVE, ends_at=None)
         db = _make_db()
-        result = await _maybe_expire_session(db, session)
+        result = await _maybe_expire_run(db, run)
         assert result is False
 
     @pytest.mark.asyncio
     async def test_no_op_when_not_expired_yet(self):
-        session = _make_session(
-            status=SessionStatus.ACTIVE,
+        run = _make_run(
+            status=RunStatus.ACTIVE,
             ends_at=datetime.now(timezone.utc) + timedelta(hours=1),
         )
         db = _make_db()
-        result = await _maybe_expire_session(db, session)
+        result = await _maybe_expire_run(db, run)
         assert result is False
 
     @pytest.mark.asyncio
     async def test_expires_session_when_past_ends_at(self):
         player = _make_player(status=PlayerStatus.PLAYING)
-        session = _make_session(
-            status=SessionStatus.ACTIVE,
+        run = _make_run(
+            status=RunStatus.ACTIVE,
             ends_at=datetime.now(timezone.utc) - timedelta(hours=1),
             players=[player],
         )
         db = _make_db()
         # Simulate acquiring the FOR UPDATE SKIP LOCKED lock
         lock_exec = MagicMock()
-        lock_exec.scalar_one_or_none.return_value = session.id
+        lock_exec.scalar_one_or_none.return_value = run.id
         db.execute.return_value = lock_exec
-        result = await _maybe_expire_session(db, session)
+        result = await _maybe_expire_run(db, run)
         assert result is True
-        assert session.status == SessionStatus.STOPPED
+        assert run.status == RunStatus.STOPPED
         assert player.status == PlayerStatus.FINISHED
         assert player.results_available_until is not None
         db.flush.assert_called_once()
@@ -147,14 +147,14 @@ class TestMaybeExpireSession:
     @pytest.mark.asyncio
     async def test_already_finished_player_not_modified(self):
         player = _make_player(status=PlayerStatus.FINISHED)
-        session = _make_session(
-            status=SessionStatus.ACTIVE,
+        run = _make_run(
+            status=RunStatus.ACTIVE,
             ends_at=datetime.now(timezone.utc) - timedelta(hours=1),
             players=[player],
         )
         player.finished_at = datetime.now(timezone.utc) - timedelta(minutes=10)
         db = _make_db()
-        await _maybe_expire_session(db, session)
+        await _maybe_expire_run(db, run)
         # Status should remain FINISHED, not changed again
         assert player.status == PlayerStatus.FINISHED
 
@@ -169,7 +169,7 @@ class TestPlayerResponse:
         player = _make_player()
         resp = _player_response(player)
         assert resp.id == player.id
-        assert resp.session_id == player.session_id
+        assert resp.run_id == player.run_id
         assert resp.display_name == player.display_name
         assert resp.guest_token == player.guest_token
 
@@ -182,48 +182,48 @@ class TestPlayerResponse:
 
 
 # ---------------------------------------------------------------------------
-# _session_response
+# _run_response
 # ---------------------------------------------------------------------------
 
 
 class TestSessionResponse:
     def test_maps_all_fields(self):
         player = _make_player()
-        session = _make_session(players=[player])
-        resp = _session_response(session)
-        assert resp.id == session.id
-        assert resp.session_code == session.session_code
+        run = _make_run(players=[player])
+        resp = _run_response(run)
+        assert resp.id == run.id
+        assert resp.join_code == run.join_code
         assert len(resp.players) == 1
 
     def test_empty_players(self):
-        session = _make_session(players=[])
-        resp = _session_response(session)
+        run = _make_run(players=[])
+        resp = _run_response(run)
         assert resp.players == []
 
 
 # ---------------------------------------------------------------------------
-# _load_session
+# _load_run
 # ---------------------------------------------------------------------------
 
 
 class TestLoadSession:
     @pytest.mark.asyncio
     async def test_returns_session(self):
-        session = _make_session()
-        db = _make_db(scalar=session)
-        result = await _load_session(db, session.id)
-        assert result is session
+        run = _make_run()
+        db = _make_db(scalar=run)
+        result = await _load_run(db, run.id)
+        assert result is run
 
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
         db = _make_db(scalar=None)
         with pytest.raises(HTTPException) as exc_info:
-            await _load_session(db, uuid.uuid4())
+            await _load_run(db, uuid.uuid4())
         assert exc_info.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# _load_own_session
+# _load_own_run
 # ---------------------------------------------------------------------------
 
 
@@ -231,17 +231,17 @@ class TestLoadOwnSession:
     @pytest.mark.asyncio
     async def test_returns_own_session(self):
         teacher_id = uuid.uuid4()
-        session = _make_session(teacher_id=teacher_id)
-        db = _make_db(scalar=session)
-        result = await _load_own_session(db, session.id, teacher_id)
-        assert result is session
+        run = _make_run(teacher_id=teacher_id)
+        db = _make_db(scalar=run)
+        result = await _load_own_run(db, run.id, teacher_id)
+        assert result is run
 
     @pytest.mark.asyncio
     async def test_raises_403_for_other_teacher(self):
-        session = _make_session(teacher_id=uuid.uuid4())
-        db = _make_db(scalar=session)
+        run = _make_run(teacher_id=uuid.uuid4())
+        db = _make_db(scalar=run)
         with pytest.raises(HTTPException) as exc_info:
-            await _load_own_session(db, session.id, uuid.uuid4())
+            await _load_own_run(db, run.id, uuid.uuid4())
         assert exc_info.value.status_code == 403
 
 
@@ -272,18 +272,18 @@ class TestGetPlayerByToken:
 
 class TestGetSessionByCode:
     @pytest.mark.asyncio
-    async def test_returns_session_response(self):
-        session = _make_session(session_code="ABC123")
-        db = _make_db(scalar=session)
+    async def test_returns_run_response(self):
+        run = _make_run(join_code="ABC123")
+        db = _make_db(scalar=run)
         result = await RunService.get_session_by_code(db, "abc123")
-        assert result.session_code == "ABC123"
+        assert result.join_code == "ABC123"
 
     @pytest.mark.asyncio
     async def test_uppercases_code(self):
-        session = _make_session(session_code="XYZ789")
-        db = _make_db(scalar=session)
+        run = _make_run(join_code="XYZ789")
+        db = _make_db(scalar=run)
         result = await RunService.get_session_by_code(db, "xyz789")
-        assert result.session_code == "XYZ789"
+        assert result.join_code == "XYZ789"
 
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
@@ -294,7 +294,7 @@ class TestGetSessionByCode:
 
 
 # ---------------------------------------------------------------------------
-# RunService.list_sessions
+# RunService.list_runs
 # ---------------------------------------------------------------------------
 
 
@@ -302,37 +302,37 @@ class TestListSessions:
     @pytest.mark.asyncio
     async def test_returns_empty_list(self):
         db = _make_db(scalars=[])
-        result = await RunService.list_sessions(db, uuid.uuid4())
+        result = await RunService.list_runs(db, uuid.uuid4())
         assert result == []
 
     @pytest.mark.asyncio
     async def test_returns_session_items(self):
-        session = _make_session()
-        db = _make_db(scalars=[session])
-        result = await RunService.list_sessions(db, uuid.uuid4())
+        run = _make_run()
+        db = _make_db(scalars=[run])
+        result = await RunService.list_runs(db, uuid.uuid4())
         assert len(result) == 1
-        assert result[0].session_code == session.session_code
+        assert result[0].join_code == run.join_code
 
     @pytest.mark.asyncio
     async def test_commits_when_session_expired(self):
-        session = _make_session(
-            status=SessionStatus.ACTIVE,
+        run = _make_run(
+            status=RunStatus.ACTIVE,
             ends_at=datetime.now(timezone.utc) - timedelta(hours=1),
             players=[],
         )
         # First call: list query returns sessions
         # Second call: FOR UPDATE SKIP LOCKED lock — non-None means lock acquired
-        list_exec = _exec(scalars=[session])
+        list_exec = _exec(scalars=[run])
         lock_exec = MagicMock()
-        lock_exec.scalar_one_or_none.return_value = session.id
+        lock_exec.scalar_one_or_none.return_value = run.id
         db = _make_db()
         db.execute.side_effect = [list_exec, lock_exec]
-        await RunService.list_sessions(db, uuid.uuid4())
+        await RunService.list_runs(db, uuid.uuid4())
         db.commit.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
-# RunService.create_session — error paths
+# RunService.create_run — error paths
 # ---------------------------------------------------------------------------
 
 
@@ -347,7 +347,7 @@ class TestCreateSession:
         data.quest_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await RunService.create_session(db, uuid.uuid4(), data)
+            await RunService.create_run(db, uuid.uuid4(), data)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -362,21 +362,21 @@ class TestCreateSession:
         data.quest_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await RunService.create_session(db, uuid.uuid4(), data)
+            await RunService.create_run(db, uuid.uuid4(), data)
         assert exc_info.value.status_code == 400
         assert "published" in exc_info.value.detail
 
 
 # ---------------------------------------------------------------------------
-# RunService.player_start_session — error path
+# RunService.player_start_run — error path
 # ---------------------------------------------------------------------------
 
 
 class TestPlayerStartSession:
     @pytest.mark.asyncio
     async def test_raises_403_when_wrong_session(self):
-        player = _make_player(session_id=uuid.uuid4())
+        player = _make_player(run_id=uuid.uuid4())
         db = _make_db()
         with pytest.raises(HTTPException) as exc_info:
-            await RunService.player_start_session(db, uuid.uuid4(), player)
+            await RunService.player_start_run(db, uuid.uuid4(), player)
         assert exc_info.value.status_code == 403

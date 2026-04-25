@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { getQuest } from "@/lib/api/quests";
-import { createSession } from "@/lib/api/sessions";
+import { createRun } from "@/lib/api/runs";
 import type { QuestResponse } from "@/types/quest";
 
 export default function NewSessionPage() {
@@ -22,7 +22,7 @@ export default function NewSessionPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Session name
-  const [sessionName, setSessionName] = useState("");
+  const [runName, setSessionName] = useState("");
 
   // Game mode
   const [maxPlayers, setMaxPlayers] = useState(1);
@@ -61,9 +61,9 @@ export default function NewSessionPage() {
     setLoading(true);
     setError(null);
     try {
-      const session = await createSession({
+      const run = await createRun({
         quest_id: questId,
-        name: sessionName || undefined,
+        name: runName || undefined,
         max_players: maxPlayers,
         allow_solo_in_team: maxPlayers > 1 ? allowSoloInTeam : true,
         random_teams: maxPlayers > 1 ? randomTeams : false,
@@ -78,7 +78,7 @@ export default function NewSessionPage() {
         ends_at:
           useEndsAt && endsAt ? new Date(endsAt).toISOString() : undefined,
       });
-      router.push(`/teacher/sessions/${session.id}/monitor`);
+      router.push(`/teacher/runs/${run.id}/monitor`);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;
@@ -168,10 +168,10 @@ export default function NewSessionPage() {
 
         {/* Session name */}
         <div className={cardStyle}>
-          <p className={sectionLabel}>{t("sessionName")}</p>
+          <p className={sectionLabel}>{t("runName")}</p>
           <input
             type="text"
-            value={sessionName}
+            value={runName}
             onChange={(e) => setSessionName(e.target.value)}
             placeholder={translation?.title ?? ""}
             className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

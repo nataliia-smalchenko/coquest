@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
-from app.models.game_run import GameRun, SessionStatus
+from app.models.game_run import GameRun, RunStatus
 from app.models.run_chat import RunChat
 from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.run_progress import ProgressStatus, RunProgress
@@ -35,7 +35,7 @@ def _iso(dt: datetime | None) -> str | None:
 def _progress_dict(p: RunProgress) -> dict:
     return {
         "id": str(p.id),
-        "session_id": str(p.session_id),
+        "run_id": str(p.run_id),
         "player_id": str(p.player_id),
         "resource_id": str(p.resource_id) if p.resource_id else None,
         "map_object_id": str(p.map_object_id) if p.map_object_id else None,
@@ -49,42 +49,42 @@ def _progress_dict(p: RunProgress) -> dict:
 
 
 # player messages
-async def handle_player_message(session_id: str, player_id: str, data: dict) -> None:
+async def handle_player_message(run_id: str, player_id: str, data: dict) -> None:
     try:
         msg = player_message_adapter.validate_python(data)
     except ValidationError as exc:
         log.warning(
             "invalid_player_ws_message",
-            session_id=session_id,
+            run_id=run_id,
             player_id=player_id,
             error=str(exc),
         )
         await manager.send_to_player(
-            session_id, player_id, {"type": "error", "detail": "Invalid message format"}
+            run_id, player_id, {"type": "error", "detail": "Invalid message format"}
         )
         return
 
     try:
         if isinstance(msg, SubmitAnswerMessage):
-            await _handle_submit_answer(session_id, player_id, msg)
+            await _handle_submit_answer(run_id, player_id, msg)
         elif isinstance(msg, MarkViewedMessage):
-            await _handle_mark_viewed(session_id, player_id, msg)
+            await _handle_mark_viewed(run_id, player_id, msg)
         elif isinstance(msg, ChatMessage):
-            await _handle_chat_message(session_id, player_id, msg)
+            await _handle_chat_message(run_id, player_id, msg)
     except Exception as exc:
         log.exception(
             "player_message_handler_error",
-            session_id=session_id,
+            run_id=run_id,
             player_id=player_id,
             msg_type=msg.type,
         )
         await manager.send_to_player(
-            session_id, player_id, {"type": "error", "detail": str(exc)}
+            run_id, player_id, {"type": "error", "detail": str(exc)}
         )
 
 
 async def _handle_submit_answer(
-    session_id: str, player_id: str, msg: SubmitAnswerMessage
+    run_id: str, player_id: str, msg: SubmitAnswerMessage
 ) -> None:
     progress_id = msg.progress_id
     # msg.answer is a typed Pydantic model; model_dump() gives the plain dict
@@ -110,7 +110,7 @@ async def _handle_submit_answer(
             correct = result.score >= 1.0
 
         await manager.send_to_player(
-            session_id,
+            run_id,
             player_id,
             {
                 "type": "answer_result",
@@ -131,14 +131,14 @@ async def _handle_submit_answer(
                 "completed_by_progress": result.model_dump(mode="json"),
             }
             for tp in team_players:
-                await manager.send_to_player(session_id, str(tp.id), step_event)
+                await manager.send_to_player(run_id, str(tp.id), step_event)
 
         # Check if a new resource was assigned to the same map_object (solo only)
         if not player.team_id and result.map_object_id:
             new_p_result = await db.execute(
                 select(RunProgress)
                 .where(
-                    RunProgress.session_id == uuid.UUID(session_id),
+                    RunProgress.run_id == uuid.UUID(run_id),
                     RunProgress.player_id == uuid.UUID(player_id),
                     RunProgress.map_object_id == result.map_object_id,
                     RunProgress.status == ProgressStatus.ASSIGNED,
@@ -149,7 +149,7 @@ async def _handle_submit_answer(
             new_p = new_p_result.scalar_one_or_none()
             if new_p:
                 await manager.send_to_player(
-                    session_id,
+                    run_id,
                     player_id,
                     {
                         "type": "object_updated",
@@ -161,7 +161,7 @@ async def _handle_submit_answer(
 
         # Notify teacher
         await manager.send_to_teacher(
-            session_id,
+            run_id,
             {
                 "type": "player_answered",
                 "player_id": player_id,
@@ -174,7 +174,7 @@ async def _handle_submit_answer(
         player_finished = player.status == PlayerStatus.FINISHED
         if player_finished:
             await manager.broadcast_to_all(
-                session_id,
+                run_id,
                 {
                     "type": "player_finished",
                     "player_id": player_id,
@@ -188,30 +188,30 @@ async def _handle_submit_answer(
             team = team_result.scalar_one_or_none()
             if team and team.status == TeamStatus.COMPLETED:
                 await manager.broadcast_to_all(
-                    session_id,
+                    run_id,
                     {
                         "type": "team_completed",
                         "team_id": str(player.team_id),
                     },
                 )
 
-        # Check session completed
-        session_result = await db.execute(
-            select(GameRun).where(GameRun.id == uuid.UUID(session_id))
+        # Check run completed
+        run_result = await db.execute(
+            select(GameRun).where(GameRun.id == uuid.UUID(run_id))
         )
-        session = session_result.scalar_one_or_none()
-        if session and session.status == SessionStatus.COMPLETED:
+        run = run_result.scalar_one_or_none()
+        if run and run.status == RunStatus.COMPLETED:
             await manager.broadcast_to_all(
-                session_id,
+                run_id,
                 {
-                    "type": "session_completed",
-                    "session_id": session_id,
+                    "type": "run_completed",
+                    "run_id": run_id,
                 },
             )
 
 
 async def _handle_mark_viewed(
-    session_id: str, player_id: str, msg: MarkViewedMessage
+    run_id: str, player_id: str, msg: MarkViewedMessage
 ) -> None:
     progress_id = msg.progress_id
 
@@ -239,7 +239,7 @@ async def _handle_mark_viewed(
                 "viewers": viewers or [player_id],
             }
             for tp in team_players:
-                await manager.send_to_player(session_id, str(tp.id), viewed_event)
+                await manager.send_to_player(run_id, str(tp.id), viewed_event)
 
             if team_step_info:
                 step_event = {
@@ -248,10 +248,10 @@ async def _handle_mark_viewed(
                     "completed_by_progress": None,
                 }
                 for tp in team_players:
-                    await manager.send_to_player(session_id, str(tp.id), step_event)
+                    await manager.send_to_player(run_id, str(tp.id), step_event)
         else:
             await manager.send_to_player(
-                session_id,
+                run_id,
                 player_id,
                 {
                     "type": "text_viewed",
@@ -260,7 +260,7 @@ async def _handle_mark_viewed(
             )
 
         await manager.send_to_teacher(
-            session_id,
+            run_id,
             {
                 "type": "player_viewed_text",
                 "player_id": player_id,
@@ -271,7 +271,7 @@ async def _handle_mark_viewed(
         player_finished = player.status == PlayerStatus.FINISHED
         if player_finished:
             await manager.broadcast_to_all(
-                session_id,
+                run_id,
                 {
                     "type": "player_finished",
                     "player_id": player_id,
@@ -285,30 +285,28 @@ async def _handle_mark_viewed(
             team = team_result.scalar_one_or_none()
             if team and team.status == TeamStatus.COMPLETED:
                 await manager.broadcast_to_all(
-                    session_id,
+                    run_id,
                     {
                         "type": "team_completed",
                         "team_id": str(player.team_id),
                     },
                 )
 
-        session_result = await db.execute(
-            select(GameRun).where(GameRun.id == uuid.UUID(session_id))
+        run_result = await db.execute(
+            select(GameRun).where(GameRun.id == uuid.UUID(run_id))
         )
-        session = session_result.scalar_one_or_none()
-        if session and session.status == SessionStatus.COMPLETED:
+        run = run_result.scalar_one_or_none()
+        if run and run.status == RunStatus.COMPLETED:
             await manager.broadcast_to_all(
-                session_id,
+                run_id,
                 {
-                    "type": "session_completed",
-                    "session_id": session_id,
+                    "type": "run_completed",
+                    "run_id": run_id,
                 },
             )
 
 
-async def _handle_chat_message(
-    session_id: str, player_id: str, msg: ChatMessage
-) -> None:
+async def _handle_chat_message(run_id: str, player_id: str, msg: ChatMessage) -> None:
     # msg.message is already validated: non-empty, max 500 chars, stripped.
     message_text = msg.message
 
@@ -321,7 +319,7 @@ async def _handle_chat_message(
             return
 
         chat = RunChat(
-            session_id=uuid.UUID(session_id),
+            run_id=uuid.UUID(run_id),
             player_id=uuid.UUID(player_id),
             message=message_text,
         )
@@ -329,8 +327,8 @@ async def _handle_chat_message(
         await db.commit()
         await db.refresh(chat)
 
-    await manager.broadcast_to_session(
-        session_id,
+    await manager.broadcast_to_run(
+        run_id,
         {
             "type": "chat_message",
             "player_id": player_id,
@@ -342,42 +340,42 @@ async def _handle_chat_message(
 
 
 # teacher messages
-async def handle_teacher_message(session_id: str, teacher_id: str, data: dict) -> None:
+async def handle_teacher_message(run_id: str, teacher_id: str, data: dict) -> None:
     try:
         msg = teacher_message_adapter.validate_python(data)
     except ValidationError as exc:
         log.warning(
             "invalid_teacher_ws_message",
-            session_id=session_id,
+            run_id=run_id,
             teacher_id=teacher_id,
             error=str(exc),
         )
         await manager.send_to_teacher(
-            session_id, {"type": "error", "detail": "Invalid message format"}
+            run_id, {"type": "error", "detail": "Invalid message format"}
         )
         return
 
     try:
         if isinstance(msg, StartRunMessage):
-            await _handle_start_session(session_id, teacher_id)
+            await _handle_start_run(run_id, teacher_id)
         elif isinstance(msg, StopRunMessage):
-            await _handle_stop_session(session_id, teacher_id)
+            await _handle_stop_run(run_id, teacher_id)
         elif isinstance(msg, ReviewAnswerMessage):
-            await _handle_review_answer(session_id, teacher_id, msg)
+            await _handle_review_answer(run_id, teacher_id, msg)
     except Exception as exc:
         log.exception(
             "teacher_message_handler_error",
-            session_id=session_id,
+            run_id=run_id,
             teacher_id=teacher_id,
             msg_type=msg.type,
         )
-        await manager.send_to_teacher(session_id, {"type": "error", "detail": str(exc)})
+        await manager.send_to_teacher(run_id, {"type": "error", "detail": str(exc)})
 
 
-async def _handle_start_session(session_id: str, teacher_id: str) -> None:
+async def _handle_start_run(run_id: str, teacher_id: str) -> None:
     async with AsyncSessionLocal() as db:
-        result = await svc.RunService.start_session(
-            db, uuid.UUID(session_id), uuid.UUID(teacher_id)
+        result = await svc.RunService.start_run(
+            db, uuid.UUID(run_id), uuid.UUID(teacher_id)
         )
 
         # Send each player their assigned (visible) progress items
@@ -385,26 +383,26 @@ async def _handle_start_session(session_id: str, teacher_id: str) -> None:
             pid = str(player_resp.id)
             progress_result = await db.execute(
                 select(RunProgress).where(
-                    RunProgress.session_id == uuid.UUID(session_id),
+                    RunProgress.run_id == uuid.UUID(run_id),
                     RunProgress.player_id == player_resp.id,
                     RunProgress.map_object_id != None,  # noqa: E711
                 )
             )
             visible = progress_result.scalars().all()
             await manager.send_to_player(
-                session_id,
+                run_id,
                 pid,
                 {
-                    "type": "session_started",
+                    "type": "run_started",
                     "progress": [_progress_dict(p) for p in visible],
                 },
             )
 
         await manager.send_to_teacher(
-            session_id,
+            run_id,
             {
-                "type": "session_started",
-                "session": {
+                "type": "run_started",
+                "run": {
                     "id": str(result.id),
                     "status": result.status.value
                     if hasattr(result.status, "value")
@@ -416,22 +414,20 @@ async def _handle_start_session(session_id: str, teacher_id: str) -> None:
         )
 
 
-async def _handle_stop_session(session_id: str, teacher_id: str) -> None:
+async def _handle_stop_run(run_id: str, teacher_id: str) -> None:
     async with AsyncSessionLocal() as db:
-        await svc.RunService.stop_session(
-            db, uuid.UUID(session_id), uuid.UUID(teacher_id)
-        )
+        await svc.RunService.stop_run(db, uuid.UUID(run_id), uuid.UUID(teacher_id))
     await manager.broadcast_to_all(
-        session_id,
+        run_id,
         {
-            "type": "session_stopped",
-            "session_id": session_id,
+            "type": "run_stopped",
+            "run_id": run_id,
         },
     )
 
 
 async def _handle_review_answer(
-    session_id: str, teacher_id: str, msg: ReviewAnswerMessage
+    run_id: str, teacher_id: str, msg: ReviewAnswerMessage
 ) -> None:
     progress_id = msg.progress_id
     request = ReviewAnswerRequest(score=msg.score, feedback=msg.feedback)
@@ -442,7 +438,7 @@ async def _handle_review_answer(
         )
 
     await manager.send_to_player(
-        session_id,
+        run_id,
         str(result.player_id),
         {
             "type": "answer_reviewed",

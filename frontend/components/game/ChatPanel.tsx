@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
-import type { ChatMessage } from "@/types/session";
+import type { ChatMessage } from "@/types/run";
 
 interface ChatPanelProps {
   messages: ChatMessage[];

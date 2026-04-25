@@ -1,73 +1,73 @@
 import api from "@/lib/api";
 import type {
   GameInfoResponse,
-  GameSession,
-  SessionCreate,
-  SessionListItem,
-  SessionPlayer,
-  SessionProgress,
+  GameRun,
+  RunCreate,
+  RunListItem,
+  RunPlayer,
+  RunProgress,
   Team,
   TeacherMonitorResponse,
-} from "@/types/session";
+} from "@/types/run";
 import type { ResourceDetailPublicResponse } from "@/types/resource";
 
-export async function listSessions(): Promise<SessionListItem[]> {
-  const { data } = await api.get("/api/sessions/");
+export async function listRuns(): Promise<RunListItem[]> {
+  const { data } = await api.get("/api/runs/");
   return data;
 }
 
-export async function createSession(data: SessionCreate): Promise<GameSession> {
-  const { data: res } = await api.post("/api/sessions/", data);
+export async function createRun(data: RunCreate): Promise<GameRun> {
+  const { data: res } = await api.post("/api/runs/", data);
   return res;
 }
 
-export async function getSessionByCode(code: string): Promise<GameSession> {
-  const { data } = await api.get(`/api/sessions/code/${code}`);
+export async function getRunByCode(code: string): Promise<GameRun> {
+  const { data } = await api.get(`/api/runs/code/${code}`);
   return data;
 }
 
-export async function joinSession(data: {
-  session_code: string;
+export async function joinRun(data: {
+  join_code: string;
   guest_name?: string;
-}): Promise<SessionPlayer> {
-  const { data: res } = await api.post("/api/sessions/join", data);
+}): Promise<RunPlayer> {
+  const { data: res } = await api.post("/api/runs/join", data);
   return res;
 }
 
-export async function rejoinSession(
-  session_code: string,
+export async function rejoinRun(
+  join_code: string,
   guest_token: string,
-): Promise<SessionPlayer> {
-  const { data: res } = await api.post("/api/sessions/rejoin", {
-    session_code,
+): Promise<RunPlayer> {
+  const { data: res } = await api.post("/api/runs/rejoin", {
+    join_code,
     guest_token,
   });
   return res;
 }
 
 export async function leaveTeam(
-  sessionId: string,
+  runId: string,
   guestToken: string,
-): Promise<{ player: SessionPlayer; team: import("@/types/session").Team }> {
+): Promise<{ player: RunPlayer; team: import("@/types/run").Team }> {
   const { data } = await api.post(
-    `/api/sessions/${sessionId}/teams/leave`,
+    `/api/runs/${runId}/teams/leave`,
     {},
     { headers: { "X-Guest-Token": guestToken } },
   );
   return data;
 }
 
-export async function startSession(id: string): Promise<GameSession> {
-  const { data } = await api.post(`/api/sessions/${id}/start`);
+export async function startRun(id: string): Promise<GameRun> {
+  const { data } = await api.post(`/api/runs/${id}/start`);
   return data;
 }
 
-export async function playerStartSession(
+export async function playerStartRun(
   id: string,
   guestToken: string,
-): Promise<GameSession> {
+): Promise<GameRun> {
   const { data } = await api.post(
-    `/api/sessions/${id}/player-start`,
+    `/api/runs/${id}/player-start`,
     {},
     { headers: { "X-Guest-Token": guestToken } },
   );
@@ -75,23 +75,23 @@ export async function playerStartSession(
 }
 
 export async function getTeam(
-  sessionId: string,
+  runId: string,
   teamId: string,
   guestToken: string,
 ): Promise<Team> {
-  const { data } = await api.get(`/api/sessions/${sessionId}/teams/${teamId}`, {
+  const { data } = await api.get(`/api/runs/${runId}/teams/${teamId}`, {
     headers: { "X-Guest-Token": guestToken },
   });
   return data;
 }
 
 export async function startTeam(
-  sessionId: string,
+  runId: string,
   teamId: string,
   guestToken: string,
 ): Promise<Team> {
   const { data } = await api.post(
-    `/api/sessions/${sessionId}/teams/${teamId}/start`,
+    `/api/runs/${runId}/teams/${teamId}/start`,
     {},
     { headers: { "X-Guest-Token": guestToken } },
   );
@@ -99,7 +99,7 @@ export async function startTeam(
 }
 
 export async function getTeamStepInfo(
-  sessionId: string,
+  runId: string,
   teamId: string,
   guestToken: string,
 ): Promise<{
@@ -111,7 +111,7 @@ export async function getTeamStepInfo(
 } | null> {
   try {
     const { data } = await api.get(
-      `/api/sessions/${sessionId}/teams/${teamId}/step-info`,
+      `/api/runs/${runId}/teams/${teamId}/step-info`,
       { headers: { "X-Guest-Token": guestToken } },
     );
     return data && Object.keys(data).length > 0 ? data : null;
@@ -125,32 +125,32 @@ export async function playerTimeout(
   guestToken: string,
 ): Promise<void> {
   await api.post(
-    `/api/sessions/${id}/player-timeout`,
+    `/api/runs/${id}/player-timeout`,
     {},
     { headers: { "X-Guest-Token": guestToken } },
   );
 }
 
-export async function stopSession(id: string): Promise<GameSession> {
-  const { data } = await api.post(`/api/sessions/${id}/stop`);
+export async function stopRun(id: string): Promise<GameRun> {
+  const { data } = await api.post(`/api/runs/${id}/stop`);
   return data;
 }
 
-export async function deleteSession(id: string): Promise<void> {
-  await api.delete(`/api/sessions/${id}`);
+export async function deleteRun(id: string): Promise<void> {
+  await api.delete(`/api/runs/${id}`);
 }
 
 export async function getMonitor(id: string): Promise<TeacherMonitorResponse> {
-  const { data } = await api.get(`/api/sessions/${id}/monitor`);
+  const { data } = await api.get(`/api/runs/${id}/monitor`);
   return data;
 }
 
 export async function getGameInfo(
-  session_id: string,
+  run_id: string,
   guest_token: string,
   lang = "uk",
 ): Promise<GameInfoResponse> {
-  const { data } = await api.get(`/api/sessions/${session_id}/game-info`, {
+  const { data } = await api.get(`/api/runs/${run_id}/game-info`, {
     params: { lang },
     headers: { "X-Guest-Token": guest_token },
   });
@@ -158,20 +158,20 @@ export async function getGameInfo(
 }
 
 export async function getMyProgress(
-  session_id: string,
+  run_id: string,
   guest_token: string,
-): Promise<SessionProgress[]> {
-  const { data } = await api.get(`/api/sessions/${session_id}/my-progress`, {
+): Promise<RunProgress[]> {
+  const { data } = await api.get(`/api/runs/${run_id}/my-progress`, {
     headers: { "X-Guest-Token": guest_token },
   });
   return data;
 }
 
 export async function getTeamProgress(
-  session_id: string,
+  run_id: string,
   guest_token: string,
-): Promise<SessionProgress[]> {
-  const { data } = await api.get(`/api/sessions/${session_id}/team-progress`, {
+): Promise<RunProgress[]> {
+  const { data } = await api.get(`/api/runs/${run_id}/team-progress`, {
     headers: { "X-Guest-Token": guest_token },
   });
   return data;
@@ -182,7 +182,7 @@ export async function getProgressResource(
   guest_token: string,
 ): Promise<ResourceDetailPublicResponse> {
   const { data } = await api.get(
-    `/api/sessions/progress/${progress_id}/resource`,
+    `/api/runs/progress/${progress_id}/resource`,
     {
       headers: { "X-Guest-Token": guest_token },
     },
@@ -194,9 +194,9 @@ export async function submitAnswer(
   progress_id: string,
   answer: unknown,
   guest_token: string,
-): Promise<SessionProgress> {
+): Promise<RunProgress> {
   const { data } = await api.post(
-    `/api/sessions/progress/${progress_id}/answer`,
+    `/api/runs/progress/${progress_id}/answer`,
     { answer },
     { headers: { "X-Guest-Token": guest_token } },
   );
@@ -206,9 +206,9 @@ export async function submitAnswer(
 export async function markViewed(
   progress_id: string,
   guest_token: string,
-): Promise<SessionProgress> {
+): Promise<RunProgress> {
   const { data } = await api.post(
-    `/api/sessions/progress/${progress_id}/viewed`,
+    `/api/runs/progress/${progress_id}/viewed`,
     {},
     { headers: { "X-Guest-Token": guest_token } },
   );
@@ -219,9 +219,9 @@ export async function reviewAnswer(
   progress_id: string,
   score: number,
   feedback?: string,
-): Promise<SessionProgress> {
+): Promise<RunProgress> {
   const { data } = await api.post(
-    `/api/sessions/progress/${progress_id}/review`,
+    `/api/runs/progress/${progress_id}/review`,
     {
       score,
       feedback,
@@ -231,56 +231,56 @@ export async function reviewAnswer(
 }
 
 export async function getPlayerProgressDetail(
-  session_id: string,
+  run_id: string,
   player_id: string,
-): Promise<import("@/types/session").SessionProgressResult[]> {
+): Promise<import("@/types/run").RunProgressResult[]> {
   const { data } = await api.get(
-    `/api/sessions/${session_id}/players/${player_id}/progress`,
+    `/api/runs/${run_id}/players/${player_id}/progress`,
   );
   return data;
 }
 
 export async function getResults(
-  session_id: string,
+  run_id: string,
   guest_token: string,
-): Promise<import("@/types/session").GameSessionResultResponse> {
-  const { data } = await api.get(`/api/sessions/${session_id}/results`, {
+): Promise<import("@/types/run").GameRunResultResponse> {
+  const { data } = await api.get(`/api/runs/${run_id}/results`, {
     params: { guest_token },
   });
   return data;
 }
 
 export async function updateGuestName(
-  session_id: string,
+  run_id: string,
   player_id: string,
   guest_name: string | null,
-): Promise<SessionPlayer> {
+): Promise<RunPlayer> {
   const { data } = await api.patch(
-    `/api/sessions/${session_id}/players/${player_id}/guest-name`,
+    `/api/runs/${run_id}/players/${player_id}/guest-name`,
     { guest_name },
   );
   return data;
 }
 
 export async function deletePlayer(
-  session_id: string,
+  run_id: string,
   player_id: string,
 ): Promise<void> {
-  await api.delete(`/api/sessions/${session_id}/players/${player_id}`);
+  await api.delete(`/api/runs/${run_id}/players/${player_id}`);
 }
 
-export async function updateSessionSettings(
-  session_id: string,
-  data: import("@/types/session").SessionUpdate,
-): Promise<GameSession> {
+export async function updateRunSettings(
+  run_id: string,
+  data: import("@/types/run").RunUpdate,
+): Promise<GameRun> {
   const { data: res } = await api.patch(
-    `/api/sessions/${session_id}/settings`,
+    `/api/runs/${run_id}/settings`,
     data,
   );
   return res;
 }
 
-export async function restartSession(session_id: string): Promise<GameSession> {
-  const { data } = await api.post(`/api/sessions/${session_id}/restart`);
+export async function restartRun(run_id: string): Promise<GameRun> {
+  const { data } = await api.post(`/api/runs/${run_id}/restart`);
   return data;
 }

@@ -4,7 +4,7 @@ from typing import Annotated, Any, Dict, List, Optional
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, ValidationError
 
-from app.models.game_run import SessionStatus
+from app.models.game_run import RunStatus
 from app.models.run_player import PlayerStatus
 from app.models.run_progress import ProgressStatus
 from app.models.run_team import TeamStatus
@@ -73,13 +73,13 @@ class RunCreate(BaseModel):
 
 
 class JoinRunRequest(BaseModel):
-    session_code: str = Field(..., min_length=6, max_length=6)
+    join_code: str = Field(..., min_length=6, max_length=6)
     guest_name: Optional[str] = None
     display_name: Optional[str] = None
 
 
 class RejoinRunRequest(BaseModel):
-    session_code: str = Field(..., min_length=6, max_length=6)
+    join_code: str = Field(..., min_length=6, max_length=6)
     guest_token: str
 
 
@@ -95,7 +95,7 @@ class TeamPlayerResponse(BaseModel):
 
 class TeamResponse(BaseModel):
     id: uuid.UUID
-    session_id: uuid.UUID
+    run_id: uuid.UUID
     status: TeamStatus
     players: List[TeamPlayerResponse]
     created_at: datetime
@@ -107,7 +107,7 @@ class TeamResponse(BaseModel):
 
 class RunPlayerResponse(BaseModel):
     id: uuid.UUID
-    session_id: uuid.UUID
+    run_id: uuid.UUID
     user_id: Optional[uuid.UUID] = None
     guest_name: Optional[str] = None
     display_name: str
@@ -124,7 +124,7 @@ class RunPlayerResponse(BaseModel):
 
 class RunProgressResponse(BaseModel):
     id: uuid.UUID
-    session_id: uuid.UUID
+    run_id: uuid.UUID
     player_id: uuid.UUID
     resource_id: Optional[uuid.UUID] = None
     map_object_id: Optional[uuid.UUID] = None
@@ -141,7 +141,7 @@ class RunProgressResponse(BaseModel):
 
 class RunChatMessage(BaseModel):
     id: uuid.UUID
-    session_id: uuid.UUID
+    run_id: uuid.UUID
     player_id: uuid.UUID
     display_name: str
     message: str
@@ -151,9 +151,9 @@ class RunChatMessage(BaseModel):
 class RunListItem(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID
-    session_code: str
+    join_code: str
     name: Optional[str] = None
-    status: SessionStatus
+    status: RunStatus
     started_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     scheduled_at: Optional[datetime] = None
@@ -174,9 +174,9 @@ class LeaveTeamResponse(BaseModel):
 class GameRunResponse(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID
-    session_code: str
+    join_code: str
     name: Optional[str] = None
-    status: SessionStatus
+    status: RunStatus
     started_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     scheduled_at: Optional[datetime] = None
@@ -242,7 +242,7 @@ class PlayerProgressSummary(BaseModel):
 
 
 class TeacherMonitorResponse(BaseModel):
-    session: GameRunResponse
+    run: GameRunResponse
     players_progress: List[PlayerProgressSummary]
 
 

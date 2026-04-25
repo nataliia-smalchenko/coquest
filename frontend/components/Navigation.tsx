@@ -33,7 +33,7 @@ export default function Navigation() {
 
   // Hide navigation during active gameplay
   const isGamePage =
-    pathname.includes("/session/") &&
+    pathname.includes("/run/") &&
     (pathname.endsWith("/game") ||
       pathname.endsWith("/lobby") ||
       pathname.endsWith("/results"));
@@ -54,7 +54,7 @@ export default function Navigation() {
     },
     { href: "/teacher/quests", label: t("quests"), icon: <Sword size={16} /> },
     {
-      href: "/teacher/sessions",
+      href: "/teacher/runs",
       label: t("sessions"),
       icon: <Activity size={16} />,
     },

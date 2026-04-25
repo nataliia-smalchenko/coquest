@@ -4,15 +4,15 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  clearSessionStorage,
-  getSessionStorage,
-  setSessionStorage,
+  clearRunStorage,
+  getRunStorage,
+  setRunStorage,
   useGameSession,
 } from "@/hooks/useGameSession";
 import { usePlayerWebSocket } from "@/hooks/useWebSocket";
 import { useRouter } from "@/i18n/navigation";
-import { leaveTeam, playerStartSession, startTeam } from "@/lib/api/sessions";
-import type { GameSession, SessionPlayer } from "@/types/session";
+import { leaveTeam, playerStartRun, startTeam } from "@/lib/api/runs";
+import type { GameRun, RunPlayer } from "@/types/run";
 
 function PlayerAvatar({
   name,
@@ -45,21 +45,21 @@ export default function LobbyPage() {
   const locale = useLocale();
   const params = useParams();
   const router = useRouter();
-  const sessionId = params.id as string;
+  const runId = params.id as string;
 
-  const { session, setSession, setMyPlayer, setGuestToken, handleWsMessage } =
+  const { run, setRun, setMyPlayer, setGuestToken, handleWsMessage } =
     useGameSession();
 
   const [stored, setStored] = useState<{
     guest_token: string;
     player_id: string;
-    session_code?: string;
+    join_code?: string;
     display_name?: string;
   } | null>(null);
 
-  const [players, setPlayers] = useState<SessionPlayer[]>([]);
+  const [players, setPlayers] = useState<RunPlayer[]>([]);
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [teamPlayers, setTeamPlayers] = useState<SessionPlayer[]>([]);
+  const [teamPlayers, setTeamPlayers] = useState<RunPlayer[]>([]);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [leavingTeam, setLeavingTeam] = useState(false);
@@ -68,14 +68,14 @@ export default function LobbyPage() {
   const teamIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const s = getSessionStorage(sessionId);
+    const s = getRunStorage(runId);
     if (!s) {
       router.push("/join");
       return;
     }
     setStored(s);
     setGuestToken(s.guest_token);
-  }, [sessionId, router, setGuestToken]);
+  }, [runId, router, setGuestToken]);
 
   // Ref so the WS handler always reads current `stored` without triggering reconnects
   const storedRef = useRef(stored);
@@ -87,11 +87,11 @@ export default function LobbyPage() {
       handleWsMessage(last);
 
       if (last.type === "connected") {
-        const sess = last.session as GameSession | undefined;
-        const allPlayers = last.players as SessionPlayer[] | undefined;
+        const sess = last.run as GameRun | undefined;
+        const allPlayers = last.players as RunPlayer[] | undefined;
 
         if (sess) {
-          setSession(sess);
+          setRun(sess);
           if (allPlayers) setPlayers(allPlayers);
           const current = storedRef.current;
           if (current) {
@@ -111,7 +111,7 @@ export default function LobbyPage() {
       }
 
       if (last.type === "player_joined") {
-        const p = last.player as SessionPlayer | undefined;
+        const p = last.player as RunPlayer | undefined;
         if (p) {
           setPlayers((prev) =>
             prev.find((x) => x.id === p.id) ? prev : [...prev, p],
@@ -132,22 +132,22 @@ export default function LobbyPage() {
         }
       }
 
-      if (last.type === "team_started" || last.type === "session_started") {
-        router.push(`/session/${sessionId}/game`);
+      if (last.type === "team_started" || last.type === "run_started") {
+        router.push(`/run/${runId}/game`);
       }
       if (
-        last.type === "session_completed" ||
-        last.type === "session_stopped"
+        last.type === "run_completed" ||
+        last.type === "run_stopped"
       ) {
-        router.push(`/session/${sessionId}/results`);
+        router.push(`/run/${runId}/results`);
       }
     },
     // storedRef is excluded: accessed via .current to avoid reconnect churn
     [
       handleWsMessage,
       router,
-      sessionId,
-      setSession,
+      runId,
+      setRun,
       setMyPlayer,
       setPlayers,
       setTeamPlayers,
@@ -155,54 +155,54 @@ export default function LobbyPage() {
     ],
   );
 
-  usePlayerWebSocket(sessionId, stored?.guest_token ?? "", handleMessage);
+  usePlayerWebSocket(runId, stored?.guest_token ?? "", handleMessage);
 
   useEffect(() => {
-    if (session?.status === "completed" || session?.status === "stopped") {
-      router.push(`/session/${sessionId}/results`);
+    if (run?.status === "completed" || run?.status === "stopped") {
+      router.push(`/run/${runId}/results`);
     }
-  }, [session, sessionId, router]);
+  }, [run, runId, router]);
 
-  // Keep localStorage entry up-to-date with session_code (for returning players)
+  // Keep localStorage entry up-to-date with join_code (for returning players)
   useEffect(() => {
-    if (session?.session_code && stored && !stored.session_code) {
-      setSessionStorage(sessionId, {
+    if (run?.join_code && stored && !stored.join_code) {
+      setRunStorage(runId, {
         ...stored,
-        session_code: session.session_code,
+        join_code: run.join_code,
       });
       setStored((prev) =>
-        prev ? { ...prev, session_code: session.session_code } : prev,
+        prev ? { ...prev, join_code: run.join_code } : prev,
       );
     }
-  }, [session?.session_code, stored, sessionId]);
+  }, [run?.join_code, stored, runId]);
 
-  const isTeamMode = (session?.max_players ?? 1) > 1;
-  const allowSolo = session?.allow_solo_in_team ?? true;
-  const maxPlayers = session?.max_players ?? 1;
-  const randomTeams = session?.random_teams ?? false;
+  const isTeamMode = (run?.max_players ?? 1) > 1;
+  const allowSolo = run?.allow_solo_in_team ?? true;
+  const maxPlayers = run?.max_players ?? 1;
+  const randomTeams = run?.random_teams ?? false;
 
   // Solo mode: skip the lobby and auto-start immediately
   useEffect(() => {
-    if (!session || !stored || isTeamMode || autoStartedRef.current) return;
+    if (!run || !stored || isTeamMode || autoStartedRef.current) return;
     autoStartedRef.current = true;
 
-    const me = session.players?.find((p) => p.id === stored.player_id);
+    const me = run.players?.find((p) => p.id === stored.player_id);
     if (me?.status === "playing") {
-      router.push(`/session/${sessionId}/game`);
+      router.push(`/run/${runId}/game`);
       return;
     }
 
     setStarting(true);
-    playerStartSession(sessionId, stored.guest_token)
+    playerStartRun(runId, stored.guest_token)
       .then(() => {
-        // Navigation triggered by WS: session_started
+        // Navigation triggered by WS: run_started
       })
       .catch(() => {
         setStartError(t("startError"));
         setStarting(false);
         autoStartedRef.current = false;
       });
-  }, [session, stored, isTeamMode, sessionId, router, t]);
+  }, [run, stored, isTeamMode, runId, router, t]);
 
   const displayPlayers = isTeamMode ? teamPlayers : players;
   const canStart =
@@ -216,9 +216,9 @@ export default function LobbyPage() {
     setStartError(null);
     try {
       if (isTeamMode && teamId) {
-        await startTeam(sessionId, teamId, stored.guest_token);
+        await startTeam(runId, teamId, stored.guest_token);
       } else {
-        await playerStartSession(sessionId, stored.guest_token);
+        await playerStartRun(runId, stored.guest_token);
       }
     } catch {
       setStartError(t("startError"));
@@ -227,8 +227,8 @@ export default function LobbyPage() {
   };
 
   const handleJoinAsOther = () => {
-    clearSessionStorage(sessionId);
-    const code = session?.session_code ?? stored?.session_code ?? "";
+    clearRunStorage(runId);
+    const code = run?.join_code ?? stored?.join_code ?? "";
     router.push(`/join${code ? `?code=${code}` : ""}`);
   };
 
@@ -237,27 +237,27 @@ export default function LobbyPage() {
     setLeavingTeam(true);
     setLeaveError(null);
     try {
-      const result = await leaveTeam(sessionId, stored.guest_token);
+      const result = await leaveTeam(runId, stored.guest_token);
       const newTeamId = result.player.team_id;
       teamIdRef.current = newTeamId;
       setTeamId(newTeamId);
       // Update stored display_name if changed
-      setSessionStorage(sessionId, {
+      setRunStorage(runId, {
         ...stored,
         display_name: result.player.display_name,
       });
       // Update team players from the new team
-      const mePlayer: SessionPlayer = {
+      const mePlayer: RunPlayer = {
         ...result.player,
         guest_token: stored.guest_token,
       };
-      // Build SessionPlayer list from team (members may only have TeamPlayer fields)
-      const mappedPlayers: SessionPlayer[] = result.team.players.map((p) =>
+      // Build RunPlayer list from team (members may only have TeamPlayer fields)
+      const mappedPlayers: RunPlayer[] = result.team.players.map((p) =>
         p.id === result.player.id
           ? mePlayer
           : ({
               id: p.id,
-              session_id: sessionId,
+              session_id: runId,
               user_id: null,
               guest_name: null,
               display_name: p.display_name,
@@ -267,7 +267,7 @@ export default function LobbyPage() {
               started_at: null,
               finished_at: null,
               team_id: result.player.team_id,
-            } as SessionPlayer),
+            } as RunPlayer),
       );
       // Always ensure the switching player is visible in their new team
       const newTeamPlayers = mappedPlayers.some((p) => p.id === mePlayer.id)
@@ -283,7 +283,7 @@ export default function LobbyPage() {
   };
 
   // Solo mode: show only a spinner while auto-starting
-  if (!isTeamMode && (starting || !session)) {
+  if (!isTeamMode && (starting || !run)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-gray-500">
@@ -305,7 +305,7 @@ export default function LobbyPage() {
             {t("sessionCode")}
           </p>
           <div className="text-5xl font-mono font-bold text-gray-900 tracking-widest">
-            {session?.session_code ?? "------"}
+            {run?.join_code ?? "------"}
           </div>
           {isTeamMode && teamCode && (
             <p className="text-xs text-gray-400 mt-1">
@@ -315,11 +315,11 @@ export default function LobbyPage() {
               </span>
             </p>
           )}
-          {session?.ends_at && (
+          {run?.ends_at && (
             <p className="text-xs text-gray-400 mt-2">
               {t("sessionEndsAt")}{" "}
               <span className="font-medium text-gray-600">
-                {new Date(session.ends_at).toLocaleTimeString(locale, {
+                {new Date(run.ends_at).toLocaleTimeString(locale, {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
@@ -351,7 +351,7 @@ export default function LobbyPage() {
         </div>
 
         {/* Start button or waiting indicator */}
-        {session && (
+        {run && (
           <div className="flex flex-col items-center gap-3">
             {isTeamMode && !allowSolo && teamPlayers.length < 2 && (
               <p className="text-sm text-gray-400 text-center">
@@ -425,7 +425,7 @@ export default function LobbyPage() {
           </div>
         )}
 
-        {!session && (
+        {!run && (
           <div className="flex items-center justify-center gap-3 text-gray-500 text-sm">
             <span className="inline-flex gap-1">
               {[0, 1, 2].map((i) => (
