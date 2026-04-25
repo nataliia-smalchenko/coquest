@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from app.services.redis_service import RedisService
 
@@ -27,7 +27,9 @@ class TestGetRedis:
     @pytest.mark.asyncio
     async def test_creates_connection_when_none(self):
         mock_redis = _make_mock_redis()
-        with patch("app.services.redis_service.aioredis.from_url", new_callable=AsyncMock) as mock_from_url:
+        with patch(
+            "app.services.redis_service.aioredis.from_url", new_callable=AsyncMock
+        ) as mock_from_url:
             mock_from_url.return_value = mock_redis
             result = await RedisService.get_redis()
 

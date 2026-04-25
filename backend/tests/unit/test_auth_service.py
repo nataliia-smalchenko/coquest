@@ -380,7 +380,7 @@ class TestGoogleLoginOrRegister:
         db.commit = AsyncMock()
         db.refresh = AsyncMock()
 
-        result = await AuthService.google_login_or_register(db, self.GOOGLE_DATA)
+        await AuthService.google_login_or_register(db, self.GOOGLE_DATA)
 
         db.add.assert_called_once()
         db.commit.assert_called_once()

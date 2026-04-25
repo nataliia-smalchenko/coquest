@@ -8,6 +8,7 @@ Coverage:
   Content  – upsert text content, upsert question
   Auth     – student cannot call teacher-only endpoints
 """
+
 import uuid
 import pytest
 from httpx import AsyncClient

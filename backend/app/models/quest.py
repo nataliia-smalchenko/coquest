@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.models.map import Map
     from app.models.resource import Resource
-    from app.models.game_session import GameSession
+    from app.models.game_run import GameRun
 
 
 class QuestStatus(str, enum.Enum):
@@ -70,8 +70,8 @@ class Quest(Base):
     resources: Mapped[List["QuestResource"]] = relationship(
         "QuestResource", back_populates="quest", cascade="all, delete-orphan"
     )
-    sessions: Mapped[List["GameSession"]] = relationship(
-        "GameSession", back_populates="quest", cascade="all, delete-orphan"
+    runs: Mapped[List["GameRun"]] = relationship(
+        "GameRun", back_populates="quest", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -127,7 +127,7 @@ class QuestResource(Base):
         Uuid, ForeignKey("quests.id", ondelete="CASCADE"), nullable=False, index=True
     )
     resource_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("resources.id", ondelete="CASCADE"), nullable=False
+        Uuid, ForeignKey("resources.id", ondelete="CASCADE"), nullable=False, index=True
     )
     order_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

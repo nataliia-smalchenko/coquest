@@ -1,17 +1,17 @@
-import logging
+import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import structlog
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models.game_session import GameSession, SessionStatus
-from app.models.quest import QuestSettings
-from app.models.session_player import PlayerStatus, SessionPlayer
-from app.models.user import User
-from app.schemas.session import GameSessionResponse, SessionPlayerResponse
+from app.models.game_run import GameRun, SessionStatus
+from app.models.run_player import PlayerStatus, RunPlayer
+from app.models.user import UserRole
+from app.services.run_service import RunService
+from app.services.user_service import UserService
 from app.services.websocket_handlers import (
     handle_player_message,
     handle_teacher_message,
@@ -21,10 +21,43 @@ from app.utils.security import verify_token
 
 router = APIRouter(prefix="/api/ws", tags=["WebSocket"])
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
-def _session_dict(session: GameSession) -> dict:
+# Heartbeat helpers
+async def _player_heartbeat(sid: str, player_id: str) -> None:
+    """Send periodic pings to a player to detect zombie connections.
+
+    Runs as a background asyncio task alongside the main receive loop.
+    If the underlying WebSocket is dead (e.g. mobile network drop without
+    a proper TCP FIN), ``manager.send_to_player`` will fail, log the error,
+    and call ``disconnect_player``, evicting the stale entry from
+    ConnectionManager and preventing a memory leak.
+
+    The task is always cancelled via ``finally`` in the route handler, so
+    ``asyncio.CancelledError`` on a healthy disconnect is expected and silent.
+    """
+    interval = settings.WS_HEARTBEAT_INTERVAL_SECONDS
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            await manager.send_to_player(sid, player_id, {"type": "ping"})
+    except asyncio.CancelledError:
+        pass  # normal shutdown — no action needed
+
+
+async def _teacher_heartbeat(sid: str) -> None:
+    """Send periodic pings to the teacher connection to detect zombie sockets."""
+    interval = settings.WS_HEARTBEAT_INTERVAL_SECONDS
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            await manager.send_to_teacher(sid, {"type": "ping"})
+    except asyncio.CancelledError:
+        pass  # normal shutdown — no action needed
+
+
+def _session_dict(session: GameRun) -> dict:
     return {
         "id": str(session.id),
         "quest_id": str(session.quest_id),
@@ -45,7 +78,7 @@ def _session_dict(session: GameSession) -> dict:
     }
 
 
-def _player_dict(player: SessionPlayer) -> dict:
+def _player_dict(player: RunPlayer) -> dict:
     return {
         "id": str(player.id),
         "display_name": player.display_name,
@@ -62,16 +95,27 @@ def _player_dict(player: SessionPlayer) -> dict:
 async def ws_player(
     websocket: WebSocket,
     session_id: uuid.UUID,
-    guest_token: str = Query(...),
 ):
     sid = str(session_id)
 
+    # Accept before auth so the token never appears in the URL or proxy logs
+    await websocket.accept()
+
+    # First client message must be { "token": "<guest_token>" }
+    try:
+        auth_data = await websocket.receive_json()
+    except Exception:
+        await websocket.close(code=4001, reason="Unauthorized: missing auth message")
+        return
+
+    guest_token = auth_data.get("token")
+    if not guest_token:
+        await websocket.close(code=4001, reason="Unauthorized: missing token")
+        return
+
     async with AsyncSessionLocal() as db:
-        # Authenticate via guest_token
-        player_result = await db.execute(
-            select(SessionPlayer).where(SessionPlayer.guest_token == guest_token)
-        )
-        player = player_result.scalar_one_or_none()
+        # Authenticate using the token from the message body
+        player = await RunService.get_player_by_token(db, guest_token)
         if not player:
             await websocket.close(code=4001, reason="Unauthorized: invalid token")
             return
@@ -82,12 +126,7 @@ async def ws_player(
             )
             return
 
-        session_result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
-        )
-        session = session_result.scalar_one_or_none()
+        session = await RunService.get_session_with_players(db, session_id)
         if not session or session.status in (
             SessionStatus.COMPLETED,
             SessionStatus.STOPPED,
@@ -104,10 +143,7 @@ async def ws_player(
         now = datetime.now(timezone.utc)
         time_expired = session.ends_at is not None and session.ends_at < now
         if not time_expired and player.started_at:
-            settings_result = await db.execute(
-                select(QuestSettings).where(QuestSettings.quest_id == session.quest_id)
-            )
-            settings_obj = settings_result.scalar_one_or_none()
+            settings_obj = await RunService.get_quest_settings(db, session.quest_id)
             if settings_obj and settings_obj.time_limit_minutes:
                 player_ends_at = player.started_at + timedelta(
                     minutes=settings_obj.time_limit_minutes
@@ -116,13 +152,7 @@ async def ws_player(
                     time_expired = True
         already_finished = player.status == PlayerStatus.FINISHED
         if time_expired and not already_finished:
-            from datetime import timedelta
-
-            player.status = PlayerStatus.FINISHED
-            if not player.finished_at:
-                player.finished_at = now
-            player.results_available_until = now + timedelta(days=30)
-            await db.commit()
+            player = await RunService.player_timeout(db, session_id, player)
             already_finished = True
 
     await manager.connect_player(sid, player_id, websocket)
@@ -157,9 +187,13 @@ async def ws_player(
         exclude_player_id=player_id,
     )
 
+    heartbeat_task = asyncio.create_task(_player_heartbeat(sid, player_id))
     try:
         while True:
             data = await websocket.receive_json()
+            if data.get("type") == "pong":
+                # Heartbeat acknowledgement from client — no further processing needed.
+                continue
             await handle_player_message(sid, player_id, data)
     except WebSocketDisconnect:
         await manager.disconnect_player(sid, player_id)
@@ -170,14 +204,15 @@ async def ws_player(
                 "player_id": player_id,
             },
         )
-    except Exception as exc:
-        logger.exception(
-            "Unexpected error in player WS session=%s player=%s: %s",
-            sid,
-            player_id,
-            exc,
+    except Exception:
+        log.exception(
+            "player_ws_unexpected_error",
+            session_id=sid,
+            player_id=player_id,
         )
         await manager.disconnect_player(sid, player_id)
+    finally:
+        heartbeat_task.cancel()
 
 
 @router.websocket("/session/{session_id}/teacher")
@@ -196,21 +231,15 @@ async def ws_teacher(
 
     async with AsyncSessionLocal() as db:
         user_id = payload.get("sub")
-        user_result = await db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalar_one_or_none()
+        user = await UserService.get_user_by_id(db, user_id)
 
-        if not user or user.role != "teacher":
+        if not user or user.role != UserRole.TEACHER:
             await websocket.close(
                 code=4001, reason="Unauthorized: teacher role required"
             )
             return
 
-        session_result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
-        )
-        session = session_result.scalar_one_or_none()
+        session = await RunService.get_session_with_players(db, session_id)
 
         if not session or session.teacher_id != user.id:
             await websocket.close(code=4002, reason="Forbidden: not your session")
@@ -234,12 +263,18 @@ async def ws_teacher(
         },
     )
 
+    heartbeat_task = asyncio.create_task(_teacher_heartbeat(sid))
     try:
         while True:
             data = await websocket.receive_json()
+            if data.get("type") == "pong":
+                # Heartbeat acknowledgement from client — no further processing needed.
+                continue
             await handle_teacher_message(sid, teacher_id, data)
     except WebSocketDisconnect:
         await manager.disconnect_teacher(sid)
-    except Exception as exc:
-        logger.exception("Unexpected error in teacher WS session=%s: %s", sid, exc)
+    except Exception:
+        log.exception("teacher_ws_unexpected_error", session_id=sid)
         await manager.disconnect_teacher(sid)
+    finally:
+        heartbeat_task.cancel()

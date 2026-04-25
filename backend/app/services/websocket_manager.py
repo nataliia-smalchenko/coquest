@@ -1,10 +1,11 @@
 import json
-import logging
 from typing import Dict, Optional, Set
 
+import structlog
 from fastapi import WebSocket
+from starlette.websockets import WebSocketState
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 class ConnectionManager:
@@ -18,29 +19,31 @@ class ConnectionManager:
     async def connect_player(
         self, session_id: str, player_id: str, websocket: WebSocket
     ) -> None:
-        await websocket.accept()
+        # Skip accept if the connection was already accepted (e.g. in ws_player)
+        if websocket.application_state != WebSocketState.CONNECTED:
+            await websocket.accept()
         if session_id not in self.sessions:
             self.sessions[session_id] = {}
         self.sessions[session_id][player_id] = websocket
-        logger.info("Player %s connected to session %s", player_id, session_id)
+        log.info("player_connected", session_id=session_id, player_id=player_id)
 
     async def connect_teacher(
         self, session_id: str, teacher_id: str, websocket: WebSocket
     ) -> None:
         await websocket.accept()
         self.teachers[session_id] = websocket
-        logger.info("Teacher %s connected to session %s", teacher_id, session_id)
+        log.info("teacher_connected", session_id=session_id, teacher_id=teacher_id)
 
     async def disconnect_player(self, session_id: str, player_id: str) -> None:
         if session_id in self.sessions:
             self.sessions[session_id].pop(player_id, None)
             if not self.sessions[session_id]:
                 del self.sessions[session_id]
-        logger.info("Player %s disconnected from session %s", player_id, session_id)
+        log.info("player_disconnected", session_id=session_id, player_id=player_id)
 
     async def disconnect_teacher(self, session_id: str) -> None:
         self.teachers.pop(session_id, None)
-        logger.info("Teacher disconnected from session %s", session_id)
+        log.info("teacher_disconnected", session_id=session_id)
 
     # send helpers
     async def send_to_player(
@@ -51,6 +54,12 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
+                log.error(
+                    "send_to_player_failed",
+                    session_id=session_id,
+                    player_id=player_id,
+                    exc_info=True,
+                )
                 await self.disconnect_player(session_id, player_id)
 
     async def send_to_teacher(self, session_id: str, message: dict) -> None:
@@ -59,6 +68,11 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
+                log.error(
+                    "send_to_teacher_failed",
+                    session_id=session_id,
+                    exc_info=True,
+                )
                 await self.disconnect_teacher(session_id)
 
     async def broadcast_to_session(
@@ -74,6 +88,12 @@ class ConnectionManager:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
+                log.error(
+                    "broadcast_failed",
+                    session_id=session_id,
+                    player_id=pid,
+                    exc_info=True,
+                )
                 await self.disconnect_player(session_id, pid)
         await self.send_to_teacher(session_id, message)
 

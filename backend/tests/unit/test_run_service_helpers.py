@@ -1,28 +1,29 @@
 import uuid
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException
 
-from app.services.session_service import (
+from app.services.run_service import (
     _now,
     _maybe_expire_session,
     _player_response,
     _session_response,
     _load_session,
     _load_own_session,
-    SessionService,
+    RunService,
 )
-from app.models.game_session import GameSession, SessionStatus
-from app.models.session_player import SessionPlayer, PlayerStatus
+from app.models.game_run import GameRun, SessionStatus
+from app.models.run_player import RunPlayer, PlayerStatus
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_player(**kw):
-    p = MagicMock(spec=SessionPlayer)
+    p = MagicMock(spec=RunPlayer)
     p.id = kw.get("id", uuid.uuid4())
     p.session_id = kw.get("session_id", uuid.uuid4())
     p.user_id = kw.get("user_id", None)
@@ -39,7 +40,7 @@ def _make_player(**kw):
 
 
 def _make_session(**kw):
-    s = MagicMock(spec=GameSession)
+    s = MagicMock(spec=GameRun)
     s.id = kw.get("id", uuid.uuid4())
     s.quest_id = kw.get("quest_id", uuid.uuid4())
     s.teacher_id = kw.get("teacher_id", uuid.uuid4())
@@ -85,6 +86,7 @@ def _make_db(scalar=None, scalars=None):
 # _now
 # ---------------------------------------------------------------------------
 
+
 def test_now_is_utc_aware():
     result = _now()
     assert result.tzinfo is not None
@@ -94,6 +96,7 @@ def test_now_is_utc_aware():
 # ---------------------------------------------------------------------------
 # _maybe_expire_session
 # ---------------------------------------------------------------------------
+
 
 class TestMaybeExpireSession:
     @pytest.mark.asyncio
@@ -130,6 +133,10 @@ class TestMaybeExpireSession:
             players=[player],
         )
         db = _make_db()
+        # Simulate acquiring the FOR UPDATE SKIP LOCKED lock
+        lock_exec = MagicMock()
+        lock_exec.scalar_one_or_none.return_value = session.id
+        db.execute.return_value = lock_exec
         result = await _maybe_expire_session(db, session)
         assert result is True
         assert session.status == SessionStatus.STOPPED
@@ -156,6 +163,7 @@ class TestMaybeExpireSession:
 # _player_response
 # ---------------------------------------------------------------------------
 
+
 class TestPlayerResponse:
     def test_maps_all_fields(self):
         player = _make_player()
@@ -177,6 +185,7 @@ class TestPlayerResponse:
 # _session_response
 # ---------------------------------------------------------------------------
 
+
 class TestSessionResponse:
     def test_maps_all_fields(self):
         player = _make_player()
@@ -195,6 +204,7 @@ class TestSessionResponse:
 # ---------------------------------------------------------------------------
 # _load_session
 # ---------------------------------------------------------------------------
+
 
 class TestLoadSession:
     @pytest.mark.asyncio
@@ -216,6 +226,7 @@ class TestLoadSession:
 # _load_own_session
 # ---------------------------------------------------------------------------
 
+
 class TestLoadOwnSession:
     @pytest.mark.asyncio
     async def test_returns_own_session(self):
@@ -235,67 +246,70 @@ class TestLoadOwnSession:
 
 
 # ---------------------------------------------------------------------------
-# SessionService.get_player_by_token
+# RunService.get_player_by_token
 # ---------------------------------------------------------------------------
+
 
 class TestGetPlayerByToken:
     @pytest.mark.asyncio
     async def test_returns_player(self):
         player = _make_player()
         db = _make_db(scalar=player)
-        result = await SessionService.get_player_by_token(db, "some_token")
+        result = await RunService.get_player_by_token(db, "some_token")
         assert result is player
 
     @pytest.mark.asyncio
     async def test_returns_none_when_not_found(self):
         db = _make_db(scalar=None)
-        result = await SessionService.get_player_by_token(db, "bad_token")
+        result = await RunService.get_player_by_token(db, "bad_token")
         assert result is None
 
 
 # ---------------------------------------------------------------------------
-# SessionService.get_session_by_code
+# RunService.get_session_by_code
 # ---------------------------------------------------------------------------
+
 
 class TestGetSessionByCode:
     @pytest.mark.asyncio
     async def test_returns_session_response(self):
         session = _make_session(session_code="ABC123")
         db = _make_db(scalar=session)
-        result = await SessionService.get_session_by_code(db, "abc123")
+        result = await RunService.get_session_by_code(db, "abc123")
         assert result.session_code == "ABC123"
 
     @pytest.mark.asyncio
     async def test_uppercases_code(self):
         session = _make_session(session_code="XYZ789")
         db = _make_db(scalar=session)
-        result = await SessionService.get_session_by_code(db, "xyz789")
+        result = await RunService.get_session_by_code(db, "xyz789")
         assert result.session_code == "XYZ789"
 
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
         db = _make_db(scalar=None)
         with pytest.raises(HTTPException) as exc_info:
-            await SessionService.get_session_by_code(db, "NOPE00")
+            await RunService.get_session_by_code(db, "NOPE00")
         assert exc_info.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# SessionService.list_sessions
+# RunService.list_sessions
 # ---------------------------------------------------------------------------
+
 
 class TestListSessions:
     @pytest.mark.asyncio
     async def test_returns_empty_list(self):
         db = _make_db(scalars=[])
-        result = await SessionService.list_sessions(db, uuid.uuid4())
+        result = await RunService.list_sessions(db, uuid.uuid4())
         assert result == []
 
     @pytest.mark.asyncio
     async def test_returns_session_items(self):
         session = _make_session()
         db = _make_db(scalars=[session])
-        result = await SessionService.list_sessions(db, uuid.uuid4())
+        result = await RunService.list_sessions(db, uuid.uuid4())
         assert len(result) == 1
         assert result[0].session_code == session.session_code
 
@@ -306,26 +320,34 @@ class TestListSessions:
             ends_at=datetime.now(timezone.utc) - timedelta(hours=1),
             players=[],
         )
-        db = _make_db(scalars=[session])
-        await SessionService.list_sessions(db, uuid.uuid4())
+        # First call: list query returns sessions
+        # Second call: FOR UPDATE SKIP LOCKED lock — non-None means lock acquired
+        list_exec = _exec(scalars=[session])
+        lock_exec = MagicMock()
+        lock_exec.scalar_one_or_none.return_value = session.id
+        db = _make_db()
+        db.execute.side_effect = [list_exec, lock_exec]
+        await RunService.list_sessions(db, uuid.uuid4())
         db.commit.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
-# SessionService.create_session — error paths
+# RunService.create_session — error paths
 # ---------------------------------------------------------------------------
+
 
 class TestCreateSession:
     @pytest.mark.asyncio
     async def test_raises_404_when_quest_not_found(self):
         db = _make_db(scalar=None)
 
-        from app.schemas.session import SessionCreate
-        data = MagicMock(spec=SessionCreate)
+        from app.schemas.run import RunCreate
+
+        data = MagicMock(spec=RunCreate)
         data.quest_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await SessionService.create_session(db, uuid.uuid4(), data)
+            await RunService.create_session(db, uuid.uuid4(), data)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -334,19 +356,21 @@ class TestCreateSession:
         quest.status = "draft"
         db = _make_db(scalar=quest)
 
-        from app.schemas.session import SessionCreate
-        data = MagicMock(spec=SessionCreate)
+        from app.schemas.run import RunCreate
+
+        data = MagicMock(spec=RunCreate)
         data.quest_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await SessionService.create_session(db, uuid.uuid4(), data)
+            await RunService.create_session(db, uuid.uuid4(), data)
         assert exc_info.value.status_code == 400
         assert "published" in exc_info.value.detail
 
 
 # ---------------------------------------------------------------------------
-# SessionService.player_start_session — error path
+# RunService.player_start_session — error path
 # ---------------------------------------------------------------------------
+
 
 class TestPlayerStartSession:
     @pytest.mark.asyncio
@@ -354,5 +378,5 @@ class TestPlayerStartSession:
         player = _make_player(session_id=uuid.uuid4())
         db = _make_db()
         with pytest.raises(HTTPException) as exc_info:
-            await SessionService.player_start_session(db, uuid.uuid4(), player)
+            await RunService.player_start_session(db, uuid.uuid4(), player)
         assert exc_info.value.status_code == 403

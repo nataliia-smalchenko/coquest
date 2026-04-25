@@ -1,6 +1,5 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone
 from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
@@ -61,6 +60,15 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 # Async client fixture
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    from app.core.rate_limit import limiter
+
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
+
+
 @pytest_asyncio.fixture()
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Override the dependency
@@ -188,7 +196,7 @@ async def db_map(db_session: AsyncSession) -> Map:
 
 @pytest_asyncio.fixture()
 async def db_quest(db_session: AsyncSession, teacher: User, db_map: Map) -> Quest:
-    """A quest pre-populated in the db for testing session endpoints."""
+    """A quest pre-populated in the db for testing run endpoints."""
     q = Quest(
         teacher_id=teacher.id,
         map_id=db_map.id,
@@ -208,7 +216,7 @@ async def db_quest(db_session: AsyncSession, teacher: User, db_map: Map) -> Ques
 # be committed to the real test DB for them to see it.
 @pytest_asyncio.fixture()
 async def ws_db() -> AsyncGenerator[AsyncSession, None]:
-    """A real committed session for WS tests — cleaned up afterwards."""
+    """A real committed DB session for WS tests — cleaned up afterwards."""
     session = TestingSessionLocal()
     yield session
     await session.close()
@@ -280,20 +288,20 @@ async def ws_quest(ws_db: AsyncSession, ws_teacher: User, ws_map: Map) -> Quest:
 
 
 @pytest_asyncio.fixture()
-async def ws_session_and_player(
+async def ws_run_and_player(
     ws_db: AsyncSession,
     ws_teacher: User,
     ws_quest: Quest,
     ws_teacher_token: str,
 ):
-    """Create a GameSession + join a guest player via REST, return info dict."""
+    """Create a GameRun + join a guest player via REST, return info dict."""
     from httpx import ASGITransport
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         teacher_headers = {"Authorization": f"Bearer {ws_teacher_token}"}
         create = await client.post(
-            "/api/sessions/",
+            "/api/runs/",
             json={"quest_id": str(ws_quest.id), "max_players": 1},
             headers=teacher_headers,
         )
@@ -301,7 +309,7 @@ async def ws_session_and_player(
         session_data = create.json()
 
         join = await client.post(
-            "/api/sessions/join",
+            "/api/runs/join",
             json={
                 "session_code": session_data["session_code"],
                 "guest_name": "WSPlayer",

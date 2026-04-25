@@ -10,9 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.game_session import GameSession
-    from app.models.session_team import SessionTeam
-    from app.models.session_player import SessionPlayer
+    from app.models.game_run import GameRun
+    from app.models.run_team import RunTeam
+    from app.models.run_player import RunPlayer
     from app.models.resource import Resource
     from app.models.map import MapObject
 
@@ -23,25 +23,25 @@ class ProgressStatus(str, enum.Enum):
     ANSWERED = "answered"
 
 
-class SessionProgress(Base):
-    __tablename__ = "session_progress"
+class RunProgress(Base):
+    __tablename__ = "run_progress"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
-        ForeignKey("game_sessions.id", ondelete="CASCADE"),
+        ForeignKey("game_runs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     team_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid,
-        ForeignKey("session_teams.id", ondelete="SET NULL"),
+        ForeignKey("run_teams.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
     player_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
-        ForeignKey("session_players.id", ondelete="CASCADE"),
+        ForeignKey("run_players.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -49,7 +49,10 @@ class SessionProgress(Base):
         Uuid, ForeignKey("resources.id", ondelete="SET NULL"), nullable=True, index=True
     )
     map_object_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        Uuid, ForeignKey("map_objects.id", ondelete="SET NULL"), nullable=True
+        Uuid,
+        ForeignKey("map_objects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     status: Mapped[ProgressStatus] = mapped_column(
         Enum(ProgressStatus, native_enum=False),
@@ -70,15 +73,11 @@ class SessionProgress(Base):
     )
 
     # Relationships
-    session: Mapped["GameSession"] = relationship(
-        "GameSession", back_populates="progress"
+    run: Mapped["GameRun"] = relationship("GameRun", back_populates="progress")
+    team: Mapped[Optional["RunTeam"]] = relationship(
+        "RunTeam", back_populates="progress"
     )
-    team: Mapped[Optional["SessionTeam"]] = relationship(
-        "SessionTeam", back_populates="progress"
-    )
-    player: Mapped["SessionPlayer"] = relationship(
-        "SessionPlayer", back_populates="progress"
-    )
+    player: Mapped["RunPlayer"] = relationship("RunPlayer", back_populates="progress")
     resource: Mapped[Optional["Resource"]] = relationship(
         "Resource", back_populates="progress_items", foreign_keys=[resource_id]
     )
@@ -87,4 +86,4 @@ class SessionProgress(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<SessionProgress player_id={self.player_id!r} status={self.status!r}>"
+        return f"<RunProgress player_id={self.player_id!r} status={self.status!r}>"

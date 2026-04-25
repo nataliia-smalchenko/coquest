@@ -8,19 +8,22 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.game_session import GameSession
-    from app.models.session_player import SessionPlayer
+    from app.models.game_run import GameRun
+    from app.models.run_player import RunPlayer
 
 
-class SessionChat(Base):
-    __tablename__ = "session_chat"
+class RunChat(Base):
+    __tablename__ = "run_chats"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("game_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid, ForeignKey("game_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     player_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("session_players.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid,
+        ForeignKey("run_players.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     message: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -28,12 +31,10 @@ class SessionChat(Base):
     )
 
     # Relationships
-    session: Mapped["GameSession"] = relationship(
-        "GameSession", back_populates="chat_messages"
-    )
-    player: Mapped["SessionPlayer"] = relationship(
-        "SessionPlayer", back_populates="chat_messages"
+    run: Mapped["GameRun"] = relationship("GameRun", back_populates="chat_messages")
+    player: Mapped["RunPlayer"] = relationship(
+        "RunPlayer", back_populates="chat_messages"
     )
 
     def __repr__(self) -> str:
-        return f"<SessionChat session_id={self.session_id!r}>"
+        return f"<RunChat session_id={self.session_id!r}>"

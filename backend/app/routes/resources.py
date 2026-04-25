@@ -13,6 +13,7 @@ from app.schemas.resource import (
     CloudinarySignatureResponse,
     FolderCreate,
     FolderResponse,
+    FolderUpdate,
     QuestionCreate,
     QuestionResponse,
     ResourceCreate,
@@ -48,6 +49,16 @@ async def create_folder(
     teacher: User = Depends(get_current_teacher),
 ):
     return await ResourceService.create_folder(db, teacher.id, data)
+
+
+@router.patch("/folders/{folder_id}", response_model=FolderResponse)
+async def update_folder(
+    folder_id: uuid.UUID,
+    data: FolderUpdate,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
+    return await ResourceService.update_folder(db, teacher.id, folder_id, data)
 
 
 @router.delete("/folders/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)

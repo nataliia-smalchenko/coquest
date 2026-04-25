@@ -9,11 +9,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.game_session import GameSession
-    from app.models.session_team import SessionTeam
+    from app.models.game_run import GameRun
+    from app.models.run_team import RunTeam
     from app.models.user import User
-    from app.models.session_progress import SessionProgress
-    from app.models.session_chat import SessionChat
+    from app.models.run_progress import RunProgress
+    from app.models.run_chat import RunChat
 
 
 class PlayerStatus(str, enum.Enum):
@@ -22,19 +22,19 @@ class PlayerStatus(str, enum.Enum):
     FINISHED = "finished"
 
 
-class SessionPlayer(Base):
-    __tablename__ = "session_players"
+class RunPlayer(Base):
+    __tablename__ = "run_players"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
-        ForeignKey("game_sessions.id", ondelete="CASCADE"),
+        ForeignKey("game_runs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     team_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid,
-        ForeignKey("session_teams.id", ondelete="SET NULL"),
+        ForeignKey("run_teams.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -68,23 +68,21 @@ class SessionPlayer(Base):
     )
 
     # Relationships
-    session: Mapped["GameSession"] = relationship(
-        "GameSession", back_populates="players"
-    )
-    team: Mapped[Optional["SessionTeam"]] = relationship(
-        "SessionTeam",
+    run: Mapped["GameRun"] = relationship("GameRun", back_populates="players")
+    team: Mapped[Optional["RunTeam"]] = relationship(
+        "RunTeam",
         back_populates="players",
-        foreign_keys="[SessionPlayer.team_id]",
+        foreign_keys="[RunPlayer.team_id]",
     )
     user: Mapped[Optional["User"]] = relationship(
-        "User", back_populates="game_sessions", foreign_keys=[user_id]
+        "User", back_populates="game_runs", foreign_keys=[user_id]
     )
-    progress: Mapped[List["SessionProgress"]] = relationship(
-        "SessionProgress", back_populates="player", cascade="all, delete-orphan"
+    progress: Mapped[List["RunProgress"]] = relationship(
+        "RunProgress", back_populates="player", cascade="all, delete-orphan"
     )
-    chat_messages: Mapped[List["SessionChat"]] = relationship(
-        "SessionChat", back_populates="player", cascade="all, delete-orphan"
+    chat_messages: Mapped[List["RunChat"]] = relationship(
+        "RunChat", back_populates="player", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
-        return f"<SessionPlayer {self.display_name!r} status={self.status!r}>"
+        return f"<RunPlayer {self.display_name!r} status={self.status!r}>"

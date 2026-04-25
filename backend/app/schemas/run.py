@@ -1,16 +1,54 @@
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, ValidationError
 
-from app.models.game_session import SessionStatus
-from app.models.session_player import PlayerStatus
-from app.models.session_progress import ProgressStatus
-from app.models.session_team import TeamStatus
+from app.models.game_run import SessionStatus
+from app.models.run_player import PlayerStatus
+from app.models.run_progress import ProgressStatus
+from app.models.run_team import TeamStatus
+from app.schemas.websocket import (
+    MultipleChoiceAnswer,
+    SingleChoiceAnswer,
+    TextAnswer,
+)
 
 
-class SessionCreate(BaseModel):
+def _validate_player_answer(v: Any) -> Dict[str, Any]:
+    """
+    Validate that the answer dict conforms to one of the known question shapes.
+
+    Tried in order:
+      1. SingleChoiceAnswer  → {"option_id": "<str>"}
+      2. MultipleChoiceAnswer → {"option_ids": ["<str>", ...]}
+      3. TextAnswer           → {"text": "<str>"} or {}
+
+    ``extra="forbid"`` on each model ensures no unexpected keys pass through,
+    which prevents arbitrary data (potential Stored XSS) from reaching the DB.
+    """
+    if not isinstance(v, dict):
+        raise ValueError("answer must be a JSON object")
+    for model_class in (SingleChoiceAnswer, MultipleChoiceAnswer, TextAnswer):
+        try:
+            model_class.model_validate(v)
+            return v  # return original dict so the service layer receives a plain dict
+        except ValidationError:
+            continue
+    raise ValueError(
+        "answer must match one of: "
+        "{option_id: str} for single-choice, "
+        "{option_ids: [str]} for multiple-choice, "
+        "or {text: str} for open/short answers"
+    )
+
+
+# Dict[str, Any] at runtime (service layer stores it directly in JSONB),
+# but validated against the known answer shapes before the value is accepted.
+ValidatedAnswer = Annotated[Dict[str, Any], BeforeValidator(_validate_player_answer)]
+
+
+class RunCreate(BaseModel):
     quest_id: uuid.UUID
     name: Optional[str] = None
     # Game mode
@@ -34,13 +72,13 @@ class SessionCreate(BaseModel):
     ends_at: Optional[datetime] = None
 
 
-class JoinSessionRequest(BaseModel):
+class JoinRunRequest(BaseModel):
     session_code: str = Field(..., min_length=6, max_length=6)
     guest_name: Optional[str] = None
     display_name: Optional[str] = None
 
 
-class RejoinSessionRequest(BaseModel):
+class RejoinRunRequest(BaseModel):
     session_code: str = Field(..., min_length=6, max_length=6)
     guest_token: str
 
@@ -67,7 +105,7 @@ class TeamResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SessionPlayerResponse(BaseModel):
+class RunPlayerResponse(BaseModel):
     id: uuid.UUID
     session_id: uuid.UUID
     user_id: Optional[uuid.UUID] = None
@@ -84,7 +122,7 @@ class SessionPlayerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SessionProgressResponse(BaseModel):
+class RunProgressResponse(BaseModel):
     id: uuid.UUID
     session_id: uuid.UUID
     player_id: uuid.UUID
@@ -101,7 +139,7 @@ class SessionProgressResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SessionChatMessage(BaseModel):
+class RunChatMessage(BaseModel):
     id: uuid.UUID
     session_id: uuid.UUID
     player_id: uuid.UUID
@@ -110,7 +148,7 @@ class SessionChatMessage(BaseModel):
     created_at: datetime
 
 
-class SessionListItem(BaseModel):
+class RunListItem(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID
     session_code: str
@@ -127,13 +165,13 @@ class SessionListItem(BaseModel):
 
 
 class LeaveTeamResponse(BaseModel):
-    player: SessionPlayerResponse
+    player: RunPlayerResponse
     team: TeamResponse
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class GameSessionResponse(BaseModel):
+class GameRunResponse(BaseModel):
     id: uuid.UUID
     quest_id: uuid.UUID
     session_code: str
@@ -151,14 +189,14 @@ class GameSessionResponse(BaseModel):
     keep_completed_in_materials: bool = True
     allow_change_answers: bool = True
     created_at: datetime
-    players: List[SessionPlayerResponse] = []
+    players: List[RunPlayerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class GameSessionDetailResponse(GameSessionResponse):
-    progress: List[SessionProgressResponse] = []
-    chat_messages: List[SessionChatMessage] = []
+class GameRunDetailResponse(GameRunResponse):
+    progress: List[RunProgressResponse] = []
+    chat_messages: List[RunChatMessage] = []
 
 
 class QuestionResultOption(BaseModel):
@@ -176,20 +214,20 @@ class QuestionResultData(BaseModel):
     points: int = 1
 
 
-class SessionProgressResultResponse(SessionProgressResponse):
+class RunProgressResultResponse(RunProgressResponse):
     resource_title: Optional[str] = None
     question: Optional[QuestionResultData] = None
 
 
-class GameSessionResultResponse(GameSessionResponse):
-    progress: List[SessionProgressResultResponse] = []
-    chat_messages: List[SessionChatMessage] = []
+class GameRunResultResponse(GameRunResponse):
+    progress: List[RunProgressResultResponse] = []
+    chat_messages: List[RunChatMessage] = []
     max_grade: Optional[int] = None
     total_question_points: Optional[int] = None
 
 
 class PlayerProgressSummary(BaseModel):
-    player: SessionPlayerResponse
+    player: RunPlayerResponse
     completed: int
     total: int
     score: Optional[float] = None
@@ -204,16 +242,16 @@ class PlayerProgressSummary(BaseModel):
 
 
 class TeacherMonitorResponse(BaseModel):
-    session: GameSessionResponse
+    session: GameRunResponse
     players_progress: List[PlayerProgressSummary]
 
 
 class SubmitAnswerRequest(BaseModel):
     progress_id: Optional[uuid.UUID] = None
-    answer: Dict[str, Any]
+    answer: ValidatedAnswer
 
 
-class SessionUpdateRequest(BaseModel):
+class RunUpdateRequest(BaseModel):
     name: Optional[str] = None
     show_feedback_after_answer: Optional[bool] = None
     show_score_after: Optional[bool] = None
@@ -233,7 +271,7 @@ class UpdateGuestNameRequest(BaseModel):
     guest_name: Optional[str] = None
 
 
-class SessionSettingsPublic(BaseModel):
+class RunSettingsPublic(BaseModel):
     time_limit_minutes: Optional[int] = None
     keep_completed_in_materials: bool = True
     show_feedback_after_answer: bool = False
@@ -245,4 +283,4 @@ class SessionSettingsPublic(BaseModel):
 class GameInfoResponse(BaseModel):
     quest_title: str
     map_slug: Optional[str] = None
-    settings: Optional[SessionSettingsPublic] = None
+    settings: Optional[RunSettingsPublic] = None
