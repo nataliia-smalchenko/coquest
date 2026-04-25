@@ -93,12 +93,12 @@ player_message_adapter: TypeAdapter[PlayerMessage] = TypeAdapter(PlayerMessage)
 
 
 # Teacher → Server messages
-class StartSessionMessage(BaseModel):
-    type: Literal["start_session"]
+class StartRunMessage(BaseModel):
+    type: Literal["start_run"]
 
 
-class StopSessionMessage(BaseModel):
-    type: Literal["stop_session"]
+class StopRunMessage(BaseModel):
+    type: Literal["stop_run"]
 
 
 class ReviewAnswerMessage(BaseModel):
@@ -109,7 +109,7 @@ class ReviewAnswerMessage(BaseModel):
 
 
 TeacherMessage = Annotated[
-    Union[StartSessionMessage, StopSessionMessage, ReviewAnswerMessage],
+    Union[StartRunMessage, StopRunMessage, ReviewAnswerMessage],
     Field(discriminator="type"),
 ]
 

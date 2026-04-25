@@ -16,8 +16,8 @@ from app.schemas.websocket import (
     ChatMessage,
     MarkViewedMessage,
     ReviewAnswerMessage,
-    StartSessionMessage,
-    StopSessionMessage,
+    StartRunMessage,
+    StopRunMessage,
     SubmitAnswerMessage,
     player_message_adapter,
     teacher_message_adapter,
@@ -358,9 +358,9 @@ async def handle_teacher_message(session_id: str, teacher_id: str, data: dict) -
         return
 
     try:
-        if isinstance(msg, StartSessionMessage):
+        if isinstance(msg, StartRunMessage):
             await _handle_start_session(session_id, teacher_id)
-        elif isinstance(msg, StopSessionMessage):
+        elif isinstance(msg, StopRunMessage):
             await _handle_stop_session(session_id, teacher_id)
         elif isinstance(msg, ReviewAnswerMessage):
             await _handle_review_answer(session_id, teacher_id, msg)

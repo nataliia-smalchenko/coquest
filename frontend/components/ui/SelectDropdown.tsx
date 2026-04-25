@@ -48,7 +48,10 @@ export function SelectDropdown({
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -119,22 +122,34 @@ export function SelectDropdown({
           boxSizing: "border-box",
         }}
         onMouseEnter={(e) => {
-          if (isPrimary) (e.currentTarget as HTMLButtonElement).style.background = "#1d4ed8";
+          if (isPrimary)
+            (e.currentTarget as HTMLButtonElement).style.background = "#1d4ed8";
         }}
         onMouseLeave={(e) => {
-          if (isPrimary) (e.currentTarget as HTMLButtonElement).style.background = open ? "#1d4ed8" : "#2563eb";
+          if (isPrimary)
+            (e.currentTarget as HTMLButtonElement).style.background = open
+              ? "#1d4ed8"
+              : "#2563eb";
         }}
       >
         {triggerLabel ?? (
           <>
-            {triggerIcon && <span style={{ flexShrink: 0, display: "flex" }}>{triggerIcon}</span>}
+            {triggerIcon && (
+              <span style={{ flexShrink: 0, display: "flex" }}>
+                {triggerIcon}
+              </span>
+            )}
             <span
               style={{
                 flex: 1,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                color: selectedOption ? (isPrimary ? "white" : "#111827") : "#9ca3af",
+                color: selectedOption
+                  ? isPrimary
+                    ? "white"
+                    : "#111827"
+                  : "#9ca3af",
               }}
             >
               {selectedOption?.label ?? placeholder}
@@ -195,21 +210,43 @@ export function SelectDropdown({
                   transition: "background 0.1s",
                 }}
                 onMouseEnter={(e) => {
-                  if (!active) (e.currentTarget as HTMLButtonElement).style.background = "#f9fafb";
+                  if (!active)
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "#f9fafb";
                 }}
                 onMouseLeave={(e) => {
-                  if (!active) (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                  if (!active)
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "transparent";
                 }}
               >
                 {opt.icon && (
-                  <span style={{ flexShrink: 0, display: "flex", color: active ? "#2563eb" : "#9ca3af" }}>
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      display: "flex",
+                      color: active ? "#2563eb" : "#9ca3af",
+                    }}
+                  >
                     {opt.icon}
                   </span>
                 )}
-                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span
+                  style={{
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {opt.label}
                 </span>
-                {active && <Check size={13} style={{ marginLeft: "auto", flexShrink: 0 }} />}
+                {active && (
+                  <Check
+                    size={13}
+                    style={{ marginLeft: "auto", flexShrink: 0 }}
+                  />
+                )}
               </button>
             );
           })}

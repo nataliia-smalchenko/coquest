@@ -476,7 +476,9 @@ export function ResourceLibrary() {
             }}
           >
             <Loader2 size={32} color="#2563eb" className="animate-spin" />
-            <span style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}>
+            <span
+              style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}
+            >
               {creating === "text" ? t("newText") : t("newQuestion")}…
             </span>
           </div>

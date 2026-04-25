@@ -188,6 +188,11 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
   },
 }));
 
+// localStorage is intentionally used here (not sessionStorage) to enable the
+// cross-tab / cross-browser-restart rejoin flow: a student who closes their tab
+// mid-game can return to /join, enter the same code, and resume as the same player.
+// guest_token is a low-value credential (scoped to one game session); the XSS risk
+// is accepted and mitigated at the application layer by DOMPurify sanitization.
 export function getSessionStorage(sessionId: string): {
   guest_token: string;
   player_id: string;

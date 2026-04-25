@@ -101,7 +101,11 @@ function QuestionDetail({
                       height={0}
                       sizes="300px"
                       className="rounded mb-1"
-                      style={{ width: "auto", maxHeight: "6rem", objectFit: "contain" }}
+                      style={{
+                        width: "auto",
+                        maxHeight: "6rem",
+                        objectFit: "contain",
+                      }}
                     />
                   )}
                   {opt.text}

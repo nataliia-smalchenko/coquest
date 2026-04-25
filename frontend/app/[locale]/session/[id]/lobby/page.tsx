@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clearSessionStorage,
   getSessionStorage,
@@ -77,76 +77,85 @@ export default function LobbyPage() {
     setGuestToken(s.guest_token);
   }, [sessionId, router, setGuestToken]);
 
-  const { messages } = usePlayerWebSocket(sessionId, stored?.guest_token ?? "");
+  // Ref so the WS handler always reads current `stored` without triggering reconnects
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
 
-  useEffect(() => {
-    const last = messages[messages.length - 1] as
-      | Record<string, unknown>
-      | undefined;
-    if (!last) return;
+  const handleMessage = useCallback(
+    (raw: unknown) => {
+      const last = raw as Record<string, unknown>;
+      handleWsMessage(last);
 
-    handleWsMessage(last);
+      if (last.type === "connected") {
+        const sess = last.session as GameSession | undefined;
+        const allPlayers = last.players as SessionPlayer[] | undefined;
 
-    if (last.type === "connected") {
-      const sess = last.session as GameSession | undefined;
-      const allPlayers = last.players as SessionPlayer[] | undefined;
+        if (sess) {
+          setSession(sess);
+          if (allPlayers) setPlayers(allPlayers);
+          const current = storedRef.current;
+          if (current) {
+            const me =
+              sess.players?.find?.((p) => p.id === current.player_id) ??
+              (allPlayers ?? []).find((p) => p.id === current.player_id);
+            if (me) setMyPlayer(me);
+          }
+        }
 
-      if (sess) {
-        setSession(sess);
-        if (allPlayers) setPlayers(allPlayers);
-        if (stored) {
-          const me =
-            sess.players?.find?.((p) => p.id === stored.player_id) ??
-            (allPlayers ?? []).find((p) => p.id === stored.player_id);
-          if (me) setMyPlayer(me);
+        const tid = last.team_id as string | undefined;
+        if (tid) {
+          teamIdRef.current = tid;
+          setTeamId(tid);
+          setTeamPlayers((allPlayers ?? []).filter((p) => p.team_id === tid));
         }
       }
 
-      const tid = last.team_id as string | undefined;
-      if (tid) {
-        teamIdRef.current = tid;
-        setTeamId(tid);
-        setTeamPlayers((allPlayers ?? []).filter((p) => p.team_id === tid));
-      }
-    }
-
-    if (last.type === "player_joined") {
-      const p = last.player as SessionPlayer | undefined;
-      if (p) {
-        setPlayers((prev) =>
-          prev.find((x) => x.id === p.id) ? prev : [...prev, p],
-        );
-        if (teamIdRef.current && p.team_id === teamIdRef.current) {
-          setTeamPlayers((prev) =>
+      if (last.type === "player_joined") {
+        const p = last.player as SessionPlayer | undefined;
+        if (p) {
+          setPlayers((prev) =>
             prev.find((x) => x.id === p.id) ? prev : [...prev, p],
           );
+          if (teamIdRef.current && p.team_id === teamIdRef.current) {
+            setTeamPlayers((prev) =>
+              prev.find((x) => x.id === p.id) ? prev : [...prev, p],
+            );
+          }
         }
       }
-    }
 
-    if (last.type === "player_left") {
-      const pid = last.player_id as string | undefined;
-      if (pid) {
-        setPlayers((prev) => prev.filter((x) => x.id !== pid));
-        setTeamPlayers((prev) => prev.filter((x) => x.id !== pid));
+      if (last.type === "player_left") {
+        const pid = last.player_id as string | undefined;
+        if (pid) {
+          setPlayers((prev) => prev.filter((x) => x.id !== pid));
+          setTeamPlayers((prev) => prev.filter((x) => x.id !== pid));
+        }
       }
-    }
 
-    if (last.type === "team_started" || last.type === "session_started") {
-      router.push(`/session/${sessionId}/game`);
-    }
-    if (last.type === "session_completed" || last.type === "session_stopped") {
-      router.push(`/session/${sessionId}/results`);
-    }
-  }, [
-    messages,
-    handleWsMessage,
-    router,
-    sessionId,
-    setSession,
-    setMyPlayer,
-    stored,
-  ]);
+      if (last.type === "team_started" || last.type === "session_started") {
+        router.push(`/session/${sessionId}/game`);
+      }
+      if (
+        last.type === "session_completed" ||
+        last.type === "session_stopped"
+      ) {
+        router.push(`/session/${sessionId}/results`);
+      }
+    },
+    // storedRef is excluded: accessed via .current to avoid reconnect churn
+    [
+      handleWsMessage,
+      router,
+      sessionId,
+      setSession,
+      setMyPlayer,
+      setPlayers,
+      setTeamPlayers,
+      setTeamId,
+    ],
+  );
+
+  usePlayerWebSocket(sessionId, stored?.guest_token ?? "", handleMessage);
 
   useEffect(() => {
     if (session?.status === "completed" || session?.status === "stopped") {

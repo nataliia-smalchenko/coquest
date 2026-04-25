@@ -121,7 +121,8 @@ export default function GamePage() {
 
   // The one currently assigned (and not yet completed) map object in MY progress
   const activeProgress = useMemo(
-    () => progress.find((p) => p.status === "assigned" && p.map_object_id) ?? null,
+    () =>
+      progress.find((p) => p.status === "assigned" && p.map_object_id) ?? null,
     [progress],
   );
   const activeObjectId = activeProgress?.map_object_id ?? null;
@@ -318,19 +319,25 @@ export default function GamePage() {
     [myPlayerId, map, locale],
   );
 
-  // WS
-  const { messages, send: wsSend, reconnecting } = usePlayerWebSocket(sessionId, token);
-
   const modalProgressIdRef = useRef<string | null>(null);
   modalProgressIdRef.current = modalProgressId;
 
-  const prevLen = useRef(0);
-  useEffect(() => {
-    if (messages.length === prevLen.current) return;
-    const newMsgs = messages.slice(prevLen.current);
-    prevLen.current = messages.length;
+  // Refs for mutable values read inside the WS handler.
+  // Using refs avoids stale closures without putting them in useCallback deps
+  // (which would recreate the callback on every state change and cause reconnects).
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
+  const isTeamModeRef = useRef(isTeamMode);
+  isTeamModeRef.current = isTeamMode;
+  const showChatRef = useRef(showChat);
+  showChatRef.current = showChat;
+  const handleTeamStepEventRef = useRef(handleTeamStepEvent);
+  handleTeamStepEventRef.current = handleTeamStepEvent;
+  const myPlayerIdRef = useRef(myPlayerId);
+  myPlayerIdRef.current = myPlayerId;
 
-    for (const raw of newMsgs) {
+  const handleWsMessageCb = useCallback(
+    (raw: unknown) => {
       const data = raw as Record<string, unknown>;
       handleWsMessage(data);
 
@@ -341,8 +348,9 @@ export default function GamePage() {
           : [];
         if (sess) {
           setSession({ ...sess, players });
-          if (stored) {
-            const me = players.find((p) => p.id === stored.player_id);
+          const current = storedRef.current;
+          if (current) {
+            const me = players.find((p) => p.id === current.player_id);
             if (me) {
               setMyPlayer(me);
               if (me.status === "finished") {
@@ -360,8 +368,11 @@ export default function GamePage() {
           | string
           | null
           | undefined;
-        if (playerStartedAt && stored?.player_id) {
-          updatePlayer({ id: stored.player_id, started_at: playerStartedAt });
+        if (playerStartedAt && storedRef.current?.player_id) {
+          updatePlayer({
+            id: storedRef.current.player_id,
+            started_at: playerStartedAt,
+          });
         }
       }
 
@@ -372,16 +383,16 @@ export default function GamePage() {
           | string
           | null
           | undefined;
-        if (playerStartedAt && stored?.player_id) {
-          updatePlayer({ id: stored.player_id, started_at: playerStartedAt });
+        if (playerStartedAt && storedRef.current?.player_id) {
+          updatePlayer({
+            id: storedRef.current.player_id,
+            started_at: playerStartedAt,
+          });
         }
         // Apply initial step info for hint/active player
         const si = data.step_info as TeamStepInfo | undefined;
         if (si && si.hint_player_id) {
-          handleTeamStepEvent({
-            ...si,
-            progress_updates: [],
-          });
+          handleTeamStepEventRef.current({ ...si, progress_updates: [] });
         }
       }
 
@@ -404,12 +415,12 @@ export default function GamePage() {
         const si = data as unknown as TeamStepInfo & {
           completed_by_progress?: SessionProgress | null;
         };
-        handleTeamStepEvent(si);
+        handleTeamStepEventRef.current(si);
 
         // Add teammate's completed question to team materials
         if (si.completed_by_progress && si.resource_type === "question") {
           const cp = si.completed_by_progress;
-          if (cp.player_id !== myPlayerId) {
+          if (cp.player_id !== myPlayerIdRef.current) {
             setTeamProgress((prev) => {
               const exists = prev.some((p) => p.id === cp.id);
               return exists ? prev : [...prev, cp];
@@ -417,8 +428,9 @@ export default function GamePage() {
           }
         }
         // Reload own progress to pick up newly activated items
-        if (stored) {
-          getMyProgress(sessionId, stored.guest_token)
+        const current = storedRef.current;
+        if (current) {
+          getMyProgress(sessionId, current.guest_token)
             .then(setProgress)
             .catch(() => {});
         }
@@ -429,15 +441,17 @@ export default function GamePage() {
         if (viewers) setTextViewers(viewers);
       }
 
-      if (data.type === "chat_message" && !showChat) {
+      if (data.type === "chat_message" && !showChatRef.current) {
         setUnreadChat((n) => n + 1);
       }
 
       if (data.type === "player_finished") {
         const finishedId = data.player_id as string;
-        const myId = stored?.player_id;
         // Solo mode: redirect immediately. Team mode: isTeamDone derived state handles the overlay.
-        if (finishedId === myId && !isTeamMode) {
+        if (
+          finishedId === storedRef.current?.player_id &&
+          !isTeamModeRef.current
+        ) {
           router.push(`/session/${sessionId}/results`);
         }
       }
@@ -448,22 +462,31 @@ export default function GamePage() {
       ) {
         router.push(`/session/${sessionId}/results`);
       }
-    }
-  }, [
-    messages,
-    handleWsMessage,
-    setSession,
-    setMyPlayer,
-    stored,
-    setProgress,
-    updateProgress,
-    showChat,
+    },
+    // All mutable values are read via refs — deps here are stable references only
+    [
+      handleWsMessage,
+      setSession,
+      setMyPlayer,
+      setProgress,
+      updateProgress,
+      updatePlayer,
+      setAnswerResult,
+      setUnreadChat,
+      setTeamProgress,
+      setTeamStepInfo,
+      setTextViewers,
+      sessionId,
+      router,
+    ],
+  );
+
+  // WS
+  const { send: wsSend, reconnecting } = usePlayerWebSocket(
     sessionId,
-    router,
-    handleTeamStepEvent,
-    myPlayerId,
-    updatePlayer,
-  ]);
+    token,
+    handleWsMessageCb,
+  );
 
   // Reset unread when chat opens
   useEffect(() => {

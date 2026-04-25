@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "@/lib/api";
+import Cookies from "js-cookie";
 import {
   Eye,
   EyeOff,
@@ -56,8 +57,12 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [customError, setCustomError] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
-  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<string | null>(null);
-  const [googleRole, setGoogleRole] = useState<"student" | "teacher" | null>(null);
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<
+    string | null
+  >(null);
+  const [googleRole, setGoogleRole] = useState<"student" | "teacher" | null>(
+    null,
+  );
 
   const {
     register,
@@ -88,8 +93,18 @@ export default function RegisterPage() {
         credential: pendingGoogleCredential,
         role: googleRole,
       });
-      document.cookie = `access_token=${data.access_token}; path=/`;
-      document.cookie = `refresh_token=${data.refresh_token}; path=/`;
+      const cookieOpts = {
+        sameSite: "strict" as const,
+        secure: process.env.NODE_ENV === "production",
+      };
+      Cookies.set("access_token", data.access_token, {
+        expires: 1 / 96,
+        ...cookieOpts,
+      });
+      Cookies.set("refresh_token", data.refresh_token, {
+        expires: 7,
+        ...cookieOpts,
+      });
 
       // Backend may ignore `role` on creation — patch it explicitly if needed
       if (data.user.role !== googleRole) {
@@ -138,8 +153,12 @@ export default function RegisterPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-lg space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">{tGoogleRole("title")}</h2>
-            <p className="text-gray-500 mt-2 text-sm">{tGoogleRole("subtitle")}</p>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {tGoogleRole("title")}
+            </h2>
+            <p className="text-gray-500 mt-2 text-sm">
+              {tGoogleRole("subtitle")}
+            </p>
           </div>
 
           {customError && (

@@ -21,7 +21,7 @@ import {
 import TimerDisplay from "@/components/game/TimerDisplay";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTeacherWebSocket } from "@/hooks/useWebSocket";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
@@ -423,7 +423,11 @@ function PlayerDetailDrawer({
                                     height={0}
                                     sizes="200px"
                                     className="rounded mb-1"
-                                    style={{ width: "auto", maxHeight: "6rem", objectFit: "contain" }}
+                                    style={{
+                                      width: "auto",
+                                      maxHeight: "6rem",
+                                      objectFit: "contain",
+                                    }}
                                   />
                                 )}
                                 {opt.text}
@@ -723,22 +727,31 @@ export default function MonitorPage() {
     }
   };
 
-  const refreshMonitor = () =>
-    getMonitor(sessionId)
-      .then((data) => {
-        setMonitor(data);
-        setSession((s) =>
-          s ? { ...data.session, status: s.status } : data.session,
-        );
-        // Sync detailPlayer if open
-        if (detailPlayer) {
-          const updated = data.players_progress.find(
-            (p) => p.player.id === detailPlayer.player.id,
+  // detailPlayer changes when user opens a player — store in ref so refreshMonitor
+  // is always up-to-date without being recreated on every detail-panel open/close
+  const detailPlayerRef = useRef(detailPlayer);
+  detailPlayerRef.current = detailPlayer;
+
+  const refreshMonitor = useCallback(
+    () =>
+      getMonitor(sessionId)
+        .then((data) => {
+          setMonitor(data);
+          setSession((s) =>
+            s ? { ...data.session, status: s.status } : data.session,
           );
-          if (updated) setDetailPlayer(updated);
-        }
-      })
-      .catch(() => {});
+          // Sync detailPlayer panel if open
+          const dp = detailPlayerRef.current;
+          if (dp) {
+            const updated = data.players_progress.find(
+              (p) => p.player.id === dp.player.id,
+            );
+            if (updated) setDetailPlayer(updated);
+          }
+        })
+        .catch(() => {}),
+    [sessionId, setMonitor, setSession, setDetailPlayer],
+  );
 
   useEffect(() => {
     getMonitor(sessionId)
@@ -750,15 +763,8 @@ export default function MonitorPage() {
       .finally(() => setLoading(false));
   }, [sessionId]);
 
-  const { messages } = useTeacherWebSocket(sessionId, token);
-  const prevLen = useRef(0);
-
-  useEffect(() => {
-    if (messages.length === prevLen.current) return;
-    const newMsgs = messages.slice(prevLen.current);
-    prevLen.current = messages.length;
-
-    for (const raw of newMsgs) {
+  const handleWsMessage = useCallback(
+    (raw: unknown) => {
       const data = raw as Record<string, unknown>;
 
       if (
@@ -779,8 +785,11 @@ export default function MonitorPage() {
       if (data.type === "player_finished" || data.type === "player_answered") {
         refreshMonitor();
       }
-    }
-  }, [messages, sessionId]);
+    },
+    [setSession, refreshMonitor],
+  );
+
+  useTeacherWebSocket(sessionId, token, handleWsMessage);
 
   const handleStop = async () => {
     setStopping(true);

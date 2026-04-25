@@ -161,21 +161,21 @@ class TestHandlePlayerMessage:
 
 class TestHandleTeacherMessage:
     @pytest.mark.asyncio
-    async def test_routes_start_session(self):
+    async def test_routes_start_run(self):
         with patch(
             "app.services.websocket_handlers._handle_start_session",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_teacher_message("sid", "tid", {"type": "start_session"})
+            await handle_teacher_message("sid", "tid", {"type": "start_run"})
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_routes_stop_session(self):
+    async def test_routes_stop_run(self):
         with patch(
             "app.services.websocket_handlers._handle_stop_session",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_teacher_message("sid", "tid", {"type": "stop_session"})
+            await handle_teacher_message("sid", "tid", {"type": "stop_run"})
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
@@ -216,7 +216,7 @@ class TestHandleTeacherMessage:
                 "app.services.websocket_handlers.manager.send_to_teacher",
                 new_callable=AsyncMock,
             ) as mock_send:
-                await handle_teacher_message("sid", "tid", {"type": "start_session"})
+                await handle_teacher_message("sid", "tid", {"type": "start_run"})
 
         mock_send.assert_called_once()
         assert mock_send.call_args[0][1]["type"] == "error"

@@ -14,6 +14,15 @@ interface FailedRequest {
   reject: (err: any) => void;
 }
 
+/** Redirect to /login while preserving the current i18n locale prefix. */
+function redirectToLogin(): void {
+  if (typeof window === "undefined") return;
+  const segments = window.location.pathname.split("/");
+  const LOCALES = ["uk", "en"];
+  const localePrefix = LOCALES.includes(segments[1]) ? `/${segments[1]}` : "";
+  window.location.href = `${localePrefix}/login`;
+}
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -78,9 +87,7 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(error, null);
         Cookies.remove("access_token");
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
+        redirectToLogin();
         return Promise.reject(error);
       }
 
@@ -109,9 +116,7 @@ api.interceptors.response.use(
 
         Cookies.remove("access_token");
         Cookies.remove("refresh_token");
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
+        redirectToLogin();
         return Promise.reject(refreshError);
       }
     }

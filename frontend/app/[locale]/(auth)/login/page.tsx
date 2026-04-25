@@ -9,7 +9,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "@/lib/api";
-import { Eye, EyeOff, Loader2, MailCheck, CheckCircle2, GraduationCap, BookOpen } from "lucide-react";
+import Cookies from "js-cookie";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  MailCheck,
+  CheckCircle2,
+  GraduationCap,
+  BookOpen,
+} from "lucide-react";
 
 const loginSchema = z.object({
   email: z.email({ message: "invalidEmail" }),
@@ -36,8 +45,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [customError, setCustomError] = useState("");
-  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | null>(null);
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<
+    string | null
+  >(null);
+  const [selectedRole, setSelectedRole] = useState<
+    "student" | "teacher" | null
+  >(null);
 
   const [needsVerification, setNeedsVerification] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -86,8 +99,18 @@ export default function LoginPage() {
         credential: pendingGoogleCredential,
         role: selectedRole,
       });
-      document.cookie = `access_token=${data.access_token}; path=/`;
-      document.cookie = `refresh_token=${data.refresh_token}; path=/`;
+      const cookieOpts = {
+        sameSite: "strict" as const,
+        secure: process.env.NODE_ENV === "production",
+      };
+      Cookies.set("access_token", data.access_token, {
+        expires: 1 / 96,
+        ...cookieOpts,
+      });
+      Cookies.set("refresh_token", data.refresh_token, {
+        expires: 7,
+        ...cookieOpts,
+      });
 
       // Backend may ignore `role` on creation — patch it explicitly if needed
       if (data.user.role !== selectedRole) {
@@ -124,8 +147,12 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-lg space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">{tGoogleRole("title")}</h2>
-            <p className="text-gray-500 mt-2 text-sm">{tGoogleRole("subtitle")}</p>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {tGoogleRole("title")}
+            </h2>
+            <p className="text-gray-500 mt-2 text-sm">
+              {tGoogleRole("subtitle")}
+            </p>
           </div>
 
           {customError && (
@@ -145,7 +172,9 @@ export default function LoginPage() {
               }`}
             >
               <GraduationCap size={32} />
-              <span className="text-sm font-medium">{tRegister("roleStudent")}</span>
+              <span className="text-sm font-medium">
+                {tRegister("roleStudent")}
+              </span>
             </button>
             <button
               type="button"
@@ -157,7 +186,9 @@ export default function LoginPage() {
               }`}
             >
               <BookOpen size={32} />
-              <span className="text-sm font-medium">{tRegister("roleTeacher")}</span>
+              <span className="text-sm font-medium">
+                {tRegister("roleTeacher")}
+              </span>
             </button>
           </div>
 
