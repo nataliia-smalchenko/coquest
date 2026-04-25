@@ -40,14 +40,14 @@ function formatDate(iso: string, locale: string) {
   });
 }
 
-export default function TeacherSessionsPage() {
+export default function TeacherRunsPage() {
   const t = useTranslations("game.monitor");
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   useAuth();
 
-  const [runs, setSessions] = useState<RunListItem[]>([]);
+  const [runs, setRuns] = useState<RunListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -62,7 +62,7 @@ export default function TeacherSessionsPage() {
 
   useEffect(() => {
     listRuns()
-      .then(setSessions)
+      .then(setRuns)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -72,7 +72,7 @@ export default function TeacherSessionsPage() {
     setDeleting(true);
     try {
       await deleteRun(deleteId);
-      setSessions((prev) => prev.filter((s) => s.id !== deleteId));
+      setRuns((prev) => prev.filter((s) => s.id !== deleteId));
       setDeleteId(null);
     } catch {
       // ignore
@@ -101,7 +101,7 @@ export default function TeacherSessionsPage() {
       {runs.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">
           <Activity size={40} className="mx-auto mb-3 opacity-30" />
-          <p>{t("noSessions")}</p>
+          <p>{t("noRuns")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -202,7 +202,7 @@ export default function TeacherSessionsPage() {
                     <button
                       onClick={() => setDeleteId(s.id)}
                       className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title={t("deleteSession")}
+                      title={t("deleteRun")}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -224,11 +224,11 @@ export default function TeacherSessionsPage() {
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle size={24} className="text-red-500 flex-shrink-0" />
               <h3 className="text-lg font-semibold text-gray-900">
-                {t("deleteSession")}
+                {t("deleteRun")}
               </h3>
             </div>
             <p className="text-gray-600 text-sm mb-6">
-              {t("deleteSessionConfirm")}
+              {t("deleteRunConfirm")}
             </p>
             <div className="flex gap-3">
               <button

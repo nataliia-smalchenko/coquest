@@ -24,7 +24,7 @@
     "profile": "Профіль",
     "settings": "Налаштування",
     "logout": "Вийти",
-    "sessions": "Запуски"
+    "runs": "Запуски"
   },
   "auth": {
     "login": {
@@ -173,7 +173,7 @@
       "explanation": "Пояснення",
       "shortAnswer": "Коротка відповідь",
       "openAnswer": "Відкрита відповідь",
-      "startSession": "Розпочати запуск",
+      "startRun": "Розпочати запуск",
       "settingTime": "{n} хв",
       "settingRandom": "Випадковий порядок",
       "settingShowAll": "Всі тексти одразу",
@@ -212,7 +212,7 @@
     "account": "Акаунт"
   },
   "game": {
-    "session": {
+    "run": {
       "newTitle": "Новий запуск",
       "quest": "Квест",
       "mode": "Режим гри",
@@ -235,7 +235,7 @@
       "showCorrect": "Показувати правильні відповіді",
       "schedule": "Запланувати час початку",
       "scheduleEnd": "Запланувати час закінчення",
-      "sessionName": "Назва запуску",
+      "runName": "Назва запуску",
       "create": "Створити запуск",
       "createHint": "Після створення отримаєте код для учнів",
       "createError": "Помилка створення запуску"
@@ -248,8 +248,8 @@
       "namePlaceholder": "Введіть прізвище та ім'я...",
       "submit": "Приєднатись",
       "invalidCode": "Невірний код запуску",
-      "sessionFull": "Запуск заповнений",
-      "sessionClosed": "Запуск закрито",
+      "runFull": "Запуск заповнений",
+      "runClosed": "Запуск закрито",
       "switchPlayer": "Не ви? Приєднатись як інший учень"
     },
     "lobby": {
@@ -259,12 +259,12 @@
       "start": "Розпочати",
       "starting": "Запуск...",
       "startError": "Не вдалося розпочати",
-      "sessionCode": "Код запуску",
+      "runCode": "Код запуску",
       "teamCode": "Команда",
       "minPlayers": "Очікування на учасників команди...",
       "waitingOptional": "Можна розпочати самостійно або дочекатися команди",
       "waitingRequired": "Дочекайтеся учасників команди",
-      "sessionEndsAt": "Запуск закінчується о",
+      "runEndsAt": "Запуск закінчується о",
       "joinAsOther": "Приєднатись як інший учень",
       "leaveTeam": "Перейти до іншої команди",
       "leavingTeam": "Переходимо...",
@@ -346,16 +346,16 @@
       "statusCompleted": "Завершена",
       "statusStopped": "Зупинена",
       "statusScheduled": "Запланована",
-      "deleteSession": "Видалити запуск",
-      "deleteSessionConfirm": "Видалити цей запуск? Усі дані учасників будуть втрачені.",
+      "deleteRun": "Видалити запуск",
+      "deleteRunConfirm": "Видалити цей запуск? Усі дані учасників будуть втрачені.",
       "deletePlayer": "Видалити учасника",
       "deletePlayerConfirm": "Видалити цього учасника із запуску?",
       "renamePlayer": "Перейменувати",
       "renamePlaceholder": "Ім'я учасника",
       "monitoring": "Моніторинг",
       "results": "Результати",
-      "sessionsCount": "{count} запусків",
-      "noSessions": "Запусків ще немає",
+      "runsCount": "{count} запусків",
+      "noRuns": "Запусків ще немає",
       "scheduleStartLabel": "Початок",
       "scheduleEndLabel": "Кінець",
       "settingsTitle": "Налаштування запуску",
@@ -372,7 +372,7 @@
       "joinedAt": "Приєднався",
       "finishedAt": "Завершив",
       "durationLabel": "Тривалість",
-      "sessionEndsAt": "Запуск закінчується",
+      "runEndsAt": "Запуск закінчується",
       "timeLeft": "залишилось",
       "pointsUnit": "б",
       "questPreview": "Перегляд квесту",
@@ -380,7 +380,7 @@
       "saveSettings": "Зберегти",
       "restart": "Перезапустити запуск",
       "restartConfirm": "Перезапустити запуск? Учасники, які не завершили, будуть скинуті. Ті, хто пройшов, зберігають свої результати.",
-      "sessionName": "Назва запуску",
+      "runName": "Назва запуску",
       "endsAt": "Дедлайн",
       "scheduledAt": "Запланований старт"
     }

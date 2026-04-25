@@ -263,7 +263,7 @@ export default function QuestPreview({ questId }: Props) {
                 }}
               >
                 <Play size={13} />
-                <span className="hide-mobile">{t("preview.startSession")}</span>
+                <span className="hide-mobile">{t("preview.startRun")}</span>
               </button>
             )}
             <button

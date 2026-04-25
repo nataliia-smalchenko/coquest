@@ -55,7 +55,7 @@ export default function Navigation() {
     { href: "/teacher/quests", label: t("quests"), icon: <Sword size={16} /> },
     {
       href: "/teacher/runs",
-      label: t("sessions"),
+      label: t("runs"),
       icon: <Activity size={16} />,
     },
   ];

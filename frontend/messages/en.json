@@ -24,7 +24,7 @@
     "profile": "Profile",
     "settings": "Settings",
     "logout": "Logout",
-    "sessions": "Runs"
+    "runs": "Runs"
   },
   "auth": {
     "login": {
@@ -173,7 +173,7 @@
       "explanation": "Explanation",
       "shortAnswer": "Short answer",
       "openAnswer": "Open answer",
-      "startSession": "Start run",
+      "startRun": "Start run",
       "settingTime": "{n} min",
       "settingRandom": "Random order",
       "settingShowAll": "All texts at once",
@@ -212,7 +212,7 @@
     "account": "Account"
   },
   "game": {
-    "session": {
+    "run": {
       "newTitle": "New Run",
       "quest": "Quest",
       "mode": "Game mode",
@@ -235,7 +235,7 @@
       "showCorrect": "Show correct answers",
       "schedule": "Schedule start time",
       "scheduleEnd": "Schedule end time",
-      "sessionName": "Run name",
+      "runName": "Run name",
       "create": "Create Run",
       "createHint": "After creating, you'll get a code to share with students",
       "createError": "Failed to create run"
@@ -248,8 +248,8 @@
       "namePlaceholder": "Enter your full name...",
       "submit": "Join",
       "invalidCode": "Invalid run code",
-      "sessionFull": "Run is full",
-      "sessionClosed": "Run is closed",
+      "runFull": "Run is full",
+      "runClosed": "Run is closed",
       "switchPlayer": "Not you? Join as another student"
     },
     "lobby": {
@@ -259,12 +259,12 @@
       "start": "Start",
       "starting": "Starting...",
       "startError": "Failed to start",
-      "sessionCode": "Run Code",
+      "runCode": "Run Code",
       "teamCode": "Team",
       "minPlayers": "Waiting for teammates...",
       "waitingOptional": "You can start alone or wait for teammates",
       "waitingRequired": "Wait for teammates to join",
-      "sessionEndsAt": "Run ends at",
+      "runEndsAt": "Run ends at",
       "joinAsOther": "Join as another student",
       "leaveTeam": "Switch team",
       "leavingTeam": "Switching...",
@@ -346,16 +346,16 @@
       "statusCompleted": "Completed",
       "statusStopped": "Stopped",
       "statusScheduled": "Scheduled",
-      "deleteSession": "Delete run",
-      "deleteSessionConfirm": "Delete this run? All participant data will be lost.",
+      "deleteRun": "Delete run",
+      "deleteRunConfirm": "Delete this run? All participant data will be lost.",
       "deletePlayer": "Delete participant",
       "deletePlayerConfirm": "Remove this participant from the run?",
       "renamePlayer": "Rename",
       "renamePlaceholder": "Participant name",
       "monitoring": "Monitor",
       "results": "Results",
-      "sessionsCount": "{count} runs",
-      "noSessions": "No runs yet",
+      "runsCount": "{count} runs",
+      "noRuns": "No runs yet",
       "scheduleStartLabel": "Start",
       "scheduleEndLabel": "End",
       "settingsTitle": "Run settings",
@@ -372,7 +372,7 @@
       "joinedAt": "Joined",
       "finishedAt": "Finished",
       "durationLabel": "Duration",
-      "sessionEndsAt": "Run ends at",
+      "runEndsAt": "Run ends at",
       "timeLeft": "time left",
       "pointsUnit": "pt",
       "questPreview": "Quest preview",
@@ -380,7 +380,7 @@
       "saveSettings": "Save",
       "restart": "Restart run",
       "restartConfirm": "Restart the run? Players who have not finished will be reset. Finished players keep their results.",
-      "sessionName": "Run name",
+      "runName": "Run name",
       "endsAt": "Deadline",
       "scheduledAt": "Scheduled start"
     }

@@ -7,8 +7,8 @@ import {
   clearRunStorage,
   getRunStorage,
   setRunStorage,
-  useGameSession,
-} from "@/hooks/useGameSession";
+  useGameRun,
+} from "@/hooks/useGameRun";
 import { usePlayerWebSocket } from "@/hooks/useWebSocket";
 import { useRouter } from "@/i18n/navigation";
 import { leaveTeam, playerStartRun, startTeam } from "@/lib/api/runs";
@@ -48,7 +48,7 @@ export default function LobbyPage() {
   const runId = params.id as string;
 
   const { run, setRun, setMyPlayer, setGuestToken, handleWsMessage } =
-    useGameSession();
+    useGameRun();
 
   const [stored, setStored] = useState<{
     guest_token: string;
@@ -87,16 +87,16 @@ export default function LobbyPage() {
       handleWsMessage(last);
 
       if (last.type === "connected") {
-        const sess = last.run as GameRun | undefined;
+        const run = last.run as GameRun | undefined;
         const allPlayers = last.players as RunPlayer[] | undefined;
 
-        if (sess) {
-          setRun(sess);
+        if (run) {
+          setRun(run);
           if (allPlayers) setPlayers(allPlayers);
           const current = storedRef.current;
           if (current) {
             const me =
-              sess.players?.find?.((p) => p.id === current.player_id) ??
+              run.players?.find?.((p) => p.id === current.player_id) ??
               (allPlayers ?? []).find((p) => p.id === current.player_id);
             if (me) setMyPlayer(me);
           }
@@ -257,7 +257,7 @@ export default function LobbyPage() {
           ? mePlayer
           : ({
               id: p.id,
-              session_id: runId,
+              run_id: runId,
               user_id: null,
               guest_name: null,
               display_name: p.display_name,
@@ -299,10 +299,10 @@ export default function LobbyPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-8">
-        {/* Session code + team code */}
+        {/* Run code + team code */}
         <div className="text-center mb-8">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">
-            {t("sessionCode")}
+            {t("runCode")}
           </p>
           <div className="text-5xl font-mono font-bold text-gray-900 tracking-widest">
             {run?.join_code ?? "------"}
@@ -317,7 +317,7 @@ export default function LobbyPage() {
           )}
           {run?.ends_at && (
             <p className="text-xs text-gray-400 mt-2">
-              {t("sessionEndsAt")}{" "}
+              {t("runEndsAt")}{" "}
               <span className="font-medium text-gray-600">
                 {new Date(run.ends_at).toLocaleTimeString(locale, {
                   hour: "2-digit",

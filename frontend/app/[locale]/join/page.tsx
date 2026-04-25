@@ -9,7 +9,7 @@ import {
   clearRunStorage,
   getRunStorageByCode,
   setRunStorage,
-} from "@/hooks/useGameSession";
+} from "@/hooks/useGameRun";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function JoinPage() {
@@ -24,7 +24,7 @@ export default function JoinPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Stored run data for this code (if player previously joined)
-  const [storedSession, setStoredSession] = useState<{
+  const [storedRun, setStoredRun] = useState<{
     run_id: string;
     guest_token: string;
     player_id: string;
@@ -39,7 +39,7 @@ export default function JoinPage() {
       setCode(upper);
       const stored = getRunStorageByCode(upper);
       if (stored) {
-        setStoredSession(stored);
+        setStoredRun(stored);
         if (stored.display_name) setName(stored.display_name);
       }
     }
@@ -49,18 +49,18 @@ export default function JoinPage() {
   useEffect(() => {
     if (code.length === 6) {
       const stored = getRunStorageByCode(code);
-      setStoredSession(stored);
+      setStoredRun(stored);
       if (stored?.display_name && !name) setName(stored.display_name);
     } else {
-      setStoredSession(null);
+      setStoredRun(null);
     }
   }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSwitchPlayer = () => {
-    if (storedSession) {
-      clearRunStorage(storedSession.run_id);
+    if (storedRun) {
+      clearRunStorage(storedRun.run_id);
     }
-    setStoredSession(null);
+    setStoredRun(null);
     setName("");
     setError(null);
   };
@@ -72,14 +72,14 @@ export default function JoinPage() {
     setError(null);
     try {
       // Try rejoin first if we have a stored token for this code
-      if (storedSession && !user) {
+      if (storedRun && !user) {
         try {
           const player = await rejoinRun(
             code.toUpperCase(),
-            storedSession.guest_token,
+            storedRun.guest_token,
           );
           setRunStorage(player.run_id, {
-            guest_token: storedSession.guest_token,
+            guest_token: storedRun.guest_token,
             player_id: player.id,
             join_code: code.toUpperCase(),
             display_name: player.display_name,
@@ -93,9 +93,9 @@ export default function JoinPage() {
           }
           return;
         } catch {
-          // Rejoin failed (token expired / session deleted) — fall through to fresh join
-          clearRunStorage(storedSession.run_id);
-          setStoredSession(null);
+          // Rejoin failed (token expired / run deleted) — fall through to fresh join
+          clearRunStorage(storedRun.run_id);
+          setStoredRun(null);
         }
       }
 
@@ -116,12 +116,12 @@ export default function JoinPage() {
       const msg = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;
       if (msg?.toLowerCase().includes("full")) {
-        setError(t("sessionFull"));
+        setError(t("runFull"));
       } else if (
         msg?.toLowerCase().includes("closed") ||
         msg?.toLowerCase().includes("not found")
       ) {
-        setError(t("sessionClosed"));
+        setError(t("runClosed"));
       } else {
         setError(t("invalidCode"));
       }
@@ -142,7 +142,7 @@ export default function JoinPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Session code */}
+          {/* Run code */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               {t("code")}
@@ -175,7 +175,7 @@ export default function JoinPage() {
                 required
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {storedSession && (
+              {storedRun && (
                 <button
                   type="button"
                   onClick={handleSwitchPlayer}

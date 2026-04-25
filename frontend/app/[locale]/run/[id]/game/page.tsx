@@ -8,7 +8,7 @@ import ChatPanel from "@/components/game/ChatPanel";
 import MapInteractive from "@/components/game/MapInteractive";
 import ResourceModal from "@/components/game/ResourceModal";
 import TimerDisplay from "@/components/game/TimerDisplay";
-import { getRunStorage, useGameSession } from "@/hooks/useGameSession";
+import { getRunStorage, useGameRun } from "@/hooks/useGameRun";
 import { usePlayerWebSocket } from "@/hooks/useWebSocket";
 import { useRouter } from "@/i18n/navigation";
 import { getMap } from "@/lib/api/maps";
@@ -68,7 +68,7 @@ export default function GamePage() {
     updatePlayer,
     chatMessages,
     handleWsMessage,
-  } = useGameSession();
+  } = useGameRun();
 
   const [stored, setStored] = useState<{
     guest_token: string;
@@ -342,12 +342,12 @@ export default function GamePage() {
       handleWsMessage(data);
 
       if (data.type === "connected") {
-        const sess = data.run as GameRun | undefined;
+        const run = data.run as GameRun | undefined;
         const players = Array.isArray(data.players)
           ? (data.players as import("@/types/run").RunPlayer[])
           : [];
-        if (sess) {
-          setRun({ ...sess, players });
+        if (run) {
+          setRun({ ...run, players });
           const current = storedRef.current;
           if (current) {
             const me = players.find((p) => p.id === current.player_id);

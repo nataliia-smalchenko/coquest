@@ -564,7 +564,7 @@ const TEAM_PALETTE = [
 
 export default function MonitorPage() {
   const t = useTranslations("game.monitor");
-  const tSession = useTranslations("game.run");
+  const tRun = useTranslations("game.run");
   const tCommon = useTranslations("common");
   const params = useParams();
   const router = useRouter();
@@ -581,8 +581,8 @@ export default function MonitorPage() {
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
 
-  const [showDeleteSession, setShowDeleteSession] = useState(false);
-  const [deletingSession, setDeletingSession] = useState(false);
+  const [showDeleteRun, setShowDeleteRun] = useState(false);
+  const [deletingRun, setDeletingRun] = useState(false);
 
   const [deletePlayerId, setDeletePlayerId] = useState<string | null>(null);
   const [deletingPlayer, setDeletingPlayer] = useState(false);
@@ -625,15 +625,15 @@ export default function MonitorPage() {
     });
   };
 
-  const handleDeleteSession = async () => {
-    setDeletingSession(true);
+  const handleDeleteRun = async () => {
+    setDeletingRun(true);
     try {
       await deleteRun(runId);
       router.push("/teacher/runs");
     } catch {
       // ignore
     } finally {
-      setDeletingSession(false);
+      setDeletingRun(false);
     }
   };
 
@@ -900,7 +900,7 @@ export default function MonitorPage() {
               run.status !== "completed" && (
                 <span className="flex items-center gap-1 text-xs font-medium text-gray-600">
                   <Clock size={12} />
-                  {t("sessionEndsAt")}: {formatDate(run.ends_at, locale)}
+                  {t("runEndsAt")}: {formatDate(run.ends_at, locale)}
                   {isActive && new Date(run.ends_at) > new Date() && (
                     <span className="ml-1 text-gray-400 font-normal">
                       (<TimerDisplay ends_at={run.ends_at} />{" "}
@@ -942,7 +942,7 @@ export default function MonitorPage() {
           )}
           {canDelete && (
             <button
-              onClick={() => setShowDeleteSession(true)}
+              onClick={() => setShowDeleteRun(true)}
               className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-red-600 font-medium px-3 py-2.5 rounded-xl text-sm transition-colors border border-gray-200"
             >
               <Trash2 size={14} />
@@ -977,7 +977,7 @@ export default function MonitorPage() {
         </div>
       </div>
 
-      {/* Session settings */}
+      {/* Run settings */}
       {run && (
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -999,11 +999,11 @@ export default function MonitorPage() {
             >
               {run.max_players === 1 ? (
                 <>
-                  <User size={11} /> {tSession("solo")}
+                  <User size={11} /> {tRun("solo")}
                 </>
               ) : (
                 <>
-                  <Users size={11} /> {tSession("teamMode")} ·{" "}
+                  <Users size={11} /> {tRun("teamMode")} ·{" "}
                   {run.max_players}
                 </>
               )}
@@ -1011,25 +1011,25 @@ export default function MonitorPage() {
             {run.max_players > 1 && (
               <SettingChip
                 on={run.allow_solo_in_team}
-                label={tSession("allowSolo")}
+                label={tRun("allowSolo")}
               />
             )}
             <SettingChip
               on={run.show_feedback_after_answer}
-              label={tSession("showFeedback")}
+              label={tRun("showFeedback")}
             />
             <SettingChip
               on={run.keep_completed_in_materials}
-              label={tSession("keepCompleted")}
+              label={tRun("keepCompleted")}
             />
             <SettingChip
               on={run.show_score_after}
-              label={tSession("showScore")}
+              label={tRun("showScore")}
             />
             {run.show_score_after && (
               <SettingChip
                 on={run.show_correct_answers}
-                label={tSession("showCorrect")}
+                label={tRun("showCorrect")}
               />
             )}
           </div>
@@ -1238,7 +1238,7 @@ export default function MonitorPage() {
       )}
 
       {/* Confirm delete run dialog */}
-      {showDeleteSession && (
+      {showDeleteRun && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
@@ -1247,25 +1247,25 @@ export default function MonitorPage() {
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle size={24} className="text-red-500 flex-shrink-0" />
               <h3 className="text-lg font-semibold text-gray-900">
-                {t("deleteSession")}
+                {t("deleteRun")}
               </h3>
             </div>
             <p className="text-gray-600 text-sm mb-6">
-              {t("deleteSessionConfirm")}
+              {t("deleteRunConfirm")}
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowDeleteSession(false)}
+                onClick={() => setShowDeleteRun(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
-                onClick={handleDeleteSession}
-                disabled={deletingSession}
+                onClick={handleDeleteRun}
+                disabled={deletingRun}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
-                {deletingSession ? "..." : tCommon("delete")}
+                {deletingRun ? "..." : tCommon("delete")}
               </button>
             </div>
           </div>
@@ -1286,7 +1286,7 @@ export default function MonitorPage() {
             {/* Name */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                {t("sessionName")}
+                {t("runName")}
               </label>
               <input
                 value={editForm.name ?? ""}
@@ -1324,10 +1324,10 @@ export default function MonitorPage() {
             {/* Toggles */}
             {(
               [
-                ["show_feedback_after_answer", tSession("showFeedback")],
-                ["keep_completed_in_materials", tSession("keepCompleted")],
-                ["show_score_after", tSession("showScore")],
-                ["show_correct_answers", tSession("showCorrect")],
+                ["show_feedback_after_answer", tRun("showFeedback")],
+                ["keep_completed_in_materials", tRun("keepCompleted")],
+                ["show_score_after", tRun("showScore")],
+                ["show_correct_answers", tRun("showCorrect")],
               ] as [keyof RunUpdate, string][]
             ).map(([key, label]) => (
               <label

@@ -15,7 +15,7 @@ import {
 import { sanitizeHtml } from "@/lib/sanitize";
 import Image from "next/image";
 import { getResults } from "@/lib/api/runs";
-import { clearRunStorage, getRunStorage } from "@/hooks/useGameSession";
+import { clearRunStorage, getRunStorage } from "@/hooks/useGameRun";
 import type {
   GameRunResultResponse,
   RunProgressResult,

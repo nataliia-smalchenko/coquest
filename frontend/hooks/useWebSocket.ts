@@ -107,7 +107,7 @@ export function usePlayerWebSocket(
 ) {
   const url =
     runId && guestToken
-      ? `${WS_BASE}/api/ws/session/${runId}/player?guest_token=${guestToken}`
+      ? `${WS_BASE}/api/ws/run/${runId}/player?guest_token=${guestToken}`
       : null;
   return useWebSocket(url, onMessage);
 }
@@ -119,7 +119,7 @@ export function useTeacherWebSocket(
 ) {
   const url =
     runId && token
-      ? `${WS_BASE}/api/ws/session/${runId}/teacher?token=${token}`
+      ? `${WS_BASE}/api/ws/run/${runId}/teacher?token=${token}`
       : null;
   return useWebSocket(url, onMessage);
 }

@@ -9,8 +9,8 @@ import { getQuest } from "@/lib/api/quests";
 import { createRun } from "@/lib/api/runs";
 import type { QuestResponse } from "@/types/quest";
 
-export default function NewSessionPage() {
-  const t = useTranslations("game.session");
+export default function NewRunPage() {
+  const t = useTranslations("game.run");
   const tCommon = useTranslations("common");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,8 +21,8 @@ export default function NewSessionPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Session name
-  const [runName, setSessionName] = useState("");
+  // Run name
+  const [runName, setRunName] = useState("");
 
   // Game mode
   const [maxPlayers, setMaxPlayers] = useState(1);
@@ -50,7 +50,7 @@ export default function NewSessionPage() {
       .then((q) => {
         setQuest(q);
         const title = q.translations?.[0]?.title;
-        if (title) setSessionName(title);
+        if (title) setRunName(title);
       })
       .catch(() => router.push("/teacher/quests"))
       .finally(() => setLoadingQuest(false));
@@ -166,13 +166,13 @@ export default function NewSessionPage() {
           </p>
         </div>
 
-        {/* Session name */}
+        {/* Run name */}
         <div className={cardStyle}>
           <p className={sectionLabel}>{t("runName")}</p>
           <input
             type="text"
             value={runName}
-            onChange={(e) => setSessionName(e.target.value)}
+            onChange={(e) => setRunName(e.target.value)}
             placeholder={translation?.title ?? ""}
             className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />

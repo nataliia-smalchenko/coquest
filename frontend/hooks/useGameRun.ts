@@ -8,7 +8,7 @@ import type {
   RunProgress,
 } from "@/types/run";
 
-interface GameSessionStore {
+interface GameRunStore {
   run: GameRun | null;
   myPlayer: RunPlayer | null;
   progress: RunProgress[];
@@ -27,7 +27,7 @@ interface GameSessionStore {
   handleWsMessage: (data: Record<string, unknown>) => void;
 }
 
-export const useGameSession = create<GameSessionStore>((set, get) => ({
+export const useGameRun = create<GameRunStore>((set, get) => ({
   run: null,
   myPlayer: null,
   progress: [],
@@ -82,11 +82,11 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
     switch (type) {
       case "connected": {
         if (data.run) {
-          const sess = data.run as GameRun;
+          const run = data.run as GameRun;
           const players = Array.isArray(data.players)
             ? (data.players as RunPlayer[])
-            : (sess.players ?? []);
-          setRun({ ...sess, players });
+            : (run.players ?? []);
+          setRun({ ...run, players });
         }
         break;
       }
@@ -176,7 +176,7 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
       case "chat_message": {
         addChatMessage({
           id: `${Date.now()}-${Math.random()}`,
-          session_id: get().run?.id ?? "",
+          run_id: get().run?.id ?? "",
           player_id: data.player_id as string,
           display_name: data.display_name as string,
           message: data.message as string,
@@ -191,7 +191,7 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
 // localStorage is intentionally used here (not sessionStorage) to enable the
 // cross-tab / cross-browser-restart rejoin flow: a student who closes their tab
 // mid-game can return to /join, enter the same code, and resume as the same player.
-// guest_token is a low-value credential (scoped to one game session); the XSS risk
+// guest_token is a low-value credential (scoped to one game run); the XSS risk
 // is accepted and mitigated at the application layer by DOMPurify sanitization.
 export function getRunStorage(runId: string): {
   guest_token: string;
@@ -201,7 +201,7 @@ export function getRunStorage(runId: string): {
 } | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(`coquest_session_${runId}`);
+    const raw = localStorage.getItem(`coquest_run_${runId}`);
     return raw
       ? (JSON.parse(raw) as {
           guest_token: string;
@@ -225,7 +225,7 @@ export function setRunStorage(
   },
 ) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(`coquest_session_${runId}`, JSON.stringify(data));
+  localStorage.setItem(`coquest_run_${runId}`, JSON.stringify(data));
   if (data.join_code) {
     localStorage.setItem(`coquest_code_${data.join_code}`, runId);
   }
@@ -254,7 +254,7 @@ export function getRunStorageByCode(code: string): {
 export function clearRunStorage(runId: string) {
   if (typeof window === "undefined") return;
   try {
-    const raw = localStorage.getItem(`coquest_session_${runId}`);
+    const raw = localStorage.getItem(`coquest_run_${runId}`);
     if (raw) {
       const data = JSON.parse(raw) as { join_code?: string };
       if (data.join_code) {
@@ -264,5 +264,5 @@ export function clearRunStorage(runId: string) {
   } catch {
     // ignore
   }
-  localStorage.removeItem(`coquest_session_${runId}`);
+  localStorage.removeItem(`coquest_run_${runId}`);
 }
