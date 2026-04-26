@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import { useHighlightCode } from "@/hooks/useHighlightCode";
 import { useRouter } from "@/i18n/navigation";
