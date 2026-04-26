@@ -564,7 +564,10 @@ export default function MapAndResourcesStep({
                   tabIndex={0}
                   onClick={() => onMapChange(m.id)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") onMapChange(m.id);
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onMapChange(m.id);
+                    }
                   }}
                   style={{
                     borderRadius: "12px",

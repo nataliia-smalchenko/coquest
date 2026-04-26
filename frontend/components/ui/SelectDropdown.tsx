@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export interface SelectOption {
   value: string;
@@ -37,6 +37,7 @@ export function SelectDropdown({
   triggerLabel,
   variant = "outlined",
 }: SelectDropdownProps) {
+  const uid = useId();
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,7 +86,7 @@ export function SelectDropdown({
     <div ref={containerRef} style={{ position: "relative" }}>
       {label && (
         <label
-          htmlFor={`select-dropdown-${label}`}
+          htmlFor={`select-dropdown-${uid}`}
           style={{
             display: "block",
             fontSize: "12px",
@@ -102,7 +103,7 @@ export function SelectDropdown({
 
       <button
         ref={btnRef}
-        id={`select-dropdown-${label}`}
+        id={`select-dropdown-${uid}`}
         type="button"
         onClick={handleToggle}
         style={{

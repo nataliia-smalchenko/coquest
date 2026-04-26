@@ -214,7 +214,6 @@ export default function ResultsPage() {
       setNeedToken(true);
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
   const myProgress: RunProgressResult[] = myPlayer
@@ -422,6 +421,7 @@ export default function ResultsPage() {
                       onClick={() => hasDetail && toggleExpand(p.id)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
                           hasDetail && toggleExpand(p.id);
                         }
                       }}
@@ -533,6 +533,7 @@ export default function ResultsPage() {
                           onClick={() => hasDetail && toggleExpand(p.id)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
                               hasDetail && toggleExpand(p.id);
                             }
                           }}

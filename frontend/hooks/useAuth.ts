@@ -4,6 +4,7 @@ import Cookies from "js-cookie";
 import { create } from "zustand";
 import api from "@/lib/api";
 import { authService } from "@/lib/auth";
+import { getApiDetail } from "@/lib/errors";
 import type { User } from "@/types";
 
 interface AuthState {
@@ -36,9 +37,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       return response.user;
     } catch (error: unknown) {
       set({
-        error:
-          (error as { response?: { data?: { detail?: string } } }).response
-            ?.data?.detail || "Login failed",
+        error: getApiDetail(error) ?? "Login failed",
         isLoading: false,
       });
       throw error;
@@ -52,9 +51,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       set({ isLoading: false });
     } catch (error: unknown) {
       set({
-        error:
-          (error as { response?: { data?: { detail?: string } } }).response
-            ?.data?.detail || "Registration failed",
+        error: getApiDetail(error) ?? "Registration failed",
         isLoading: false,
       });
       throw error;

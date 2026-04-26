@@ -171,14 +171,12 @@ function PlayerDetailDrawer({
   onClose,
   onReviewed,
   t,
-  tCommon: _tCommon,
 }: {
   runId: string;
   pp: PlayerProgressSummary;
   onClose: () => void;
   onReviewed: () => void;
   t: ReturnType<typeof useTranslations<"game.monitor">>;
-  tCommon: ReturnType<typeof useTranslations<"common">>;
 }) {
   const [items, setItems] = useState<RunProgressResult[] | null>(null);
   const [reviewScores, setReviewScores] = useState<Record<string, string>>({});
@@ -1037,7 +1035,10 @@ export default function MonitorPage() {
             tabIndex={0}
             onClick={() => setDetailPlayer(pp)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setDetailPlayer(pp);
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setDetailPlayer(pp);
+              }
             }}
           >
             <div className="flex items-center gap-3 mb-3">
@@ -1203,7 +1204,6 @@ export default function MonitorPage() {
           onClose={() => setDetailPlayer(null)}
           onReviewed={refreshMonitor}
           t={t}
-          tCommon={tCommon}
         />
       )}
 

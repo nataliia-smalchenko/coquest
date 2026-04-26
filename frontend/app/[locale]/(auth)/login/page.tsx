@@ -19,6 +19,7 @@ import * as z from "zod";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "@/i18n/navigation";
 import api from "@/lib/api";
+import { getApiStatus } from "@/lib/errors";
 
 const loginSchema = z.object({
   email: z.email({ message: "invalidEmail" }),
@@ -71,9 +72,7 @@ export default function LoginPage() {
       const user = await login(data.email, data.password);
       redirectByRole(user.role);
     } catch (err: unknown) {
-      if (
-        (err as { response?: { status?: number } }).response?.status === 403
-      ) {
+      if (getApiStatus(err) === 403) {
         setNeedsVerification(true);
         setUserEmail(data.email);
       } else {

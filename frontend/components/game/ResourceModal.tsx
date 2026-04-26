@@ -6,6 +6,7 @@ import { CheckCircle, Clock, X, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
+import { useHighlightCode } from "@/hooks/useHighlightCode";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { ResourceDetailPublicResponse } from "@/types/resource";
 import type { RunProgress } from "@/types/run";
@@ -69,7 +70,7 @@ export default function ResourceModal({
 }: ResourceModalProps) {
   const t = useTranslations("game.game");
   const overlayRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useHighlightCode<HTMLDivElement>([resource, answerResult]);
 
   // Close on overlay click
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -82,15 +83,6 @@ export default function ResourceModal({
     return () => {
       document.body.style.overflow = "";
     };
-  }, []);
-
-  // Syntax-highlight code blocks lazily; re-run when answer is submitted (view switches)
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (contentRef.current) applyHighlighting(contentRef.current);
-    });
   }, []);
 
   const isAnswered =

@@ -113,7 +113,6 @@ export function ResourcePickerModal({
         else setLoadingMore(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     // biome-ignore lint/correctness/useExhaustiveDependencies: buildParams is a stable helper, intentionally omitted
     [offset, buildParams],
   );
@@ -505,7 +504,10 @@ export function ResourcePickerModal({
                     tabIndex={isAdded ? -1 : 0}
                     onClick={() => toggle(r.id)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") toggle(r.id);
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggle(r.id);
+                      }
                     }}
                     style={{
                       display: "flex",

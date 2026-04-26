@@ -19,9 +19,10 @@ export default function Navigation() {
   }, [fetchUser]);
 
   // Close menu on route change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname triggers the effect; setMenuOpen is a stable setter
   useEffect(() => {
     setMenuOpen(false);
-  }, []);
+  }, [pathname]);
 
   // Hide navigation during active gameplay
   const isGamePage =

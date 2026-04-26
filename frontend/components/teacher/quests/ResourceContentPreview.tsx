@@ -5,8 +5,8 @@ import StarterKit from "@tiptap/starter-kit";
 import { Check } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
+import { useHighlightCode } from "@/hooks/useHighlightCode";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { ResourceDetailResponse } from "@/types/resource";
@@ -24,16 +24,8 @@ function renderTiptap(body: Record<string, unknown>): string {
 
 function TextPreview({ body }: { body: Record<string, unknown> }) {
   const tp = useTranslations("quests.preview");
-  const ref = useRef<HTMLDivElement>(null);
   const html = renderTiptap(body);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (ref.current) applyHighlighting(ref.current);
-    });
-  }, []);
+  const ref = useHighlightCode<HTMLDivElement>([html]);
 
   if (!html) {
     return (
@@ -62,15 +54,7 @@ function QuestionPreview({
   const tp = useTranslations("quests.preview");
   const { question_type, body, options, correct_answers, explanation } =
     question;
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (bodyRef.current) applyHighlighting(bodyRef.current);
-    });
-  }, []);
+  const bodyRef = useHighlightCode<HTMLDivElement>([body]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>

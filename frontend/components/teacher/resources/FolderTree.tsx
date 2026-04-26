@@ -115,7 +115,10 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
         tabIndex={0}
         onClick={() => setSelectedFolder(folder.id)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") setSelectedFolder(folder.id);
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedFolder(folder.id);
+          }
         }}
       >
         {children.length > 0 || isAddingChild ? (
@@ -151,7 +154,6 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
           <button
             type="button"
             onClick={handleAddChildClick}
-            // Додано cursor-pointer
             className="p-0.5 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
             title={t("newSubfolder") || "Додати підпапку"}
           >
@@ -160,7 +162,6 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
           <button
             type="button"
             onClick={handleDelete}
-            // Додано cursor-pointer та змінено hover на hover:text-blue-600
             className="p-0.5 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
             title={t("delete") || "Видалити"}
           >
@@ -171,7 +172,6 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
 
       {expanded && (
         <div className="relative flex flex-col gap-0.5">
-          {/* Вертикальна лінія-напрямна для дітей */}
           <div
             className="absolute top-0 bottom-0 w-px bg-gray-200 pointer-events-none z-30"
             style={{ left: `${guideLineLeft}px` }}
@@ -194,6 +194,8 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
               }}
             >
               <input
+                // biome-ignore lint/a11y/noAutofocus: programmatically revealed inline form
+                autoFocus
                 value={childName}
                 onChange={(e) => setChildName(e.target.value)}
                 onKeyDown={handleChildKeyDown}
@@ -281,7 +283,10 @@ export function FolderTree() {
         tabIndex={0}
         onClick={() => setSelectedFolder(null)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") setSelectedFolder(null);
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedFolder(null);
+          }
         }}
       >
         <Library
@@ -308,6 +313,8 @@ export function FolderTree() {
         {isAdding && (
           <div className="mt-1 px-2">
             <input
+              // biome-ignore lint/a11y/noAutofocus: programmatically revealed inline form
+              autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={handleKeyDown}

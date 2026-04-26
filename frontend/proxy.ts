@@ -8,7 +8,9 @@ const intlMiddleware = createMiddleware(routing);
 const UKRAINIAN_LANGS = new Set(["uk", "ru"]);
 
 // Routes that require an authenticated user (checked against locale-stripped path)
-const PROTECTED_PREFIXES = ["/teacher", "/student", "/profile", "/run"];
+// Note: /run/* is intentionally excluded — those pages are guest-accessible and
+// handle their own auth via localStorage guest_token (redirecting to /join if absent).
+const PROTECTED_PREFIXES = ["/teacher", "/student", "/profile"];
 
 function detectLocale(acceptLanguage: string | null): "uk" | "en" {
   if (!acceptLanguage) return "en";

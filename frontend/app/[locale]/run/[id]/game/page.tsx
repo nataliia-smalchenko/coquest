@@ -123,10 +123,6 @@ export default function GamePage() {
   );
   const activeObjectId = activeProgress?.map_object_id ?? null;
 
-  // In team mode: am I the hint player for the current step?
-  const _iAmHintPlayer =
-    isTeamMode && teamStepInfo?.hint_player_id === myPlayerId;
-
   // In team mode: am I the active player for current question step?
   const iAmActivePlayer =
     !isTeamMode ||
@@ -610,13 +606,6 @@ export default function GamePage() {
   // Team text step: waiting info
   const totalTeamMembers =
     run?.players?.filter((p) => p.team_id === myPlayer?.team_id).length ?? 0;
-  const _currentTextStepId = useMemo(() => {
-    if (!isTeamMode) return null;
-    const active = progress.find(
-      (p) => p.status === "assigned" && p.map_object_id,
-    );
-    return active ? active.step_order : null;
-  }, [isTeamMode, progress]);
 
   const isWaitingForTeammates =
     isTeamMode &&

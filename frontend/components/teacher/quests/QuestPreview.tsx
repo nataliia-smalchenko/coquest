@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
+import { useHighlightCode } from "@/hooks/useHighlightCode";
 import { useRouter } from "@/i18n/navigation";
 import { getMap, getMaps } from "@/lib/api/maps";
 import { getQuest } from "@/lib/api/quests";
@@ -604,17 +605,8 @@ function TextMaterialView({
   content: Record<string, unknown> | undefined;
   tp: ReturnType<typeof useTranslations<"quests.preview">>;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
   const html = content ? renderTiptap(content) : "";
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (ref.current) applyHighlighting(ref.current);
-    });
-  }, []);
+  const ref = useHighlightCode<HTMLDivElement>([html]);
 
   if (!html)
     return (
@@ -643,15 +635,7 @@ function QuestionView({
 }) {
   const { question_type, body, options, correct_answers, explanation } =
     question;
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (bodyRef.current) applyHighlighting(bodyRef.current);
-    });
-  }, []);
+  const bodyRef = useHighlightCode<HTMLDivElement>([body]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -666,7 +650,7 @@ function QuestionView({
           color: "#111827",
           lineHeight: 1.5,
         }}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanctioned HTML
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted question content
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(body) }}
       />
 

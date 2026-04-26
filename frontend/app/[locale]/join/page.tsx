@@ -10,7 +10,12 @@ import {
   setRunStorage,
 } from "@/hooks/useGameRun";
 import { useRouter } from "@/i18n/navigation";
-import { joinRun, rejoinRun } from "@/lib/api/runs";
+import {
+  getRunByCode,
+  joinRun,
+  playerStartRun,
+  rejoinRun,
+} from "@/lib/api/runs";
 
 export default function JoinPage() {
   const t = useTranslations("game.join");
@@ -99,10 +104,13 @@ export default function JoinPage() {
         }
       }
 
-      const player = await joinRun({
-        join_code: code.toUpperCase(),
-        guest_name: user ? undefined : name.trim() || undefined,
-      });
+      const [runInfo, player] = await Promise.all([
+        getRunByCode(code.toUpperCase()).catch(() => null),
+        joinRun({
+          join_code: code.toUpperCase(),
+          guest_name: user ? undefined : name.trim() || undefined,
+        }),
+      ]);
       if (player.guest_token) {
         setRunStorage(player.run_id, {
           guest_token: player.guest_token,
@@ -111,7 +119,14 @@ export default function JoinPage() {
           display_name: player.display_name,
         });
       }
-      router.push(`/run/${player.run_id}/lobby`);
+      const isTeamMode = (runInfo?.max_players ?? 1) > 1;
+      if (isTeamMode) {
+        router.push(`/run/${player.run_id}/lobby`);
+      } else {
+        // Individual mode: trigger resource distribution before entering the game
+        await playerStartRun(player.run_id, player.guest_token ?? "");
+        router.push(`/run/${player.run_id}/game`);
+      }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;

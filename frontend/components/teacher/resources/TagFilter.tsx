@@ -81,6 +81,8 @@ export function TagFilter() {
       {isAdding && (
         <div className="mt-4 p-3 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3">
           <input
+            // biome-ignore lint/a11y/noAutofocus: programmatically revealed inline form
+            autoFocus
             value={tagName}
             onChange={(e) => setTagName(e.target.value)}
             onKeyDown={handleKeyDown}
