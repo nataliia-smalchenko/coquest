@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { BookOpen, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useResourceStore } from "@/hooks/useResourceStore";
 import { ResourceCard, ResourceCardSkeleton } from "./ResourceCard";
 
@@ -27,7 +27,7 @@ export function ResourceList() {
   if (isLoading) {
     return (
       <div style={gridStyle}>
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: 6 }, (_, i) => i).map((i) => (
           <ResourceCardSkeleton key={i} />
         ))}
       </div>
@@ -56,6 +56,7 @@ export function ResourceList() {
       {hasMore && (
         <div style={{ display: "flex", justifyContent: "center" }}>
           <button
+            type="button"
             onClick={loadMoreResources}
             disabled={isLoadingMore}
             style={{

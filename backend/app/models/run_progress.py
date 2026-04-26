@@ -27,7 +27,7 @@ class RunProgress(Base):
     __tablename__ = "run_progress"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    session_id: Mapped[uuid.UUID] = mapped_column(
+    run_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
         ForeignKey("game_runs.id", ondelete="CASCADE"),
         nullable=False,

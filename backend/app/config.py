@@ -47,10 +47,8 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
     CLOUDINARY_UPLOAD_PRESET: str = "coquest_preset"
 
-    # Game session business rules
-    RESULTS_AVAILABLE_DAYS: int = (
-        30  # how long results are accessible after a session ends
-    )
+    # Game run business rules
+    RESULTS_AVAILABLE_DAYS: int = 30  # how long results are accessible after a run ends
     TEAM_WAIT_TIMEOUT_MINUTES: int = (
         30  # max time a WAITING team can exist before cleanup
     )

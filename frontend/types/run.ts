@@ -1,4 +1,4 @@
-export type SessionStatus =
+export type RunStatus =
   | "waiting"
   | "active"
   | "completed"
@@ -7,9 +7,9 @@ export type SessionStatus =
 export type PlayerStatus = "waiting" | "playing" | "finished";
 export type ProgressStatus = "assigned" | "viewed" | "answered";
 
-export interface SessionPlayer {
+export interface RunPlayer {
   id: string;
-  session_id: string;
+  run_id: string;
   user_id: string | null;
   guest_name: string | null;
   display_name: string;
@@ -31,7 +31,7 @@ export interface TeamPlayer {
 
 export interface Team {
   id: string;
-  session_id: string;
+  run_id: string;
   status: "waiting" | "active" | "completed";
   players: TeamPlayer[];
   created_at: string;
@@ -39,9 +39,9 @@ export interface Team {
   hint_player_id: string | null;
 }
 
-export interface SessionProgress {
+export interface RunProgress {
   id: string;
-  session_id: string;
+  run_id: string;
   player_id: string;
   resource_id: string | null;
   map_object_id: string | null;
@@ -56,19 +56,19 @@ export interface SessionProgress {
 
 export interface ChatMessage {
   id: string;
-  session_id: string;
+  run_id: string;
   player_id: string;
   display_name: string;
   message: string;
   created_at: string;
 }
 
-export interface GameSession {
+export interface GameRun {
   id: string;
   quest_id: string;
-  session_code: string;
+  join_code: string;
   name: string | null;
-  status: SessionStatus;
+  status: RunStatus;
   started_at: string | null;
   ends_at: string | null;
   scheduled_at: string | null;
@@ -80,15 +80,15 @@ export interface GameSession {
   show_correct_answers: boolean;
   keep_completed_in_materials: boolean;
   created_at: string;
-  players: SessionPlayer[];
+  players: RunPlayer[];
 }
 
-export interface SessionListItem {
+export interface RunListItem {
   id: string;
   quest_id: string;
-  session_code: string;
+  join_code: string;
   name: string | null;
-  status: SessionStatus;
+  status: RunStatus;
   started_at: string | null;
   ends_at: string | null;
   scheduled_at: string | null;
@@ -98,7 +98,7 @@ export interface SessionListItem {
 }
 
 export interface PlayerProgressSummary {
-  player: SessionPlayer;
+  player: RunPlayer;
   completed: number;
   total: number;
   score: number | null;
@@ -113,11 +113,11 @@ export interface PlayerProgressSummary {
 }
 
 export interface TeacherMonitorResponse {
-  session: GameSession;
+  run: GameRun;
   players_progress: PlayerProgressSummary[];
 }
 
-export interface SessionSettingsPublic {
+export interface RunSettingsPublic {
   time_limit_minutes: number | null;
   keep_completed_in_materials: boolean;
   show_feedback_after_answer: boolean;
@@ -128,11 +128,11 @@ export interface SessionSettingsPublic {
 export interface GameInfoResponse {
   quest_title: string;
   map_slug: string | null;
-  settings: SessionSettingsPublic | null;
+  settings: RunSettingsPublic | null;
 }
 
-export interface GameSessionDetailResponse extends GameSession {
-  progress: SessionProgress[];
+export interface GameRunDetailResponse extends GameRun {
+  progress: RunProgress[];
   chat_messages: ChatMessage[];
 }
 
@@ -151,26 +151,26 @@ export interface QuestionResultData {
   points: number;
 }
 
-export interface SessionProgressResult extends SessionProgress {
+export interface RunProgressResult extends RunProgress {
   resource_title: string | null;
   question: QuestionResultData | null;
 }
 
-export interface GameSessionResultResponse extends GameSession {
-  progress: SessionProgressResult[];
+export interface GameRunResultResponse extends GameRun {
+  progress: RunProgressResult[];
   chat_messages: ChatMessage[];
   max_grade: number | null;
   total_question_points: number | null;
 }
 
-export interface SessionStorageData {
+export interface RunStorageData {
   guest_token: string;
   player_id: string;
-  session_code?: string;
+  join_code?: string;
   display_name?: string;
 }
 
-export interface SessionCreate {
+export interface RunCreate {
   quest_id: string;
   name?: string;
   max_players?: number;
@@ -184,7 +184,7 @@ export interface SessionCreate {
   ends_at?: string;
 }
 
-export interface SessionUpdate {
+export interface RunUpdate {
   name?: string | null;
   show_feedback_after_answer?: boolean;
   show_score_after?: boolean;

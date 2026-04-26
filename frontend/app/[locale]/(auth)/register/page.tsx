@@ -1,25 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
-import { useTranslations, useLocale } from "next-intl";
-import { useAuth } from "@/hooks/useAuth";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { GoogleLogin } from "@react-oauth/google";
-import api from "@/lib/api";
+import Cookies from "js-cookie";
 import {
+  BookOpen,
+  CheckCircle2,
   Eye,
   EyeOff,
-  Loader2,
-  User,
-  Mail,
-  Lock,
-  CheckCircle2,
   GraduationCap,
-  BookOpen,
+  Loader2,
+  Lock,
+  Mail,
+  User,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "@/i18n/navigation";
+import api from "@/lib/api";
 
 const registerSchema = z
   .object({
@@ -56,8 +57,12 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [customError, setCustomError] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
-  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<string | null>(null);
-  const [googleRole, setGoogleRole] = useState<"student" | "teacher" | null>(null);
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState<
+    string | null
+  >(null);
+  const [googleRole, setGoogleRole] = useState<"student" | "teacher" | null>(
+    null,
+  );
 
   const {
     register,
@@ -88,8 +93,18 @@ export default function RegisterPage() {
         credential: pendingGoogleCredential,
         role: googleRole,
       });
-      document.cookie = `access_token=${data.access_token}; path=/`;
-      document.cookie = `refresh_token=${data.refresh_token}; path=/`;
+      const cookieOpts = {
+        sameSite: "strict" as const,
+        secure: process.env.NODE_ENV === "production",
+      };
+      Cookies.set("access_token", data.access_token, {
+        expires: 1 / 96,
+        ...cookieOpts,
+      });
+      Cookies.set("refresh_token", data.refresh_token, {
+        expires: 7,
+        ...cookieOpts,
+      });
 
       // Backend may ignore `role` on creation — patch it explicitly if needed
       if (data.user.role !== googleRole) {
@@ -114,16 +129,18 @@ export default function RegisterPage() {
     setIsLoading(true);
     setCustomError("");
     try {
-      const { confirmPassword, ...registerData } = data;
+      const { confirmPassword: _confirmPassword, ...registerData } = data;
       await authRegister({
         ...registerData,
         language: locale,
       });
 
       setIsSuccess(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Registration failed:", err);
-      if (err.response?.status === 409) {
+      if (
+        (err as { response?: { status?: number } }).response?.status === 409
+      ) {
         setCustomError(tErrors("emailExists"));
       } else {
         setCustomError(tErrors("registerFailed"));
@@ -138,8 +155,12 @@ export default function RegisterPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-lg space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">{tGoogleRole("title")}</h2>
-            <p className="text-gray-500 mt-2 text-sm">{tGoogleRole("subtitle")}</p>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {tGoogleRole("title")}
+            </h2>
+            <p className="text-gray-500 mt-2 text-sm">
+              {tGoogleRole("subtitle")}
+            </p>
           </div>
 
           {customError && (
@@ -215,6 +236,7 @@ export default function RegisterPage() {
           </h2>
           <p className="text-gray-600">{t("success.message")}</p>
           <button
+            type="button"
             onClick={() => router.push("/login")}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-all"
           >
@@ -267,7 +289,10 @@ export default function RegisterPage() {
 
           {/* Full Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="register-full-name"
+              className="block text-sm font-medium text-gray-700"
+            >
               {t("fullName")}
             </label>
             <div className="mt-1 relative">
@@ -275,6 +300,7 @@ export default function RegisterPage() {
                 <User className="h-4 w-4 text-gray-400" />
               </div>
               <input
+                id="register-full-name"
                 {...register("full_name")}
                 type="text"
                 className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
@@ -285,14 +311,17 @@ export default function RegisterPage() {
             </div>
             {errors.full_name && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {tErrors(errors.full_name.message as any)}
+                {tErrors(errors.full_name.message as string)}
               </p>
             )}
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="register-email"
+              className="block text-sm font-medium text-gray-700"
+            >
               {t("email")}
             </label>
             <div className="mt-1 relative">
@@ -300,6 +329,7 @@ export default function RegisterPage() {
                 <Mail className="h-4 w-4 text-gray-400" />
               </div>
               <input
+                id="register-email"
                 {...register("email")}
                 type="email"
                 className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
@@ -310,16 +340,16 @@ export default function RegisterPage() {
             </div>
             {errors.email && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {tErrors(errors.email.message as any)}
+                {tErrors(errors.email.message as string)}
               </p>
             )}
           </div>
 
           {/* Role Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <p className="block text-sm font-medium text-gray-700">
               {t("role")}
-            </label>
+            </p>
             <div className="mt-1 grid grid-cols-2 gap-3">
               <label
                 className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-all ${
@@ -354,14 +384,17 @@ export default function RegisterPage() {
             </div>
             {errors.role && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {tErrors(errors.role.message as any)}
+                {tErrors(errors.role.message as string)}
               </p>
             )}
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="register-password"
+              className="block text-sm font-medium text-gray-700"
+            >
               {t("password")}
             </label>
             <div className="mt-1 relative">
@@ -369,6 +402,7 @@ export default function RegisterPage() {
                 <Lock className="h-4 w-4 text-gray-400" />
               </div>
               <input
+                id="register-password"
                 {...register("password")}
                 type={showPassword ? "text" : "password"}
                 className={`block w-full pl-10 pr-10 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
@@ -386,14 +420,17 @@ export default function RegisterPage() {
             </div>
             {errors.password && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {tErrors(errors.password.message as any)}
+                {tErrors(errors.password.message as string)}
               </p>
             )}
           </div>
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="register-confirm-password"
+              className="block text-sm font-medium text-gray-700"
+            >
               {t("confirmPassword")}
             </label>
             <div className="mt-1 relative">
@@ -401,6 +438,7 @@ export default function RegisterPage() {
                 <Lock className="h-4 w-4 text-gray-400" />
               </div>
               <input
+                id="register-confirm-password"
                 {...register("confirmPassword")}
                 type={showPassword ? "text" : "password"}
                 className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors ${
@@ -410,7 +448,7 @@ export default function RegisterPage() {
             </div>
             {errors.confirmPassword && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {tErrors(errors.confirmPassword.message as any)}
+                {tErrors(errors.confirmPassword.message as string)}
               </p>
             )}
           </div>

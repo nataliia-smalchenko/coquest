@@ -18,33 +18,33 @@ import {
   Users,
   X,
 } from "lucide-react";
-import TimerDisplay from "@/components/game/TimerDisplay";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import TimerDisplay from "@/components/game/TimerDisplay";
 import { useTeacherWebSocket } from "@/hooks/useWebSocket";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   deletePlayer,
-  deleteSession,
+  deleteRun,
   getMonitor,
   getPlayerProgressDetail,
-  restartSession,
+  restartRun,
   reviewAnswer,
-  startSession,
-  stopSession,
+  startRun,
+  stopRun,
   updateGuestName,
-  updateSessionSettings,
-} from "@/lib/api/sessions";
+  updateRunSettings,
+} from "@/lib/api/runs";
 import { sanitizeHtml } from "@/lib/sanitize";
-import Image from "next/image";
 import type {
-  GameSession,
+  GameRun,
   PlayerProgressSummary,
-  SessionProgressResult,
-  SessionUpdate,
+  RunProgressResult,
+  RunUpdate,
   TeacherMonitorResponse,
-} from "@/types/session";
+} from "@/types/run";
 
 // helpers
 function formatDate(iso: string, locale: string) {
@@ -106,10 +106,10 @@ function SegmentedProgressBar({ pp }: { pp: PlayerProgressSummary }) {
 
   return (
     <div className="w-full flex rounded-full h-2 overflow-hidden bg-gray-100 gap-px">
-      {segments.map(({ count, color }, i) =>
+      {segments.map(({ count, color }) =>
         count > 0 ? (
           <div
-            key={i}
+            key={color}
             className="h-full transition-all duration-300"
             style={{
               width: `${(count / total) * 100}%`,
@@ -147,9 +147,9 @@ function SegmentLegend({
     <div className="flex flex-wrap mt-1">
       {items
         .filter((it) => it.count > 0)
-        .map((it, i) => (
+        .map((it) => (
           <span
-            key={i}
+            key={it.label}
             className="flex items-center gap-1.5 text-xs text-gray-500 mr-2"
           >
             <span
@@ -166,29 +166,27 @@ function SegmentLegend({
 // Player detail drawer
 
 function PlayerDetailDrawer({
-  sessionId,
+  runId,
   pp,
   onClose,
   onReviewed,
   t,
-  tCommon,
 }: {
-  sessionId: string;
+  runId: string;
   pp: PlayerProgressSummary;
   onClose: () => void;
   onReviewed: () => void;
   t: ReturnType<typeof useTranslations<"game.monitor">>;
-  tCommon: ReturnType<typeof useTranslations<"common">>;
 }) {
-  const [items, setItems] = useState<SessionProgressResult[] | null>(null);
+  const [items, setItems] = useState<RunProgressResult[] | null>(null);
   const [reviewScores, setReviewScores] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   useEffect(() => {
-    getPlayerProgressDetail(sessionId, pp.player.id)
+    getPlayerProgressDetail(runId, pp.player.id)
       .then(setItems)
       .catch(() => setItems([]));
-  }, [sessionId, pp.player.id]);
+  }, [runId, pp.player.id]);
 
   const handleReview = async (progressId: string) => {
     const raw = reviewScores[progressId];
@@ -199,7 +197,7 @@ function PlayerDetailDrawer({
       await reviewAnswer(progressId, score);
       onReviewed();
       // Refresh items
-      const updated = await getPlayerProgressDetail(sessionId, pp.player.id);
+      const updated = await getPlayerProgressDetail(runId, pp.player.id);
       setItems(updated);
     } catch {
       // ignore
@@ -225,7 +223,9 @@ function PlayerDetailDrawer({
   );
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismisses drawer on click
     <div
+      role="presentation"
       style={{
         position: "fixed",
         inset: 0,
@@ -267,6 +267,7 @@ function PlayerDetailDrawer({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
           >
@@ -307,7 +308,13 @@ function PlayerDetailDrawer({
                 }
 
                 // Get selected options
-                const q = p.question!;
+                const q = p.question ?? {
+                  question_type: "open",
+                  options: [],
+                  body: "",
+                  points: 0,
+                  correct_answers: [] as string[],
+                };
                 const answer = p.answer as Record<string, unknown> | null;
                 const isChoice =
                   q.question_type === "single" ||
@@ -423,7 +430,11 @@ function PlayerDetailDrawer({
                                     height={0}
                                     sizes="200px"
                                     className="rounded mb-1"
-                                    style={{ width: "auto", maxHeight: "6rem", objectFit: "contain" }}
+                                    style={{
+                                      width: "auto",
+                                      maxHeight: "6rem",
+                                      objectFit: "contain",
+                                    }}
                                   />
                                 )}
                                 {opt.text}
@@ -487,6 +498,7 @@ function PlayerDetailDrawer({
                           className="flex-1 border border-gray-300 rounded-lg px-2.5 py-1 text-sm  bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
+                          type="button"
                           onClick={() => handleReview(p.id)}
                           disabled={submitting === p.id || !reviewScores[p.id]}
                           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
@@ -560,11 +572,11 @@ const TEAM_PALETTE = [
 
 export default function MonitorPage() {
   const t = useTranslations("game.monitor");
-  const tSession = useTranslations("game.session");
+  const tRun = useTranslations("game.run");
   const tCommon = useTranslations("common");
   const params = useParams();
   const router = useRouter();
-  const sessionId = params.id as string;
+  const runId = params.id as string;
 
   const locale = useLocale();
   const token = Cookies.get("access_token") ?? "";
@@ -573,12 +585,12 @@ export default function MonitorPage() {
   const [loading, setLoading] = useState(true);
   const [stopping, setStopping] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [session, setSession] = useState<GameSession | null>(null);
+  const [run, setRun] = useState<GameRun | null>(null);
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
 
-  const [showDeleteSession, setShowDeleteSession] = useState(false);
-  const [deletingSession, setDeletingSession] = useState(false);
+  const [showDeleteRun, setShowDeleteRun] = useState(false);
+  const [deletingRun, setDeletingRun] = useState(false);
 
   const [deletePlayerId, setDeletePlayerId] = useState<string | null>(null);
   const [deletingPlayer, setDeletingPlayer] = useState(false);
@@ -589,7 +601,7 @@ export default function MonitorPage() {
 
   // Edit settings
   const [showEditSettings, setShowEditSettings] = useState(false);
-  const [editForm, setEditForm] = useState<SessionUpdate>({});
+  const [editForm, setEditForm] = useState<RunUpdate>({});
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Restart
@@ -603,8 +615,8 @@ export default function MonitorPage() {
   const handleStart = async () => {
     setStarting(true);
     try {
-      const updated = await startSession(sessionId);
-      setSession(updated);
+      const updated = await startRun(runId);
+      setRun(updated);
     } catch {
       // ignore
     } finally {
@@ -613,23 +625,23 @@ export default function MonitorPage() {
   };
 
   const handleCopyLink = () => {
-    if (!session?.session_code) return;
-    const url = `${window.location.origin}/join?code=${session.session_code}`;
+    if (!run?.join_code) return;
+    const url = `${window.location.origin}/join?code=${run.join_code}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
 
-  const handleDeleteSession = async () => {
-    setDeletingSession(true);
+  const handleDeleteRun = async () => {
+    setDeletingRun(true);
     try {
-      await deleteSession(sessionId);
-      router.push("/teacher/sessions");
+      await deleteRun(runId);
+      router.push("/teacher/runs");
     } catch {
       // ignore
     } finally {
-      setDeletingSession(false);
+      setDeletingRun(false);
     }
   };
 
@@ -637,13 +649,11 @@ export default function MonitorPage() {
     if (!deletePlayerId) return;
     setDeletingPlayer(true);
     try {
-      await deletePlayer(sessionId, deletePlayerId);
+      await deletePlayer(runId, deletePlayerId);
       setDeletePlayerId(null);
-      const data = await getMonitor(sessionId);
+      const data = await getMonitor(runId);
       setMonitor(data);
-      setSession((s) =>
-        s ? { ...data.session, status: s.status } : data.session,
-      );
+      setRun((s) => (s ? { ...data.run, status: s.status } : data.run));
     } catch {
       // ignore
     } finally {
@@ -660,17 +670,11 @@ export default function MonitorPage() {
     if (!renamePlayerId) return;
     setRenameSaving(true);
     try {
-      await updateGuestName(
-        sessionId,
-        renamePlayerId,
-        renameValue.trim() || null,
-      );
+      await updateGuestName(runId, renamePlayerId, renameValue.trim() || null);
       setRenamePlayerId(null);
-      const data = await getMonitor(sessionId);
+      const data = await getMonitor(runId);
       setMonitor(data);
-      setSession((s) =>
-        s ? { ...data.session, status: s.status } : data.session,
-      );
+      setRun((s) => (s ? { ...data.run, status: s.status } : data.run));
     } catch {
       // ignore
     } finally {
@@ -679,15 +683,15 @@ export default function MonitorPage() {
   };
 
   const handleOpenEditSettings = () => {
-    if (!session) return;
+    if (!run) return;
     setEditForm({
-      name: session.name ?? "",
-      show_feedback_after_answer: session.show_feedback_after_answer,
-      show_score_after: session.show_score_after,
-      show_correct_answers: session.show_correct_answers,
-      keep_completed_in_materials: session.keep_completed_in_materials,
-      ends_at: session.ends_at ?? undefined,
-      scheduled_at: session.scheduled_at ?? undefined,
+      name: run.name ?? "",
+      show_feedback_after_answer: run.show_feedback_after_answer,
+      show_score_after: run.show_score_after,
+      show_correct_answers: run.show_correct_answers,
+      keep_completed_in_materials: run.keep_completed_in_materials,
+      ends_at: run.ends_at ?? undefined,
+      scheduled_at: run.scheduled_at ?? undefined,
     });
     setShowEditSettings(true);
   };
@@ -695,11 +699,11 @@ export default function MonitorPage() {
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
-      const payload: SessionUpdate = { ...editForm };
+      const payload: RunUpdate = { ...editForm };
       // Convert empty string name to null
       if (payload.name === "") payload.name = null;
-      const updated = await updateSessionSettings(sessionId, payload);
-      setSession((s) => (s ? { ...s, ...updated } : updated));
+      const updated = await updateRunSettings(runId, payload);
+      setRun((s) => (s ? { ...s, ...updated } : updated));
       setShowEditSettings(false);
     } catch {
       // ignore
@@ -711,10 +715,10 @@ export default function MonitorPage() {
   const handleRestart = async () => {
     setRestarting(true);
     try {
-      const updated = await restartSession(sessionId);
-      setSession(updated);
+      const updated = await restartRun(runId);
+      setRun(updated);
       setShowRestartConfirm(false);
-      const data = await getMonitor(sessionId);
+      const data = await getMonitor(runId);
       setMonitor(data);
     } catch {
       // ignore
@@ -723,54 +727,50 @@ export default function MonitorPage() {
     }
   };
 
-  const refreshMonitor = () =>
-    getMonitor(sessionId)
-      .then((data) => {
-        setMonitor(data);
-        setSession((s) =>
-          s ? { ...data.session, status: s.status } : data.session,
-        );
-        // Sync detailPlayer if open
-        if (detailPlayer) {
-          const updated = data.players_progress.find(
-            (p) => p.player.id === detailPlayer.player.id,
-          );
-          if (updated) setDetailPlayer(updated);
-        }
-      })
-      .catch(() => {});
+  // detailPlayer changes when user opens a player — store in ref so refreshMonitor
+  // is always up-to-date without being recreated on every detail-panel open/close
+  const detailPlayerRef = useRef(detailPlayer);
+  detailPlayerRef.current = detailPlayer;
+
+  const refreshMonitor = useCallback(
+    () =>
+      getMonitor(runId)
+        .then((data) => {
+          setMonitor(data);
+          setRun((s) => (s ? { ...data.run, status: s.status } : data.run));
+          // Sync detailPlayer panel if open
+          const dp = detailPlayerRef.current;
+          if (dp) {
+            const updated = data.players_progress.find(
+              (p) => p.player.id === dp.player.id,
+            );
+            if (updated) setDetailPlayer(updated);
+          }
+        })
+        .catch(() => {}),
+    [runId],
+  );
 
   useEffect(() => {
-    getMonitor(sessionId)
+    getMonitor(runId)
       .then((data) => {
         setMonitor(data);
-        setSession(data.session);
+        setRun(data.run);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [runId]);
 
-  const { messages } = useTeacherWebSocket(sessionId, token);
-  const prevLen = useRef(0);
-
-  useEffect(() => {
-    if (messages.length === prevLen.current) return;
-    const newMsgs = messages.slice(prevLen.current);
-    prevLen.current = messages.length;
-
-    for (const raw of newMsgs) {
+  const handleWsMessage = useCallback(
+    (raw: unknown) => {
       const data = raw as Record<string, unknown>;
 
-      if (
-        data.type === "session_completed" ||
-        data.type === "session_stopped"
-      ) {
-        setSession((s) =>
+      if (data.type === "run_completed" || data.type === "run_stopped") {
+        setRun((s) =>
           s
             ? {
                 ...s,
-                status:
-                  data.type === "session_completed" ? "completed" : "stopped",
+                status: data.type === "run_completed" ? "completed" : "stopped",
               }
             : s,
         );
@@ -779,13 +779,16 @@ export default function MonitorPage() {
       if (data.type === "player_finished" || data.type === "player_answered") {
         refreshMonitor();
       }
-    }
-  }, [messages, sessionId]);
+    },
+    [refreshMonitor],
+  );
+
+  useTeacherWebSocket(runId, token, handleWsMessage);
 
   const handleStop = async () => {
     setStopping(true);
     try {
-      await stopSession(sessionId);
+      await stopRun(runId);
       setShowConfirm(false);
     } catch {
       // ignore
@@ -825,17 +828,16 @@ export default function MonitorPage() {
     scheduled: t("statusScheduled"),
   };
 
-  const sessionStatus =
-    session?.status === "active" &&
-    session.ends_at &&
-    new Date(session.ends_at) < new Date()
+  const runStatus =
+    run?.status === "active" &&
+    run.ends_at &&
+    new Date(run.ends_at) < new Date()
       ? "stopped"
-      : session?.status;
-  const isActive = sessionStatus === "active";
-  const canStart = sessionStatus === "waiting" || sessionStatus === "scheduled";
-  const canDelete = sessionStatus !== "active";
-  const canRestart =
-    sessionStatus === "stopped" || sessionStatus === "completed";
+      : run?.status;
+  const isActive = runStatus === "active";
+  const canStart = runStatus === "waiting" || runStatus === "scheduled";
+  const canDelete = runStatus !== "active";
+  const canRestart = runStatus === "stopped" || runStatus === "completed";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -844,10 +846,10 @@ export default function MonitorPage() {
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900">
-              {session?.name ?? t("title")}
+              {run?.name ?? t("title")}
             </h1>
             <Link
-              href={`/teacher/quests/${session?.quest_id}`}
+              href={`/teacher/quests/${run?.quest_id}`}
               className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
             >
               <ExternalLink size={13} />
@@ -856,9 +858,10 @@ export default function MonitorPage() {
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="font-mono text-gray-500 text-sm">
-              {session?.session_code}
+              {run?.join_code}
             </span>
             <button
+              type="button"
               onClick={handleCopyLink}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors"
             >
@@ -876,26 +879,25 @@ export default function MonitorPage() {
                   : "bg-gray-100 text-gray-600"
               }`}
             >
-              {STATUS_LABEL[sessionStatus ?? ""] ?? sessionStatus ?? "—"}
+              {STATUS_LABEL[runStatus ?? ""] ?? runStatus ?? "—"}
             </span>
           </div>
           <div className="flex items-center gap-4 mt-1.5 flex-wrap">
-            {session?.scheduled_at && (
+            {run?.scheduled_at && (
               <span className="flex items-center gap-1 text-xs text-gray-400">
                 <Clock size={12} />
-                {t("scheduleStart")}: {formatDate(session.scheduled_at, locale)}
+                {t("scheduleStart")}: {formatDate(run.scheduled_at, locale)}
               </span>
             )}
-            {session?.ends_at &&
-              session.status !== "stopped" &&
-              session.status !== "completed" && (
+            {run?.ends_at &&
+              run.status !== "stopped" &&
+              run.status !== "completed" && (
                 <span className="flex items-center gap-1 text-xs font-medium text-gray-600">
                   <Clock size={12} />
-                  {t("sessionEndsAt")}: {formatDate(session.ends_at, locale)}
-                  {isActive && new Date(session.ends_at) > new Date() && (
+                  {t("runEndsAt")}: {formatDate(run.ends_at, locale)}
+                  {isActive && new Date(run.ends_at) > new Date() && (
                     <span className="ml-1 text-gray-400 font-normal">
-                      (<TimerDisplay ends_at={session.ends_at} />{" "}
-                      {t("timeLeft")})
+                      (<TimerDisplay ends_at={run.ends_at} /> {t("timeLeft")})
                     </span>
                   )}
                 </span>
@@ -905,6 +907,7 @@ export default function MonitorPage() {
         <div className="flex items-center gap-2">
           {canStart && (
             <button
+              type="button"
               onClick={handleStart}
               disabled={starting}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition-colors"
@@ -915,6 +918,7 @@ export default function MonitorPage() {
           )}
           {isActive && (
             <button
+              type="button"
               onClick={() => setShowConfirm(true)}
               className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium px-4 py-2.5 rounded-xl text-sm transition-colors border border-red-200"
             >
@@ -924,6 +928,7 @@ export default function MonitorPage() {
           )}
           {canRestart && (
             <button
+              type="button"
               onClick={() => setShowRestartConfirm(true)}
               className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium px-4 py-2.5 rounded-xl text-sm transition-colors border border-blue-200"
             >
@@ -933,7 +938,8 @@ export default function MonitorPage() {
           )}
           {canDelete && (
             <button
-              onClick={() => setShowDeleteSession(true)}
+              type="button"
+              onClick={() => setShowDeleteRun(true)}
               className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-red-600 font-medium px-3 py-2.5 rounded-xl text-sm transition-colors border border-gray-200"
             >
               <Trash2 size={14} />
@@ -968,14 +974,15 @@ export default function MonitorPage() {
         </div>
       </div>
 
-      {/* Session settings */}
-      {session && (
+      {/* Run settings */}
+      {run && (
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
               {t("settingsTitle")}
             </p>
             <button
+              type="button"
               onClick={handleOpenEditSettings}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-600 transition-colors"
             >
@@ -988,39 +995,35 @@ export default function MonitorPage() {
               className="inline-flex items-center gap-1.5 text-xs rounded-full bg-blue-50 text-blue-700 font-medium"
               style={{ padding: "3px 10px" }}
             >
-              {session.max_players === 1 ? (
+              {run.max_players === 1 ? (
                 <>
-                  <User size={11} /> {tSession("solo")}
+                  <User size={11} /> {tRun("solo")}
                 </>
               ) : (
                 <>
-                  <Users size={11} /> {tSession("teamMode")} ·{" "}
-                  {session.max_players}
+                  <Users size={11} /> {tRun("teamMode")} · {run.max_players}
                 </>
               )}
             </span>
-            {session.max_players > 1 && (
+            {run.max_players > 1 && (
               <SettingChip
-                on={session.allow_solo_in_team}
-                label={tSession("allowSolo")}
+                on={run.allow_solo_in_team}
+                label={tRun("allowSolo")}
               />
             )}
             <SettingChip
-              on={session.show_feedback_after_answer}
-              label={tSession("showFeedback")}
+              on={run.show_feedback_after_answer}
+              label={tRun("showFeedback")}
             />
             <SettingChip
-              on={session.keep_completed_in_materials}
-              label={tSession("keepCompleted")}
+              on={run.keep_completed_in_materials}
+              label={tRun("keepCompleted")}
             />
-            <SettingChip
-              on={session.show_score_after}
-              label={tSession("showScore")}
-            />
-            {session.show_score_after && (
+            <SettingChip on={run.show_score_after} label={tRun("showScore")} />
+            {run.show_score_after && (
               <SettingChip
-                on={session.show_correct_answers}
-                label={tSession("showCorrect")}
+                on={run.show_correct_answers}
+                label={tRun("showCorrect")}
               />
             )}
           </div>
@@ -1030,10 +1033,19 @@ export default function MonitorPage() {
       {/* Players list */}
       <div className="space-y-3">
         {players.map((pp: PlayerProgressSummary) => (
+          // biome-ignore lint/a11y/useSemanticElements: player card needs div for complex layout
           <div
             key={pp.player.id}
             className="bg-white rounded-2xl shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow"
+            role="button"
+            tabIndex={0}
             onClick={() => setDetailPlayer(pp)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setDetailPlayer(pp);
+              }
+            }}
           >
             <div className="flex items-center gap-3 mb-3">
               <div
@@ -1051,12 +1063,13 @@ export default function MonitorPage() {
 
               <div className="flex-1 min-w-0">
                 {renamePlayerId === pp.player.id ? (
+                  // biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation wrapper for rename input
                   <div
+                    role="presentation"
                     className="flex items-center gap-2"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <input
-                      autoFocus
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
                       onKeyDown={(e) => {
@@ -1067,6 +1080,7 @@ export default function MonitorPage() {
                       className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 focus:border-gray-500 w-40"
                     />
                     <button
+                      type="button"
                       onClick={handleSaveRename}
                       disabled={renameSaving}
                       className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors"
@@ -1074,6 +1088,7 @@ export default function MonitorPage() {
                       {tCommon("save")}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setRenamePlayerId(null)}
                       className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5"
                     >
@@ -1118,11 +1133,14 @@ export default function MonitorPage() {
               </div>
 
               {renamePlayerId !== pp.player.id && (
+                // biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation wrapper for action buttons
                 <div
+                  role="presentation"
                   className="flex items-center gap-1 flex-shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
+                    type="button"
                     onClick={() =>
                       handleStartRename(pp.player.id, pp.player.display_name)
                     }
@@ -1132,6 +1150,7 @@ export default function MonitorPage() {
                     <Pencil size={14} />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setDeletePlayerId(pp.player.id)}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                     title={t("deletePlayer")}
@@ -1186,12 +1205,11 @@ export default function MonitorPage() {
       {/* Player detail drawer */}
       {detailPlayer && (
         <PlayerDetailDrawer
-          sessionId={sessionId}
+          runId={runId}
           pp={detailPlayer}
           onClose={() => setDetailPlayer(null)}
           onReviewed={refreshMonitor}
           t={t}
-          tCommon={tCommon}
         />
       )}
 
@@ -1211,12 +1229,14 @@ export default function MonitorPage() {
             <p className="text-gray-600 text-sm mb-6">{t("stopConfirm")}</p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowConfirm(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleStop}
                 disabled={stopping}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -1228,8 +1248,8 @@ export default function MonitorPage() {
         </div>
       )}
 
-      {/* Confirm delete session dialog */}
-      {showDeleteSession && (
+      {/* Confirm delete run dialog */}
+      {showDeleteRun && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
@@ -1238,25 +1258,27 @@ export default function MonitorPage() {
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle size={24} className="text-red-500 flex-shrink-0" />
               <h3 className="text-lg font-semibold text-gray-900">
-                {t("deleteSession")}
+                {t("deleteRun")}
               </h3>
             </div>
             <p className="text-gray-600 text-sm mb-6">
-              {t("deleteSessionConfirm")}
+              {t("deleteRunConfirm")}
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowDeleteSession(false)}
+                type="button"
+                onClick={() => setShowDeleteRun(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
-                onClick={handleDeleteSession}
-                disabled={deletingSession}
+                type="button"
+                onClick={handleDeleteRun}
+                disabled={deletingRun}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
-                {deletingSession ? "..." : tCommon("delete")}
+                {deletingRun ? "..." : tCommon("delete")}
               </button>
             </div>
           </div>
@@ -1264,7 +1286,7 @@ export default function MonitorPage() {
       )}
 
       {/* Edit settings modal */}
-      {showEditSettings && session && (
+      {showEditSettings && run && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
@@ -1276,10 +1298,14 @@ export default function MonitorPage() {
 
             {/* Name */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                {t("sessionName")}
+              <label
+                htmlFor="edit-run-name"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
+                {t("runName")}
               </label>
               <input
+                id="edit-run-name"
                 value={editForm.name ?? ""}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, name: e.target.value }))
@@ -1290,10 +1316,14 @@ export default function MonitorPage() {
 
             {/* Ends at */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label
+                htmlFor="edit-run-ends-at"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
                 {t("endsAt")}
               </label>
               <input
+                id="edit-run-ends-at"
                 type="datetime-local"
                 value={
                   editForm.ends_at
@@ -1315,11 +1345,11 @@ export default function MonitorPage() {
             {/* Toggles */}
             {(
               [
-                ["show_feedback_after_answer", tSession("showFeedback")],
-                ["keep_completed_in_materials", tSession("keepCompleted")],
-                ["show_score_after", tSession("showScore")],
-                ["show_correct_answers", tSession("showCorrect")],
-              ] as [keyof SessionUpdate, string][]
+                ["show_feedback_after_answer", tRun("showFeedback")],
+                ["keep_completed_in_materials", tRun("keepCompleted")],
+                ["show_score_after", tRun("showScore")],
+                ["show_correct_answers", tRun("showCorrect")],
+              ] as [keyof RunUpdate, string][]
             ).map(([key, label]) => (
               <label
                 key={key}
@@ -1339,12 +1369,14 @@ export default function MonitorPage() {
 
             <div className="flex gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setShowEditSettings(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleSaveSettings}
                 disabled={savingSettings}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -1375,12 +1407,14 @@ export default function MonitorPage() {
             <p className="text-gray-600 text-sm mb-6">{t("restartConfirm")}</p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowRestartConfirm(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleRestart}
                 disabled={restarting}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -1410,12 +1444,14 @@ export default function MonitorPage() {
             </p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setDeletePlayerId(null)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleDeletePlayer}
                 disabled={deletingPlayer}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"

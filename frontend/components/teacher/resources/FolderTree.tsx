@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
 import {
   ChevronRight,
   Folder,
@@ -10,8 +8,10 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { createFolder, deleteFolder } from "@/lib/api/resources";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { useResourceStore } from "@/hooks/useResourceStore";
+import { createFolder, deleteFolder } from "@/lib/api/resources";
 import type { FolderResponse } from "@/types/resource";
 
 interface FolderNodeProps {
@@ -103,6 +103,7 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
 
   return (
     <div className="relative">
+      {/* biome-ignore lint/a11y/useSemanticElements: folder row needs div for complex styling with children */}
       <div
         className={`group relative z-20 flex items-center gap-2 w-full pr-2 py-1.5 rounded-md text-sm transition-colors ${
           isActive
@@ -110,10 +111,19 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
             : "text-gray-700 hover:bg-gray-100"
         } cursor-pointer`}
         style={{ paddingLeft: `${currentPadding}px` }}
+        role="button"
+        tabIndex={0}
         onClick={() => setSelectedFolder(folder.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedFolder(folder.id);
+          }
+        }}
       >
         {children.length > 0 || isAddingChild ? (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setExpanded((v) => !v);
@@ -142,16 +152,16 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
 
         <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <button
+            type="button"
             onClick={handleAddChildClick}
-            // Додано cursor-pointer
             className="p-0.5 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
             title={t("newSubfolder") || "Додати підпапку"}
           >
             <Plus size={14} />
           </button>
           <button
+            type="button"
             onClick={handleDelete}
-            // Додано cursor-pointer та змінено hover на hover:text-blue-600
             className="p-0.5 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
             title={t("delete") || "Видалити"}
           >
@@ -162,7 +172,6 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
 
       {expanded && (
         <div className="relative flex flex-col gap-0.5">
-          {/* Вертикальна лінія-напрямна для дітей */}
           <div
             className="absolute top-0 bottom-0 w-px bg-gray-200 pointer-events-none z-30"
             style={{ left: `${guideLineLeft}px` }}
@@ -185,6 +194,7 @@ function FolderNode({ folder, allFolders, depth }: FolderNodeProps) {
               }}
             >
               <input
+                // biome-ignore lint/a11y/noAutofocus: programmatically revealed inline form
                 autoFocus
                 value={childName}
                 onChange={(e) => setChildName(e.target.value)}
@@ -252,6 +262,7 @@ export function FolderTree() {
           {t("folders.title") || "ПАПКИ"}
         </span>
         <button
+          type="button"
           onClick={() => setIsAdding((v) => !v)}
           className="p-1 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
           title={t("folders.new") || "Нова папка"}
@@ -261,13 +272,22 @@ export function FolderTree() {
       </div>
 
       {/* Всі ресурси (Root/Library) */}
+      {/* biome-ignore lint/a11y/useSemanticElements: root library row needs div for consistent styling */}
       <div
         className={`flex items-center gap-2 w-full px-2 py-1.5 mb-1 rounded-md text-sm transition-colors cursor-pointer ${
           selectedFolderId === null
             ? "bg-blue-50 text-blue-700 font-medium"
             : "text-gray-700 hover:bg-gray-100"
         }`}
+        role="button"
+        tabIndex={0}
         onClick={() => setSelectedFolder(null)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedFolder(null);
+          }
+        }}
       >
         <Library
           size={16}
@@ -293,6 +313,7 @@ export function FolderTree() {
         {isAdding && (
           <div className="mt-1 px-2">
             <input
+              // biome-ignore lint/a11y/noAutofocus: programmatically revealed inline form
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}

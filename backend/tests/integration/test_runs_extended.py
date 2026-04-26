@@ -20,36 +20,36 @@ async def _create_run(client, teacher_headers, quest_id, max_players=1, **extra)
     return resp.json()
 
 
-async def _join_run(client, session_code, guest_name="Tester"):
+async def _join_run(client, join_code, guest_name="Tester"):
     resp = await client.post(
         "/api/runs/join",
-        json={"session_code": session_code, "guest_name": guest_name},
+        json={"join_code": join_code, "guest_name": guest_name},
     )
     assert resp.status_code == 200, resp.text
     return resp.json()
 
 
 # ---------------------------------------------------------------------------
-# GET /code/{session_code}
+# GET /code/{join_code}
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_get_run_by_code(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
 
     resp = await client.get(f"/api/runs/code/{code}")
     assert resp.status_code == 200
-    assert resp.json()["session_code"] == code
+    assert resp.json()["join_code"] == code
 
 
 @pytest.mark.asyncio
 async def test_get_run_by_code_lowercase(
     client: AsyncClient, teacher_headers, db_quest
 ):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"].lower()
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"].lower()
 
     resp = await client.get(f"/api/runs/code/{code}")
     assert resp.status_code == 200
@@ -69,8 +69,8 @@ async def test_get_run_by_code_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_stop_run(client: AsyncClient, teacher_headers, db_quest):
     with patch("app.routes.runs.manager.broadcast_to_all", new_callable=AsyncMock):
-        session = await _create_run(client, teacher_headers, db_quest.id)
-        sid = session["id"]
+        run = await _create_run(client, teacher_headers, db_quest.id)
+        sid = run["id"]
 
         resp = await client.post(f"/api/runs/{sid}/stop", headers=teacher_headers)
     assert resp.status_code == 200
@@ -79,8 +79,8 @@ async def test_stop_run(client: AsyncClient, teacher_headers, db_quest):
 
 @pytest.mark.asyncio
 async def test_stop_run_unauthorized(client: AsyncClient, db_quest, teacher_headers):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
     resp = await client.post(f"/api/runs/{sid}/stop")
     assert resp.status_code == 401
 
@@ -92,8 +92,8 @@ async def test_stop_run_unauthorized(client: AsyncClient, db_quest, teacher_head
 
 @pytest.mark.asyncio
 async def test_update_run_settings(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
 
     resp = await client.patch(
         f"/api/runs/{sid}/settings",
@@ -110,8 +110,8 @@ async def test_update_run_settings(client: AsyncClient, teacher_headers, db_ques
 async def test_update_settings_wrong_teacher(
     client: AsyncClient, teacher_headers, teacher, db_quest, db_session
 ):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
 
     # Second teacher token
     import uuid
@@ -151,8 +151,8 @@ async def test_update_settings_wrong_teacher(
 @pytest.mark.asyncio
 async def test_restart_run(client: AsyncClient, teacher_headers, db_quest):
     with patch("app.routes.runs.manager.broadcast_to_all", new_callable=AsyncMock):
-        session = await _create_run(client, teacher_headers, db_quest.id)
-        sid = session["id"]
+        run = await _create_run(client, teacher_headers, db_quest.id)
+        sid = run["id"]
 
         # Stop it first
         await client.post(f"/api/runs/{sid}/stop", headers=teacher_headers)
@@ -170,8 +170,8 @@ async def test_restart_run(client: AsyncClient, teacher_headers, db_quest):
 
 @pytest.mark.asyncio
 async def test_delete_run(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
 
     resp = await client.delete(f"/api/runs/{sid}", headers=teacher_headers)
     assert resp.status_code == 204
@@ -186,8 +186,8 @@ async def test_delete_run(client: AsyncClient, teacher_headers, db_quest):
 async def test_delete_active_run_blocked(
     client: AsyncClient, teacher_headers, db_quest
 ):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
 
     # Start the session to make it ACTIVE
     await client.post(f"/api/runs/{sid}/start", headers=teacher_headers)
@@ -203,9 +203,9 @@ async def test_delete_active_run_blocked(
 
 @pytest.mark.asyncio
 async def test_get_game_info(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
+    sid = run["id"]
 
     player = await _join_run(client, code)
     token = player["guest_token"]
@@ -226,9 +226,9 @@ async def test_get_game_info(client: AsyncClient, teacher_headers, db_quest):
 
 @pytest.mark.asyncio
 async def test_get_my_progress_empty(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
+    sid = run["id"]
 
     player = await _join_run(client, code)
     token = player["guest_token"]
@@ -243,9 +243,9 @@ async def test_get_my_progress_empty(client: AsyncClient, teacher_headers, db_qu
 
 @pytest.mark.asyncio
 async def test_get_team_progress_empty(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
+    sid = run["id"]
 
     player = await _join_run(client, code)
     token = player["guest_token"]
@@ -265,9 +265,9 @@ async def test_get_team_progress_empty(client: AsyncClient, teacher_headers, db_
 
 @pytest.mark.asyncio
 async def test_update_player_guest_name(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
+    sid = run["id"]
 
     player = await _join_run(client, code, guest_name="OldName")
     pid = player["id"]
@@ -288,9 +288,9 @@ async def test_update_player_guest_name(client: AsyncClient, teacher_headers, db
 
 @pytest.mark.asyncio
 async def test_delete_player(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
+    sid = run["id"]
 
     player = await _join_run(client, code)
     pid = player["id"]
@@ -311,12 +311,12 @@ async def test_delete_player(client: AsyncClient, teacher_headers, db_quest):
 async def test_join_requires_guest_name_for_unauthenticated(
     client: AsyncClient, teacher_headers, db_quest
 ):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
 
     resp = await client.post(
         "/api/runs/join",
-        json={"session_code": code},  # no guest_name
+        json={"join_code": code},  # no guest_name
     )
     assert resp.status_code == 400
 
@@ -325,7 +325,7 @@ async def test_join_requires_guest_name_for_unauthenticated(
 async def test_join_nonexistent_run(client: AsyncClient):
     resp = await client.post(
         "/api/runs/join",
-        json={"session_code": "XXXXXX", "guest_name": "Test"},
+        json={"join_code": "XXXXXX", "guest_name": "Test"},
     )
     assert resp.status_code == 404
 
@@ -339,8 +339,8 @@ async def test_join_nonexistent_run(client: AsyncClient):
 async def test_guest_token_required_for_my_progress(
     client: AsyncClient, teacher_headers, db_quest
 ):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
     resp = await client.get(f"/api/runs/{sid}/my-progress")
     assert resp.status_code == 401
 
@@ -349,8 +349,8 @@ async def test_guest_token_required_for_my_progress(
 async def test_invalid_guest_token_rejected(
     client: AsyncClient, teacher_headers, db_quest
 ):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
     resp = await client.get(
         f"/api/runs/{sid}/my-progress",
         headers={"x-guest-token": "totally_invalid_token"},
@@ -365,9 +365,9 @@ async def test_invalid_guest_token_rejected(
 
 @pytest.mark.asyncio
 async def test_player_timeout(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    code = session["session_code"]
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    code = run["join_code"]
+    sid = run["id"]
 
     player = await _join_run(client, code)
     token = player["guest_token"]
@@ -390,16 +390,16 @@ async def test_player_timeout(client: AsyncClient, teacher_headers, db_quest):
 
 @pytest.mark.asyncio
 async def test_results_requires_token(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
     resp = await client.get(f"/api/runs/{sid}/results")
     assert resp.status_code == 422  # missing required guest_token query param
 
 
 @pytest.mark.asyncio
 async def test_results_invalid_token(client: AsyncClient, teacher_headers, db_quest):
-    session = await _create_run(client, teacher_headers, db_quest.id)
-    sid = session["id"]
+    run = await _create_run(client, teacher_headers, db_quest.id)
+    sid = run["id"]
     resp = await client.get(f"/api/runs/{sid}/results?guest_token=invalid")
     assert resp.status_code == 404
 
@@ -414,11 +414,11 @@ async def test_create_scheduled_run(client: AsyncClient, teacher_headers, db_que
     from datetime import datetime, timedelta, timezone
 
     future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
-    session = await _create_run(
+    run = await _create_run(
         client,
         teacher_headers,
         db_quest.id,
         scheduled_at=future,
     )
-    assert session["status"] == "scheduled"
-    assert session["scheduled_at"] is not None
+    assert run["status"] == "scheduled"
+    assert run["scheduled_at"] is not None

@@ -16,7 +16,7 @@ class RunChat(Base):
     __tablename__ = "run_chats"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    session_id: Mapped[uuid.UUID] = mapped_column(
+    run_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("game_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     player_id: Mapped[uuid.UUID] = mapped_column(
@@ -37,4 +37,4 @@ class RunChat(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<RunChat session_id={self.session_id!r}>"
+        return f"<RunChat run_id={self.run_id!r}>"

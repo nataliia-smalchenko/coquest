@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Check, GraduationCap, School } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "@/i18n/navigation";
 import api from "@/lib/api";
-import { Check, GraduationCap, School } from "lucide-react";
 
 export default function ProfilePage() {
   const t = useTranslations("profile");

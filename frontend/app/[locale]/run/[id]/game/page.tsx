@@ -3,12 +3,12 @@
 import { BookOpen, Lightbulb, MessageSquare, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ChatPanel from "@/components/game/ChatPanel";
 import MapInteractive from "@/components/game/MapInteractive";
 import ResourceModal from "@/components/game/ResourceModal";
 import TimerDisplay from "@/components/game/TimerDisplay";
-import { getSessionStorage, useGameSession } from "@/hooks/useGameSession";
+import { getRunStorage, useGameRun } from "@/hooks/useGameRun";
 import { usePlayerWebSocket } from "@/hooks/useWebSocket";
 import { useRouter } from "@/i18n/navigation";
 import { getMap } from "@/lib/api/maps";
@@ -21,14 +21,10 @@ import {
   markViewed,
   playerTimeout,
   submitAnswer,
-} from "@/lib/api/sessions";
+} from "@/lib/api/runs";
 import type { MapResponse } from "@/types/map";
 import type { ResourceDetailPublicResponse } from "@/types/resource";
-import type {
-  GameInfoResponse,
-  GameSession,
-  SessionProgress,
-} from "@/types/session";
+import type { GameInfoResponse, GameRun, RunProgress } from "@/types/run";
 
 interface AnswerResult {
   correct: boolean | null;
@@ -54,11 +50,11 @@ export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const locale = useLocale();
-  const sessionId = params.id as string;
+  const runId = params.id as string;
 
   const {
-    session,
-    setSession,
+    run,
+    setRun,
     myPlayer,
     setMyPlayer,
     setGuestToken,
@@ -68,7 +64,7 @@ export default function GamePage() {
     updatePlayer,
     chatMessages,
     handleWsMessage,
-  } = useGameSession();
+  } = useGameRun();
 
   const [stored, setStored] = useState<{
     guest_token: string;
@@ -79,7 +75,7 @@ export default function GamePage() {
   const [loadingMap, setLoadingMap] = useState(true);
 
   // Teammates' completed progress (for team materials panel)
-  const [teamProgress, setTeamProgress] = useState<SessionProgress[]>([]);
+  const [teamProgress, setTeamProgress] = useState<RunProgress[]>([]);
 
   // Cache resource titles by resource_id (populated when a resource is loaded)
   const [resourceTitles, setResourceTitles] = useState<Record<string, string>>(
@@ -116,19 +112,16 @@ export default function GamePage() {
   );
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isTeamMode = (session?.max_players ?? 1) > 1;
+  const isTeamMode = (run?.max_players ?? 1) > 1;
   const myPlayerId = stored?.player_id ?? "";
 
   // The one currently assigned (and not yet completed) map object in MY progress
   const activeProgress = useMemo(
-    () => progress.find((p) => p.status === "assigned" && p.map_object_id) ?? null,
+    () =>
+      progress.find((p) => p.status === "assigned" && p.map_object_id) ?? null,
     [progress],
   );
   const activeObjectId = activeProgress?.map_object_id ?? null;
-
-  // In team mode: am I the hint player for the current step?
-  const iAmHintPlayer =
-    isTeamMode && teamStepInfo?.hint_player_id === myPlayerId;
 
   // In team mode: am I the active player for current question step?
   const iAmActivePlayer =
@@ -159,42 +152,40 @@ export default function GamePage() {
   }, [gameInfo?.settings?.time_limit_minutes, myPlayer?.started_at]);
 
   const effectiveEndsAt = useMemo(() => {
-    const candidates = [playerEndsAt, session?.ends_at].filter(
-      Boolean,
-    ) as string[];
+    const candidates = [playerEndsAt, run?.ends_at].filter(Boolean) as string[];
     if (candidates.length === 0) return null;
     return candidates.reduce((a, b) => (new Date(a) < new Date(b) ? a : b));
-  }, [playerEndsAt, session?.ends_at]);
+  }, [playerEndsAt, run?.ends_at]);
 
   const showFeedback =
-    session?.show_feedback_after_answer ??
+    run?.show_feedback_after_answer ??
     gameInfo?.settings?.show_feedback_after_answer ??
     false;
   const showFeedbackRef = useRef(showFeedback);
   showFeedbackRef.current = showFeedback;
 
   const keepCompleted =
-    session?.keep_completed_in_materials ??
+    run?.keep_completed_in_materials ??
     gameInfo?.settings?.keep_completed_in_materials ??
     true;
 
-  // Load stored session data
+  // Load stored run data
   useEffect(() => {
-    const s = getSessionStorage(sessionId);
+    const s = getRunStorage(runId);
     if (!s) {
       router.push("/join");
       return;
     }
     setStored(s);
     setGuestToken(s.guest_token);
-  }, [sessionId, router, setGuestToken]);
+  }, [runId, router, setGuestToken]);
 
   // Load game info + map + progress
   useEffect(() => {
     if (!stored) return;
     const load = async () => {
       try {
-        const info = await getGameInfo(sessionId, stored.guest_token, locale);
+        const info = await getGameInfo(runId, stored.guest_token, locale);
         setGameInfo(info);
         if (info.map_slug) {
           const mapData = await getMap(info.map_slug);
@@ -204,7 +195,7 @@ export default function GamePage() {
         // ignore
       }
       try {
-        const prog = await getMyProgress(sessionId, stored.guest_token);
+        const prog = await getMyProgress(runId, stored.guest_token);
         setProgress(prog);
       } catch {
         // ignore
@@ -212,46 +203,44 @@ export default function GamePage() {
       setLoadingMap(false);
     };
     load();
-  }, [stored, sessionId, locale, setProgress]);
+  }, [stored, runId, locale, setProgress]);
 
   // In team mode: load team progress for materials panel (reconnect case)
   useEffect(() => {
     if (!stored || !isTeamMode) return;
-    getTeamProgress(sessionId, stored.guest_token)
+    getTeamProgress(runId, stored.guest_token)
       .then(setTeamProgress)
       .catch(() => {});
-  }, [stored, sessionId, isTeamMode]);
+  }, [stored, runId, isTeamMode]);
 
   // In team mode: load initial step info (hint/active player) for reconnect/page-load case
   useEffect(() => {
     if (!stored || !isTeamMode || !myPlayer?.team_id || !map) return;
-    getTeamStepInfo(sessionId, myPlayer.team_id, stored.guest_token).then(
-      (si) => {
-        if (!si) return;
-        setTeamStepInfo(si as TeamStepInfo);
-        // Show hint if I am the hint player
-        if (si.hint_player_id === stored.player_id && si.map_object_id) {
-          const obj = map.objects.find((o) => o.id === si.map_object_id);
-          if (obj) {
-            const hints =
-              obj.hints.filter((h) => h.language === locale).length > 0
-                ? obj.hints.filter((h) => h.language === locale)
-                : obj.hints.filter((h) => h.language === "uk").length > 0
-                  ? obj.hints.filter((h) => h.language === "uk")
-                  : obj.hints;
-            if (hints.length > 0) {
-              const hint = hints[Math.floor(Math.random() * hints.length)];
-              setPendingHint(hint.hint_text);
-              setPendingHintIsTeam(
-                si.resource_type === "question" &&
-                  si.active_player_id !== stored.player_id,
-              );
-            }
+    getTeamStepInfo(runId, myPlayer.team_id, stored.guest_token).then((si) => {
+      if (!si) return;
+      setTeamStepInfo(si as TeamStepInfo);
+      // Show hint if I am the hint player
+      if (si.hint_player_id === stored.player_id && si.map_object_id) {
+        const obj = map.objects.find((o) => o.id === si.map_object_id);
+        if (obj) {
+          const hints =
+            obj.hints.filter((h) => h.language === locale).length > 0
+              ? obj.hints.filter((h) => h.language === locale)
+              : obj.hints.filter((h) => h.language === "uk").length > 0
+                ? obj.hints.filter((h) => h.language === "uk")
+                : obj.hints;
+          if (hints.length > 0) {
+            const hint = hints[Math.floor(Math.random() * hints.length)];
+            setPendingHint(hint.hint_text);
+            setPendingHintIsTeam(
+              si.resource_type === "question" &&
+                si.active_player_id !== stored.player_id,
+            );
           }
         }
-      },
-    );
-  }, [stored, sessionId, isTeamMode, myPlayer?.team_id, map, locale]);
+      }
+    });
+  }, [stored, runId, isTeamMode, myPlayer?.team_id, map, locale]);
 
   // Show hint when a new active object is revealed
   // Solo mode only — team mode uses WS team_step events
@@ -318,75 +307,85 @@ export default function GamePage() {
     [myPlayerId, map, locale],
   );
 
-  // WS
-  const { messages, send: wsSend, reconnecting } = usePlayerWebSocket(sessionId, token);
-
   const modalProgressIdRef = useRef<string | null>(null);
   modalProgressIdRef.current = modalProgressId;
 
-  const prevLen = useRef(0);
-  useEffect(() => {
-    if (messages.length === prevLen.current) return;
-    const newMsgs = messages.slice(prevLen.current);
-    prevLen.current = messages.length;
+  // Refs for mutable values read inside the WS handler.
+  // Using refs avoids stale closures without putting them in useCallback deps
+  // (which would recreate the callback on every state change and cause reconnects).
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
+  const isTeamModeRef = useRef(isTeamMode);
+  isTeamModeRef.current = isTeamMode;
+  const showChatRef = useRef(showChat);
+  showChatRef.current = showChat;
+  const handleTeamStepEventRef = useRef(handleTeamStepEvent);
+  handleTeamStepEventRef.current = handleTeamStepEvent;
+  const myPlayerIdRef = useRef(myPlayerId);
+  myPlayerIdRef.current = myPlayerId;
 
-    for (const raw of newMsgs) {
+  const handleWsMessageCb = useCallback(
+    (raw: unknown) => {
       const data = raw as Record<string, unknown>;
       handleWsMessage(data);
 
       if (data.type === "connected") {
-        const sess = data.session as GameSession | undefined;
+        const run = data.run as GameRun | undefined;
         const players = Array.isArray(data.players)
-          ? (data.players as import("@/types/session").SessionPlayer[])
+          ? (data.players as import("@/types/run").RunPlayer[])
           : [];
-        if (sess) {
-          setSession({ ...sess, players });
-          if (stored) {
-            const me = players.find((p) => p.id === stored.player_id);
+        if (run) {
+          setRun({ ...run, players });
+          const current = storedRef.current;
+          if (current) {
+            const me = players.find((p) => p.id === current.player_id);
             if (me) {
               setMyPlayer(me);
               if (me.status === "finished") {
-                router.push(`/session/${sessionId}/results`);
+                router.push(`/run/${runId}/results`);
               }
             }
           }
         }
       }
 
-      if (data.type === "session_started") {
-        const prog = data.progress as SessionProgress[] | undefined;
+      if (data.type === "run_started") {
+        const prog = data.progress as RunProgress[] | undefined;
         if (prog) setProgress(prog);
         const playerStartedAt = data.player_started_at as
           | string
           | null
           | undefined;
-        if (playerStartedAt && stored?.player_id) {
-          updatePlayer({ id: stored.player_id, started_at: playerStartedAt });
-        }
-      }
-
-      if (data.type === "team_started") {
-        const prog = data.progress as SessionProgress[] | undefined;
-        if (prog) setProgress(prog);
-        const playerStartedAt = data.player_started_at as
-          | string
-          | null
-          | undefined;
-        if (playerStartedAt && stored?.player_id) {
-          updatePlayer({ id: stored.player_id, started_at: playerStartedAt });
-        }
-        // Apply initial step info for hint/active player
-        const si = data.step_info as TeamStepInfo | undefined;
-        if (si && si.hint_player_id) {
-          handleTeamStepEvent({
-            ...si,
-            progress_updates: [],
+        if (playerStartedAt && storedRef.current?.player_id) {
+          updatePlayer({
+            id: storedRef.current.player_id,
+            started_at: playerStartedAt,
           });
         }
       }
 
+      if (data.type === "team_started") {
+        const prog = data.progress as RunProgress[] | undefined;
+        if (prog) setProgress(prog);
+        const playerStartedAt = data.player_started_at as
+          | string
+          | null
+          | undefined;
+        if (playerStartedAt && storedRef.current?.player_id) {
+          updatePlayer({
+            id: storedRef.current.player_id,
+            started_at: playerStartedAt,
+          });
+        }
+        // Apply initial step info for hint/active player
+        const si = data.step_info as TeamStepInfo | undefined;
+        if (si?.hint_player_id) {
+          handleTeamStepEventRef.current({ ...si, progress_updates: [] });
+        }
+      }
+
       if (data.type === "answer_result") {
-        const prog = data.progress as SessionProgress;
+        const prog = data.progress as RunProgress;
         if (prog) updateProgress(prog);
         if (
           showFeedbackRef.current &&
@@ -402,14 +401,14 @@ export default function GamePage() {
 
       if (data.type === "team_step_advanced") {
         const si = data as unknown as TeamStepInfo & {
-          completed_by_progress?: SessionProgress | null;
+          completed_by_progress?: RunProgress | null;
         };
-        handleTeamStepEvent(si);
+        handleTeamStepEventRef.current(si);
 
         // Add teammate's completed question to team materials
         if (si.completed_by_progress && si.resource_type === "question") {
           const cp = si.completed_by_progress;
-          if (cp.player_id !== myPlayerId) {
+          if (cp.player_id !== myPlayerIdRef.current) {
             setTeamProgress((prev) => {
               const exists = prev.some((p) => p.id === cp.id);
               return exists ? prev : [...prev, cp];
@@ -417,8 +416,9 @@ export default function GamePage() {
           }
         }
         // Reload own progress to pick up newly activated items
-        if (stored) {
-          getMyProgress(sessionId, stored.guest_token)
+        const current = storedRef.current;
+        if (current) {
+          getMyProgress(runId, current.guest_token)
             .then(setProgress)
             .catch(() => {});
         }
@@ -429,41 +429,44 @@ export default function GamePage() {
         if (viewers) setTextViewers(viewers);
       }
 
-      if (data.type === "chat_message" && !showChat) {
+      if (data.type === "chat_message" && !showChatRef.current) {
         setUnreadChat((n) => n + 1);
       }
 
       if (data.type === "player_finished") {
         const finishedId = data.player_id as string;
-        const myId = stored?.player_id;
         // Solo mode: redirect immediately. Team mode: isTeamDone derived state handles the overlay.
-        if (finishedId === myId && !isTeamMode) {
-          router.push(`/session/${sessionId}/results`);
+        if (
+          finishedId === storedRef.current?.player_id &&
+          !isTeamModeRef.current
+        ) {
+          router.push(`/run/${runId}/results`);
         }
       }
 
-      if (
-        data.type === "session_completed" ||
-        data.type === "session_stopped"
-      ) {
-        router.push(`/session/${sessionId}/results`);
+      if (data.type === "run_completed" || data.type === "run_stopped") {
+        router.push(`/run/${runId}/results`);
       }
-    }
-  }, [
-    messages,
-    handleWsMessage,
-    setSession,
-    setMyPlayer,
-    stored,
-    setProgress,
-    updateProgress,
-    showChat,
-    sessionId,
-    router,
-    handleTeamStepEvent,
-    myPlayerId,
-    updatePlayer,
-  ]);
+    },
+    // All mutable values are read via refs — deps here are stable references only
+    [
+      handleWsMessage,
+      setRun,
+      setMyPlayer,
+      setProgress,
+      updateProgress,
+      updatePlayer,
+      runId,
+      router,
+    ],
+  );
+
+  // WS
+  const { send: wsSend, reconnecting } = usePlayerWebSocket(
+    runId,
+    token,
+    handleWsMessageCb,
+  );
 
   // Reset unread when chat opens
   useEffect(() => {
@@ -503,7 +506,7 @@ export default function GamePage() {
         if (prog?.resource_id && res.title) {
           setResourceTitles((prev) => ({
             ...prev,
-            [prog.resource_id!]: res.title,
+            [prog.resource_id ?? ""]: res.title,
           }));
         }
       } catch {
@@ -522,7 +525,7 @@ export default function GamePage() {
       const updated = await markViewed(modalProgressId, stored.guest_token);
       updateProgress(updated);
       setModalProgressId(null);
-      getMyProgress(sessionId, stored.guest_token)
+      getMyProgress(runId, stored.guest_token)
         .then(setProgress)
         .catch(() => {});
     } catch {
@@ -552,7 +555,7 @@ export default function GamePage() {
         setModalProgressId(null);
         setAnswerResult(null);
       }
-      getMyProgress(sessionId, stored.guest_token)
+      getMyProgress(runId, stored.guest_token)
         .then(setProgress)
         .catch(() => {});
     } catch {
@@ -584,33 +587,25 @@ export default function GamePage() {
   // Team done: every player on my team has status "finished"
   const isTeamDone = useMemo(() => {
     if (!isTeamMode || !myPlayer?.team_id) return false;
-    const teamPlayers = (session?.players ?? []).filter(
+    const teamPlayers = (run?.players ?? []).filter(
       (p) => p.team_id === myPlayer.team_id,
     );
     return (
       teamPlayers.length > 0 &&
       teamPlayers.every((p) => p.status === "finished")
     );
-  }, [isTeamMode, myPlayer?.team_id, session?.players]);
+  }, [isTeamMode, myPlayer?.team_id, run?.players]);
 
   // Solo redirect when own items are all done
   useEffect(() => {
     if (!isTeamMode && isAllCompleted) {
-      router.push(`/session/${sessionId}/results`);
+      router.push(`/run/${runId}/results`);
     }
-  }, [isTeamMode, isAllCompleted, sessionId, router]);
+  }, [isTeamMode, isAllCompleted, runId, router]);
 
   // Team text step: waiting info
   const totalTeamMembers =
-    session?.players?.filter((p) => p.team_id === myPlayer?.team_id).length ??
-    0;
-  const currentTextStepId = useMemo(() => {
-    if (!isTeamMode) return null;
-    const active = progress.find(
-      (p) => p.status === "assigned" && p.map_object_id,
-    );
-    return active ? active.step_order : null;
-  }, [isTeamMode, progress]);
+    run?.players?.filter((p) => p.team_id === myPlayer?.team_id).length ?? 0;
 
   const isWaitingForTeammates =
     isTeamMode &&
@@ -641,12 +636,12 @@ export default function GamePage() {
               onExpire={async () => {
                 if (playerEndsAt && stored) {
                   try {
-                    await playerTimeout(sessionId, stored.guest_token);
+                    await playerTimeout(runId, stored.guest_token);
                   } catch {
                     // ignore
                   }
                 }
-                router.push(`/session/${sessionId}/results`);
+                router.push(`/run/${runId}/results`);
               }}
             />
           )}
@@ -800,7 +795,7 @@ export default function GamePage() {
                 teamProgress
                   .filter((p) => p.status === "answered")
                   .map((p) => {
-                    const teammate = session?.players.find(
+                    const teammate = run?.players.find(
                       (pl) => pl.id === p.player_id,
                     );
                     return (
@@ -849,7 +844,7 @@ export default function GamePage() {
             <p className="text-lg font-bold text-gray-900">{t("completed")}</p>
             <button
               type="button"
-              onClick={() => router.push(`/session/${sessionId}/results`)}
+              onClick={() => router.push(`/run/${runId}/results`)}
               className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors"
             >
               {t("viewResults")}

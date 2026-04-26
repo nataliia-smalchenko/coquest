@@ -21,14 +21,14 @@ async def test_create_and_list_runs(
     data = create.json()
     assert data["quest_id"] == str(db_quest.id)
     assert data["status"] == "waiting"
-    session_code = data["session_code"]
+    join_code = data["join_code"]
 
     # List sessions
     list_resp = await client.get("/api/runs/", headers=teacher_headers)
     assert list_resp.status_code == 200
     sessions = list_resp.json()
     assert len(sessions) >= 1
-    assert any(s["session_code"] == session_code for s in sessions)
+    assert any(s["join_code"] == join_code for s in sessions)
 
 
 @pytest.mark.asyncio
@@ -39,11 +39,11 @@ async def test_join_run_as_guest(client: AsyncClient, teacher_headers: dict, db_
         json={"quest_id": str(db_quest.id), "max_players": 1},
         headers=teacher_headers,
     )
-    session_code = create.json()["session_code"]
+    join_code = create.json()["join_code"]
 
     # Student joins via code
     join = await client.post(
-        "/api/runs/join", json={"session_code": session_code, "guest_name": "TestGuest"}
+        "/api/runs/join", json={"join_code": join_code, "guest_name": "TestGuest"}
     )
     assert join.status_code == 200
     player_data = join.json()
@@ -66,17 +66,17 @@ async def test_rejoin_run(client: AsyncClient, teacher_headers: dict, db_quest):
         json={"quest_id": str(db_quest.id), "max_players": 1},
         headers=teacher_headers,
     )
-    session_code = create.json()["session_code"]
+    join_code = create.json()["join_code"]
 
     # Join
     join = await client.post(
-        "/api/runs/join", json={"session_code": session_code, "guest_name": "Rejoiner"}
+        "/api/runs/join", json={"join_code": join_code, "guest_name": "Rejoiner"}
     )
     token = join.json()["guest_token"]
 
     # Rejoin
     rejoin = await client.post(
-        "/api/runs/rejoin", json={"session_code": session_code, "guest_token": token}
+        "/api/runs/rejoin", json={"join_code": join_code, "guest_token": token}
     )
     assert rejoin.status_code == 200
     assert rejoin.json()["guest_name"] == "Rejoiner"
@@ -90,10 +90,10 @@ async def test_start_run(client: AsyncClient, teacher_headers: dict, db_quest):
         json={"quest_id": str(db_quest.id), "max_players": 1},
         headers=teacher_headers,
     )
-    session_id = create.json()["id"]
+    run_id = create.json()["id"]
 
     # Start
-    start = await client.post(f"/api/runs/{session_id}/start", headers=teacher_headers)
+    start = await client.post(f"/api/runs/{run_id}/start", headers=teacher_headers)
     assert start.status_code == 200
     assert start.json()["status"] == "active"
     assert start.json()["started_at"] is not None
@@ -106,22 +106,22 @@ async def test_player_start_run(client: AsyncClient, teacher_headers: dict, db_q
         json={"quest_id": str(db_quest.id), "max_players": 1},
         headers=teacher_headers,
     )
-    session_id = create.json()["id"]
-    code = create.json()["session_code"]
+    run_id = create.json()["id"]
+    code = create.json()["join_code"]
 
     # Player joins
     join = await client.post(
-        "/api/runs/join", json={"session_code": code, "guest_name": "P1"}
+        "/api/runs/join", json={"join_code": code, "guest_name": "P1"}
     )
     token = join.json()["guest_token"]
 
     # Teacher starts session
-    await client.post(f"/api/runs/{session_id}/start", headers=teacher_headers)
+    await client.post(f"/api/runs/{run_id}/start", headers=teacher_headers)
 
     # Player calls player-start
     # They should send the guest_token in headers as x-guest-token or query param
     p_start = await client.post(
-        f"/api/runs/{session_id}/player-start", headers={"x-guest-token": token}
+        f"/api/runs/{run_id}/player-start", headers={"x-guest-token": token}
     )
     assert p_start.status_code == 200
 
@@ -133,12 +133,10 @@ async def test_teacher_monitor(client: AsyncClient, teacher_headers: dict, db_qu
         json={"quest_id": str(db_quest.id), "max_players": 1},
         headers=teacher_headers,
     )
-    session_id = create.json()["id"]
+    run_id = create.json()["id"]
 
     # Call monitor
-    monitor = await client.get(
-        f"/api/runs/{session_id}/monitor", headers=teacher_headers
-    )
+    monitor = await client.get(f"/api/runs/{run_id}/monitor", headers=teacher_headers)
     assert monitor.status_code == 200
-    assert "session" in monitor.json()
+    assert "run" in monitor.json()
     assert "players_progress" in monitor.json()

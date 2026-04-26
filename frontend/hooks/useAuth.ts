@@ -1,10 +1,11 @@
 "use client";
 
-import { create } from "zustand";
 import Cookies from "js-cookie";
-import { User } from "@/types";
-import { authService } from "@/lib/auth";
+import { create } from "zustand";
 import api from "@/lib/api";
+import { authService } from "@/lib/auth";
+import { getApiDetail } from "@/lib/errors";
+import type { RegisterData, User } from "@/types";
 
 interface AuthState {
   user: User | null;
@@ -12,7 +13,7 @@ interface AuthState {
   error: string | null;
   language: string;
   login: (email: string, password: string) => Promise<User>;
-  register: (data: any) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   fetchUser: () => Promise<void>;
   setLanguage: (lang: string) => Promise<void>;
@@ -34,9 +35,9 @@ export const useAuth = create<AuthState>((set, get) => ({
         isLoading: false,
       });
       return response.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({
-        error: error.response?.data?.detail || "Login failed",
+        error: getApiDetail(error) ?? "Login failed",
         isLoading: false,
       });
       throw error;
@@ -48,9 +49,9 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       await authService.register(data);
       set({ isLoading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({
-        error: error.response?.data?.detail || "Registration failed",
+        error: getApiDetail(error) ?? "Registration failed",
         isLoading: false,
       });
       throw error;
@@ -78,7 +79,7 @@ export const useAuth = create<AuthState>((set, get) => ({
         language: user.preferred_language || "uk",
         isLoading: false,
       });
-    } catch (error) {
+    } catch (_error) {
       set({ user: null, isLoading: false });
     }
   },

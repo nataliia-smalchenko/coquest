@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -32,9 +32,12 @@ function VerifyEmailContent() {
         setStatus("success");
         setMessage("Your email has been successfully verified!");
         setTimeout(() => router.push("/login"), 3000);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setStatus("error");
-        setMessage(err.response?.data?.detail || "Verification failed.");
+        setMessage(
+          (err as { response?: { data?: { detail?: string } } }).response?.data
+            ?.detail || "Verification failed.",
+        );
       }
     };
     verify();
@@ -65,6 +68,7 @@ function VerifyEmailContent() {
           <h2 className="text-3xl font-extrabold text-gray-900">Failed</h2>
           <p>{message}</p>
           <button
+            type="button"
             onClick={() => router.push("/login")}
             className="w-full bg-blue-600 text-white py-2 rounded-md"
           >

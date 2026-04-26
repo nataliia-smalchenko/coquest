@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { getQuest } from "@/lib/api/quests";
-import { createSession } from "@/lib/api/sessions";
+import { createRun } from "@/lib/api/runs";
 import type { QuestResponse } from "@/types/quest";
 
-export default function NewSessionPage() {
-  const t = useTranslations("game.session");
+export default function NewRunPage() {
+  const t = useTranslations("game.run");
   const tCommon = useTranslations("common");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,8 +21,8 @@ export default function NewSessionPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Session name
-  const [sessionName, setSessionName] = useState("");
+  // Run name
+  const [runName, setRunName] = useState("");
 
   // Game mode
   const [maxPlayers, setMaxPlayers] = useState(1);
@@ -50,7 +50,7 @@ export default function NewSessionPage() {
       .then((q) => {
         setQuest(q);
         const title = q.translations?.[0]?.title;
-        if (title) setSessionName(title);
+        if (title) setRunName(title);
       })
       .catch(() => router.push("/teacher/quests"))
       .finally(() => setLoadingQuest(false));
@@ -61,9 +61,9 @@ export default function NewSessionPage() {
     setLoading(true);
     setError(null);
     try {
-      const session = await createSession({
+      const run = await createRun({
         quest_id: questId,
-        name: sessionName || undefined,
+        name: runName || undefined,
         max_players: maxPlayers,
         allow_solo_in_team: maxPlayers > 1 ? allowSoloInTeam : true,
         random_teams: maxPlayers > 1 ? randomTeams : false,
@@ -78,7 +78,7 @@ export default function NewSessionPage() {
         ends_at:
           useEndsAt && endsAt ? new Date(endsAt).toISOString() : undefined,
       });
-      router.push(`/teacher/sessions/${session.id}/monitor`);
+      router.push(`/teacher/runs/${run.id}/monitor`);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;
@@ -166,13 +166,13 @@ export default function NewSessionPage() {
           </p>
         </div>
 
-        {/* Session name */}
+        {/* Run name */}
         <div className={cardStyle}>
-          <p className={sectionLabel}>{t("sessionName")}</p>
+          <p className={sectionLabel}>{t("runName")}</p>
           <input
             type="text"
-            value={sessionName}
-            onChange={(e) => setSessionName(e.target.value)}
+            value={runName}
+            onChange={(e) => setRunName(e.target.value)}
             placeholder={translation?.title ?? ""}
             className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />

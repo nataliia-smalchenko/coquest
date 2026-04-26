@@ -1,9 +1,9 @@
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
-import { GoogleOAuthProvider } from "@react-oauth/google";
-import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import "@/app/[locale]/globals.css";
 
@@ -37,7 +37,7 @@ export default async function LocaleLayout({
 }) {
   const { locale } = await params;
 
-  if (!routing.locales.includes(locale as any)) {
+  if (!routing.locales.includes(locale as (typeof routing.locales)[number])) {
     notFound();
   }
 
@@ -51,7 +51,7 @@ export default async function LocaleLayout({
       <body className="antialiased min-h-screen flex flex-col bg-gray-50">
         <NextIntlClientProvider messages={messages}>
           <GoogleOAuthProvider
-            clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}
+            clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""}
           >
             <Navigation />
 

@@ -1,6 +1,11 @@
-import api from "./api";
 import Cookies from "js-cookie";
-import { AuthResponse, LoginCredentials, RegisterData, User } from "@/types";
+import type {
+  AuthResponse,
+  LoginCredentials,
+  RegisterData,
+  User,
+} from "@/types";
+import api from "./api";
 
 export const authService = {
   async register(data: RegisterData): Promise<AuthResponse> {
@@ -26,12 +31,29 @@ export const authService = {
   logout() {
     Cookies.remove("access_token");
     Cookies.remove("refresh_token");
-    window.location.href = "/login";
+    // Preserve locale prefix so i18n middleware doesn't redirect again
+    const pathLocale =
+      typeof window !== "undefined"
+        ? window.location.pathname.split("/")[1]
+        : "";
+    const validLocales = ["uk", "en"];
+    const prefix = validLocales.includes(pathLocale) ? `/${pathLocale}` : "";
+    window.location.href = `${prefix}/login`;
   },
 
   saveTokens(authResponse: AuthResponse) {
-    Cookies.set("access_token", authResponse.access_token, { expires: 1 / 96 }); // 15 min
-    Cookies.set("refresh_token", authResponse.refresh_token, { expires: 7 }); // 7 days
+    const cookieOpts = {
+      sameSite: "strict" as const,
+      secure: process.env.NODE_ENV === "production",
+    };
+    Cookies.set("access_token", authResponse.access_token, {
+      expires: 1 / 96,
+      ...cookieOpts,
+    }); // 15 min
+    Cookies.set("refresh_token", authResponse.refresh_token, {
+      expires: 7,
+      ...cookieOpts,
+    }); // 7 days
   },
 
   isAuthenticated(): boolean {

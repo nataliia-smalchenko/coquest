@@ -24,7 +24,7 @@ from app.models.game_run import GameRun
 def _make_player(**kw):
     p = MagicMock(spec=RunPlayer)
     p.id = kw.get("id", uuid.uuid4())
-    p.session_id = kw.get("session_id", uuid.uuid4())
+    p.run_id = kw.get("run_id", uuid.uuid4())
     p.team_id = kw.get("team_id", None)
     p.display_name = kw.get("display_name", "Player")
     p.avatar_color = kw.get("avatar_color", "#6366f1")
@@ -35,7 +35,7 @@ def _make_player(**kw):
 def _make_team(**kw):
     t = MagicMock(spec=RunTeam)
     t.id = kw.get("id", uuid.uuid4())
-    t.session_id = kw.get("session_id", uuid.uuid4())
+    t.run_id = kw.get("run_id", uuid.uuid4())
     t.status = kw.get("status", TeamStatus.WAITING)
     t.players = kw.get("players", [])
     t.created_at = kw.get("created_at", datetime.now(timezone.utc))
@@ -44,7 +44,7 @@ def _make_team(**kw):
     return t
 
 
-def _make_session(**kw):
+def _make_run(**kw):
     s = MagicMock(spec=GameRun)
     s.id = kw.get("id", uuid.uuid4())
     s.max_players = kw.get("max_players", 2)
@@ -114,9 +114,9 @@ class TestFindOrCreateTeam:
     @pytest.mark.asyncio
     async def test_returns_existing_team_with_open_slot(self):
         team = _make_team(players=[_make_player()])  # 1 player, max is 2
-        session = _make_session(max_players=2)
+        run = _make_run(max_players=2)
         db = _make_db(scalars=[team])
-        result = await _find_or_create_team(db, session)
+        result = await _find_or_create_team(db, run)
         assert result is team
         db.add.assert_not_called()
 
@@ -125,18 +125,18 @@ class TestFindOrCreateTeam:
         p1 = _make_player()
         p2 = _make_player()
         full_team = _make_team(players=[p1, p2])
-        session = _make_session(max_players=2)
+        run = _make_run(max_players=2)
         db = _make_db(scalars=[full_team])
         db.flush = AsyncMock()
-        await _find_or_create_team(db, session)
+        await _find_or_create_team(db, run)
         db.add.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_creates_new_team_when_none_exist(self):
-        session = _make_session(max_players=2)
+        run = _make_run(max_players=2)
         db = _make_db(scalars=[])
         db.flush = AsyncMock()
-        await _find_or_create_team(db, session)
+        await _find_or_create_team(db, run)
         db.add.assert_called_once()
 
 
@@ -148,20 +148,20 @@ class TestFindOrCreateTeam:
 class TestCleanupStaleTeams:
     @pytest.mark.asyncio
     async def test_returns_false_when_no_stale_teams(self):
-        session = _make_session()
+        run = _make_run()
         db = _make_db(scalars=[])
-        result = await _cleanup_stale_teams(db, session)
+        result = await _cleanup_stale_teams(db, run)
         assert result is False
 
     @pytest.mark.asyncio
     async def test_deletes_stale_team_with_players(self):
         player = _make_player()
         stale_team = _make_team(players=[player])
-        session = _make_session()
+        run = _make_run()
         db = _make_db(scalars=[stale_team])
         db.flush = AsyncMock()
 
-        result = await _cleanup_stale_teams(db, session)
+        result = await _cleanup_stale_teams(db, run)
 
         assert result is True
         db.delete.assert_called_with(stale_team)
@@ -169,11 +169,11 @@ class TestCleanupStaleTeams:
     @pytest.mark.asyncio
     async def test_deletes_stale_team_without_players(self):
         stale_team = _make_team(players=[])
-        session = _make_session()
+        run = _make_run()
         db = _make_db(scalars=[stale_team])
         db.flush = AsyncMock()
 
-        result = await _cleanup_stale_teams(db, session)
+        result = await _cleanup_stale_teams(db, run)
 
         assert result is True
         db.delete.assert_called_with(stale_team)
@@ -188,17 +188,17 @@ class TestGetTeam:
     @pytest.mark.asyncio
     async def test_raises_403_when_player_not_in_team(self):
         team_id = uuid.uuid4()
-        session_id = uuid.uuid4()
-        player = _make_player(team_id=uuid.uuid4(), session_id=session_id)
+        run_id = uuid.uuid4()
+        player = _make_player(team_id=uuid.uuid4(), run_id=run_id)
         db = _make_db()
         with pytest.raises(HTTPException) as exc_info:
-            await TeamService.get_team(db, session_id, team_id, player)
+            await TeamService.get_team(db, run_id, team_id, player)
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
     async def test_raises_403_when_wrong_session(self):
         team_id = uuid.uuid4()
-        player = _make_player(team_id=team_id, session_id=uuid.uuid4())
+        player = _make_player(team_id=team_id, run_id=uuid.uuid4())
         db = _make_db()
         with pytest.raises(HTTPException) as exc_info:
             await TeamService.get_team(db, uuid.uuid4(), team_id, player)
@@ -207,21 +207,21 @@ class TestGetTeam:
     @pytest.mark.asyncio
     async def test_raises_404_when_team_not_found(self):
         team_id = uuid.uuid4()
-        session_id = uuid.uuid4()
-        player = _make_player(team_id=team_id, session_id=session_id)
+        run_id = uuid.uuid4()
+        player = _make_player(team_id=team_id, run_id=run_id)
         db = _make_db(scalar=None)
         with pytest.raises(HTTPException) as exc_info:
-            await TeamService.get_team(db, session_id, team_id, player)
+            await TeamService.get_team(db, run_id, team_id, player)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_returns_team_response(self):
         team_id = uuid.uuid4()
-        session_id = uuid.uuid4()
-        player = _make_player(team_id=team_id, session_id=session_id)
-        team = _make_team(id=team_id, session_id=session_id, players=[player])
+        run_id = uuid.uuid4()
+        player = _make_player(team_id=team_id, run_id=run_id)
+        team = _make_team(id=team_id, run_id=run_id, players=[player])
         db = _make_db(scalar=team)
-        result = await TeamService.get_team(db, session_id, team_id, player)
+        result = await TeamService.get_team(db, run_id, team_id, player)
         assert result.id == team_id
 
 
@@ -233,7 +233,7 @@ class TestGetTeam:
 class TestLeaveTeam:
     @pytest.mark.asyncio
     async def test_raises_403_when_wrong_session(self):
-        player = _make_player(session_id=uuid.uuid4())
+        player = _make_player(run_id=uuid.uuid4())
         db = _make_db()
         with pytest.raises(HTTPException) as exc_info:
             await TeamService.leave_team(db, uuid.uuid4(), player)
@@ -241,22 +241,22 @@ class TestLeaveTeam:
 
     @pytest.mark.asyncio
     async def test_raises_400_when_not_in_team(self):
-        session_id = uuid.uuid4()
-        player = _make_player(session_id=session_id, team_id=None)
+        run_id = uuid.uuid4()
+        player = _make_player(run_id=run_id, team_id=None)
         db = _make_db()
         with pytest.raises(HTTPException) as exc_info:
-            await TeamService.leave_team(db, session_id, player)
+            await TeamService.leave_team(db, run_id, player)
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
     async def test_raises_400_when_team_already_started(self):
-        session_id = uuid.uuid4()
+        run_id = uuid.uuid4()
         team_id = uuid.uuid4()
-        player = _make_player(session_id=session_id, team_id=team_id)
+        player = _make_player(run_id=run_id, team_id=team_id)
         team = _make_team(id=team_id, status=TeamStatus.ACTIVE)
         db = _make_db(scalar=team)
         with pytest.raises(HTTPException) as exc_info:
-            await TeamService.leave_team(db, session_id, player)
+            await TeamService.leave_team(db, run_id, player)
         assert exc_info.value.status_code == 400
 
 
@@ -269,30 +269,30 @@ class TestStartTeam:
     @pytest.mark.asyncio
     async def test_raises_403_when_player_not_in_team(self):
         team_id = uuid.uuid4()
-        session_id = uuid.uuid4()
-        player = _make_player(team_id=uuid.uuid4(), session_id=session_id)
+        run_id = uuid.uuid4()
+        player = _make_player(team_id=uuid.uuid4(), run_id=run_id)
         db = _make_db()
         with pytest.raises(HTTPException) as exc_info:
-            await TeamService.start_team(db, session_id, team_id, player)
+            await TeamService.start_team(db, run_id, team_id, player)
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
     async def test_raises_404_when_team_not_found(self):
         team_id = uuid.uuid4()
-        session_id = uuid.uuid4()
-        player = _make_player(team_id=team_id, session_id=session_id)
+        run_id = uuid.uuid4()
+        player = _make_player(team_id=team_id, run_id=run_id)
         db = _make_db(scalar=None)
         with pytest.raises(HTTPException) as exc_info:
-            await TeamService.start_team(db, session_id, team_id, player)
+            await TeamService.start_team(db, run_id, team_id, player)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_raises_400_when_team_already_started(self):
         team_id = uuid.uuid4()
-        session_id = uuid.uuid4()
-        player = _make_player(team_id=team_id, session_id=session_id)
+        run_id = uuid.uuid4()
+        player = _make_player(team_id=team_id, run_id=run_id)
         team = _make_team(id=team_id, status=TeamStatus.ACTIVE)
         db = _make_db(scalar=team)
         with pytest.raises(HTTPException) as exc_info:
-            await TeamService.start_team(db, session_id, team_id, player)
+            await TeamService.start_team(db, run_id, team_id, player)
         assert exc_info.value.status_code == 400

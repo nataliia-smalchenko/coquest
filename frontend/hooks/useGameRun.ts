@@ -1,40 +1,35 @@
 "use client";
 
 import { create } from "zustand";
-import type {
-  ChatMessage,
-  GameSession,
-  SessionPlayer,
-  SessionProgress,
-} from "@/types/session";
+import type { ChatMessage, GameRun, RunPlayer, RunProgress } from "@/types/run";
 
-interface GameSessionStore {
-  session: GameSession | null;
-  myPlayer: SessionPlayer | null;
-  progress: SessionProgress[];
+interface GameRunStore {
+  run: GameRun | null;
+  myPlayer: RunPlayer | null;
+  progress: RunProgress[];
   chatMessages: ChatMessage[];
   guestToken: string | null;
 
-  setSession: (session: GameSession) => void;
-  setMyPlayer: (player: SessionPlayer) => void;
+  setRun: (run: GameRun) => void;
+  setMyPlayer: (player: RunPlayer) => void;
   setGuestToken: (token: string) => void;
-  setProgress: (progress: SessionProgress[]) => void;
-  updateProgress: (progress: SessionProgress) => void;
+  setProgress: (progress: RunProgress[]) => void;
+  updateProgress: (progress: RunProgress) => void;
   addChatMessage: (msg: ChatMessage) => void;
-  updatePlayer: (partial: Partial<SessionPlayer> & { id: string }) => void;
+  updatePlayer: (partial: Partial<RunPlayer> & { id: string }) => void;
   reset: () => void;
 
   handleWsMessage: (data: Record<string, unknown>) => void;
 }
 
-export const useGameSession = create<GameSessionStore>((set, get) => ({
-  session: null,
+export const useGameRun = create<GameRunStore>((set, get) => ({
+  run: null,
   myPlayer: null,
   progress: [],
   chatMessages: [],
   guestToken: null,
 
-  setSession: (session) => set({ session }),
+  setRun: (run) => set({ run }),
   setMyPlayer: (player) => set({ myPlayer: player }),
   setGuestToken: (token) => set({ guestToken: token }),
   setProgress: (progress) => set({ progress }),
@@ -51,11 +46,11 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
 
   updatePlayer: (partial) =>
     set((state) => {
-      if (!state.session) return {};
+      if (!state.run) return {};
       return {
-        session: {
-          ...state.session,
-          players: (state.session.players ?? []).map((p) =>
+        run: {
+          ...state.run,
+          players: (state.run.players ?? []).map((p) =>
             p.id === partial.id ? { ...p, ...partial } : p,
           ),
         },
@@ -68,7 +63,7 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
 
   reset: () =>
     set({
-      session: null,
+      run: null,
       myPlayer: null,
       progress: [],
       chatMessages: [],
@@ -76,29 +71,29 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
     }),
 
   handleWsMessage: (data) => {
-    const { setSession, updateProgress, addChatMessage, updatePlayer } = get();
+    const { setRun, updateProgress, addChatMessage, updatePlayer } = get();
     const type = data.type as string;
 
     switch (type) {
       case "connected": {
-        if (data.session) {
-          const sess = data.session as GameSession;
+        if (data.run) {
+          const run = data.run as GameRun;
           const players = Array.isArray(data.players)
-            ? (data.players as SessionPlayer[])
-            : (sess.players ?? []);
-          setSession({ ...sess, players });
+            ? (data.players as RunPlayer[])
+            : (run.players ?? []);
+          setRun({ ...run, players });
         }
         break;
       }
       case "player_joined": {
         set((state) => {
-          if (!state.session) return {};
-          const player = data.player as SessionPlayer;
-          const existing = state.session.players ?? [];
+          if (!state.run) return {};
+          const player = data.player as RunPlayer;
+          const existing = state.run.players ?? [];
           if (existing.some((p) => p.id === player.id)) return {};
           return {
-            session: {
-              ...state.session,
+            run: {
+              ...state.run,
               players: [...existing, player],
             },
           };
@@ -107,11 +102,11 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
       }
       case "player_left": {
         set((state) => {
-          if (!state.session) return {};
+          if (!state.run) return {};
           return {
-            session: {
-              ...state.session,
-              players: (state.session.players ?? []).map((p) =>
+            run: {
+              ...state.run,
+              players: (state.run.players ?? []).map((p) =>
                 p.id === (data.player_id as string) && p.status !== "finished"
                   ? { ...p, status: "waiting" }
                   : p,
@@ -126,23 +121,23 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
         });
         break;
       }
-      case "session_started": {
+      case "run_started": {
         set((state) => ({
-          session: state.session
+          run: state.run
             ? {
-                ...state.session,
+                ...state.run,
                 status: "active",
-                ...((data.session as Partial<GameSession>) ?? {}),
+                ...((data.run as Partial<GameRun>) ?? {}),
               }
-            : state.session,
+            : state.run,
           progress: Array.isArray(data.progress)
-            ? (data.progress as SessionProgress[])
+            ? (data.progress as RunProgress[])
             : state.progress,
         }));
         break;
       }
       case "answer_result": {
-        if (data.progress) updateProgress(data.progress as SessionProgress);
+        if (data.progress) updateProgress(data.progress as RunProgress);
         break;
       }
       case "text_viewed": {
@@ -157,26 +152,22 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
         updatePlayer({ id: data.player_id as string, status: "finished" });
         break;
       }
-      case "session_completed": {
+      case "run_completed": {
         set((state) => ({
-          session: state.session
-            ? { ...state.session, status: "completed" }
-            : state.session,
+          run: state.run ? { ...state.run, status: "completed" } : state.run,
         }));
         break;
       }
-      case "session_stopped": {
+      case "run_stopped": {
         set((state) => ({
-          session: state.session
-            ? { ...state.session, status: "stopped" }
-            : state.session,
+          run: state.run ? { ...state.run, status: "stopped" } : state.run,
         }));
         break;
       }
       case "chat_message": {
         addChatMessage({
           id: `${Date.now()}-${Math.random()}`,
-          session_id: get().session?.id ?? "",
+          run_id: get().run?.id ?? "",
           player_id: data.player_id as string,
           display_name: data.display_name as string,
           message: data.message as string,
@@ -188,20 +179,25 @@ export const useGameSession = create<GameSessionStore>((set, get) => ({
   },
 }));
 
-export function getSessionStorage(sessionId: string): {
+// localStorage is intentionally used here (not sessionStorage) to enable the
+// cross-tab / cross-browser-restart rejoin flow: a student who closes their tab
+// mid-game can return to /join, enter the same code, and resume as the same player.
+// guest_token is a low-value credential (scoped to one game run); the XSS risk
+// is accepted and mitigated at the application layer by DOMPurify sanitization.
+export function getRunStorage(runId: string): {
   guest_token: string;
   player_id: string;
-  session_code?: string;
+  join_code?: string;
   display_name?: string;
 } | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(`coquest_session_${sessionId}`);
+    const raw = localStorage.getItem(`coquest_run_${runId}`);
     return raw
       ? (JSON.parse(raw) as {
           guest_token: string;
           player_id: string;
-          session_code?: string;
+          join_code?: string;
           display_name?: string;
         })
       : null;
@@ -210,54 +206,52 @@ export function getSessionStorage(sessionId: string): {
   }
 }
 
-export function setSessionStorage(
-  sessionId: string,
+export function setRunStorage(
+  runId: string,
   data: {
     guest_token: string;
     player_id: string;
-    session_code?: string;
+    join_code?: string;
     display_name?: string;
   },
 ) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(`coquest_session_${sessionId}`, JSON.stringify(data));
-  if (data.session_code) {
-    localStorage.setItem(`coquest_code_${data.session_code}`, sessionId);
+  localStorage.setItem(`coquest_run_${runId}`, JSON.stringify(data));
+  if (data.join_code) {
+    localStorage.setItem(`coquest_code_${data.join_code}`, runId);
   }
 }
 
-export function getSessionStorageByCode(code: string): {
-  session_id: string;
+export function getRunStorageByCode(code: string): {
+  run_id: string;
   guest_token: string;
   player_id: string;
   display_name?: string;
 } | null {
   if (typeof window === "undefined") return null;
   try {
-    const sessionId = localStorage.getItem(
-      `coquest_code_${code.toUpperCase()}`,
-    );
-    if (!sessionId) return null;
-    const stored = getSessionStorage(sessionId);
+    const runId = localStorage.getItem(`coquest_code_${code.toUpperCase()}`);
+    if (!runId) return null;
+    const stored = getRunStorage(runId);
     if (!stored) return null;
-    return { session_id: sessionId, ...stored };
+    return { run_id: runId, ...stored };
   } catch {
     return null;
   }
 }
 
-export function clearSessionStorage(sessionId: string) {
+export function clearRunStorage(runId: string) {
   if (typeof window === "undefined") return;
   try {
-    const raw = localStorage.getItem(`coquest_session_${sessionId}`);
+    const raw = localStorage.getItem(`coquest_run_${runId}`);
     if (raw) {
-      const data = JSON.parse(raw) as { session_code?: string };
-      if (data.session_code) {
-        localStorage.removeItem(`coquest_code_${data.session_code}`);
+      const data = JSON.parse(raw) as { join_code?: string };
+      if (data.join_code) {
+        localStorage.removeItem(`coquest_code_${data.join_code}`);
       }
     }
   } catch {
     // ignore
   }
-  localStorage.removeItem(`coquest_session_${sessionId}`);
+  localStorage.removeItem(`coquest_run_${runId}`);
 }

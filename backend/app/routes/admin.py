@@ -48,7 +48,7 @@ async def delete_user(
 ):
     """Permanently delete a user and all their associated data.
 
-    Cascade deletes (resources, quests, sessions, etc.) are handled by the
+    Cascade deletes (resources, quests, runs, etc.) are handled by the
     SQLAlchemy ``cascade="all, delete-orphan"`` relationships on the User model.
     """
     user = await UserService.get_user_or_404(db, user_id)

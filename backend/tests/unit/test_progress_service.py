@@ -181,10 +181,10 @@ class TestGetPlayerVisibleProgress:
         db = AsyncMock()
         db.execute.return_value = exec_result
 
-        session_id = uuid.uuid4()
+        run_id = uuid.uuid4()
         player_id = uuid.uuid4()
         result = await ProgressService.get_player_visible_progress(
-            db, session_id, player_id
+            db, run_id, player_id
         )
 
         assert result == [prog]

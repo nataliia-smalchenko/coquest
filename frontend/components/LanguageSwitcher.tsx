@@ -1,11 +1,11 @@
 "use client";
 
-import { useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { useRouter, usePathname } from "@/i18n/navigation";
-import { routing, localeFlags } from "@/i18n/routing";
-import type { Locale } from "@/i18n/routing";
+import { useLocale } from "next-intl";
 import { useAuth } from "@/hooks/useAuth";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import type { Locale } from "@/i18n/routing";
+import { localeFlags, routing } from "@/i18n/routing";
 
 export default function LanguageSwitcherButtons() {
   const locale = useLocale();
@@ -28,6 +28,7 @@ export default function LanguageSwitcherButtons() {
     <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 w-fit">
       {routing.locales.map((loc) => (
         <button
+          type="button"
           key={loc}
           onClick={() => switchLocale(loc as Locale)}
           title={loc.toUpperCase()}

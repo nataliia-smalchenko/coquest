@@ -85,10 +85,11 @@ export default function BasicInfoStep({ initialData, onChange, ref }: Props) {
     >
       {/* Title */}
       <div>
-        <label style={labelStyle}>
+        <label htmlFor="quest-title" style={labelStyle}>
           {t("title")} <span style={{ color: "#ef4444" }}>*</span>
         </label>
         <input
+          id="quest-title"
           {...register("title")}
           placeholder={t("titlePlaceholder")}
           style={inputStyle(!!errors.title)}
@@ -110,8 +111,11 @@ export default function BasicInfoStep({ initialData, onChange, ref }: Props) {
 
       {/* Description */}
       <div>
-        <label style={labelStyle}>{t("description")}</label>
+        <label htmlFor="quest-description" style={labelStyle}>
+          {t("description")}
+        </label>
         <textarea
+          id="quest-description"
           {...register("description")}
           placeholder={t("descriptionPlaceholder")}
           rows={3}
@@ -131,7 +135,7 @@ export default function BasicInfoStep({ initialData, onChange, ref }: Props) {
 
       {/* Language */}
       <div>
-        <label style={labelStyle}>{t("language")}</label>
+        <p style={labelStyle}>{t("language")}</p>
         <div style={{ display: "flex", gap: "8px" }}>
           {["uk", "en"].map((lang) => {
             const active = watch("language") === lang;

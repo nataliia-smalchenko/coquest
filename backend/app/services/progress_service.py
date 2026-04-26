@@ -68,16 +68,16 @@ def _auto_score(question, answer: dict) -> Tuple[Optional[float], bool]:
 
 
 async def _check_player_completion(
-    db: AsyncSession, session_id: uuid.UUID, player: RunPlayer
+    db: AsyncSession, run_id: uuid.UUID, player: RunPlayer
 ) -> None:
     """Mark player FINISHED if all their progress items are answered.
 
-    The session itself stays ACTIVE until the teacher explicitly stops it —
-    multiple teams/players can be playing concurrently in the same session.
+    The run itself stays ACTIVE until the teacher explicitly stops it —
+    multiple teams/players can be playing concurrently in the same run.
     """
     remaining_result = await db.execute(
         select(func.count()).where(
-            RunProgress.session_id == session_id,
+            RunProgress.run_id == run_id,
             RunProgress.player_id == player.id,
             RunProgress.status == ProgressStatus.ASSIGNED,
         )
@@ -97,7 +97,7 @@ async def _check_player_completion(
         team_players_result = await db.execute(
             select(RunPlayer).where(
                 RunPlayer.team_id == player.team_id,
-                RunPlayer.session_id == session_id,
+                RunPlayer.run_id == run_id,
             )
         )
         team_players = team_players_result.scalars().all()
@@ -113,7 +113,7 @@ async def _check_player_completion(
 
 async def _advance_queue(
     db: AsyncSession,
-    session_id: uuid.UUID,
+    run_id: uuid.UUID,
     player_id: uuid.UUID,
     completed_map_object_id: uuid.UUID,
 ) -> None:
@@ -121,7 +121,7 @@ async def _advance_queue(
     map_id_result = await db.execute(
         select(Quest.map_id)
         .join(GameRun, GameRun.quest_id == Quest.id)
-        .where(GameRun.id == session_id)
+        .where(GameRun.id == run_id)
     )
     map_id = map_id_result.scalar_one_or_none()
     if not map_id:
@@ -140,7 +140,7 @@ async def _advance_queue(
     # Find all map_object_ids already used by this player
     used_result = await db.execute(
         select(RunProgress.map_object_id).where(
-            RunProgress.session_id == session_id,
+            RunProgress.run_id == run_id,
             RunProgress.player_id == player_id,
             RunProgress.map_object_id != None,  # noqa: E711
         )
@@ -159,7 +159,7 @@ async def _advance_queue(
     queued_result = await db.execute(
         select(RunProgress)
         .where(
-            RunProgress.session_id == session_id,
+            RunProgress.run_id == run_id,
             RunProgress.player_id == player_id,
             RunProgress.map_object_id == None,  # noqa: E711
             RunProgress.status == ProgressStatus.ASSIGNED,
@@ -175,7 +175,7 @@ async def _advance_queue(
 
 async def _advance_team_step(
     db: AsyncSession,
-    session_id: uuid.UUID,
+    run_id: uuid.UUID,
     team_id: uuid.UUID,
     completed_by_player_id: uuid.UUID,
 ) -> Optional[Dict]:
@@ -188,7 +188,7 @@ async def _advance_team_step(
     # Find the minimum step_order among queued (no map_object_id) ASSIGNED records
     min_order_result = await db.execute(
         select(func.min(RunProgress.step_order)).where(
-            RunProgress.session_id == session_id,
+            RunProgress.run_id == run_id,
             RunProgress.team_id == team_id,
             RunProgress.map_object_id == None,  # noqa: E711
             RunProgress.status == ProgressStatus.ASSIGNED,
@@ -201,7 +201,7 @@ async def _advance_team_step(
     # Get all records for that step
     step_result = await db.execute(
         select(RunProgress).where(
-            RunProgress.session_id == session_id,
+            RunProgress.run_id == run_id,
             RunProgress.team_id == team_id,
             RunProgress.step_order == min_step_order,
             RunProgress.status == ProgressStatus.ASSIGNED,
@@ -220,7 +220,7 @@ async def _advance_team_step(
     map_id_result = await db.execute(
         select(Quest.map_id)
         .join(GameRun, GameRun.quest_id == Quest.id)
-        .where(GameRun.id == session_id)
+        .where(GameRun.id == run_id)
     )
     map_id = map_id_result.scalar_one_or_none()
     if not map_id:
@@ -230,7 +230,7 @@ async def _advance_team_step(
         select(RunProgress.map_object_id)
         .where(
             RunProgress.team_id == team_id,
-            RunProgress.session_id == session_id,
+            RunProgress.run_id == run_id,
             RunProgress.map_object_id != None,  # noqa: E711
         )
         .distinct()
@@ -291,11 +291,11 @@ async def _advance_team_step(
 class ProgressService:
     @staticmethod
     async def get_player_visible_progress(
-        db: AsyncSession, session_id: uuid.UUID, player_id: uuid.UUID
+        db: AsyncSession, run_id: uuid.UUID, player_id: uuid.UUID
     ) -> List[RunProgress]:
         result = await db.execute(
             select(RunProgress).where(
-                RunProgress.session_id == session_id,
+                RunProgress.run_id == run_id,
                 RunProgress.player_id == player_id,
                 RunProgress.map_object_id != None,  # noqa: E711
             )
@@ -354,14 +354,12 @@ class ProgressService:
         team_step_info: Optional[Dict] = None
         if player.team_id and progress.map_object_id:
             team_step_info = await _advance_team_step(
-                db, progress.session_id, player.team_id, player.id
+                db, progress.run_id, player.team_id, player.id
             )
         elif not player.team_id and progress.map_object_id:
-            await _advance_queue(
-                db, progress.session_id, player.id, progress.map_object_id
-            )
+            await _advance_queue(db, progress.run_id, player.id, progress.map_object_id)
 
-        await _check_player_completion(db, progress.session_id, player)
+        await _check_player_completion(db, progress.run_id, player)
         await db.commit()
         await db.refresh(progress)
         return RunProgressResponse.model_validate(progress), team_step_info
@@ -420,7 +418,7 @@ class ProgressService:
             viewed_result = await db.execute(
                 select(RunProgress).where(
                     RunProgress.team_id == player.team_id,
-                    RunProgress.session_id == progress.session_id,
+                    RunProgress.run_id == progress.run_id,
                     RunProgress.step_order == progress.step_order,
                     RunProgress.status.in_(
                         [ProgressStatus.VIEWED, ProgressStatus.ANSWERED]
@@ -433,14 +431,12 @@ class ProgressService:
 
             if all_viewed:
                 team_step_info = await _advance_team_step(
-                    db, progress.session_id, player.team_id, player.id
+                    db, progress.run_id, player.team_id, player.id
                 )
         elif not player.team_id and progress.map_object_id:
-            await _advance_queue(
-                db, progress.session_id, player.id, progress.map_object_id
-            )
+            await _advance_queue(db, progress.run_id, player.id, progress.map_object_id)
 
-        await _check_player_completion(db, progress.session_id, player)
+        await _check_player_completion(db, progress.run_id, player)
         await db.commit()
         await db.refresh(progress)
         return RunProgressResponse.model_validate(progress), team_step_info, viewers
@@ -455,14 +451,14 @@ class ProgressService:
         result = await db.execute(
             select(RunProgress)
             .where(RunProgress.id == progress_id)
-            .options(selectinload(RunProgress.session))
+            .options(selectinload(RunProgress.run))
         )
         progress = result.scalar_one_or_none()
         if not progress:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Progress item not found"
             )
-        if progress.session.teacher_id != teacher_id:
+        if progress.run.teacher_id != teacher_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
             )
@@ -484,7 +480,7 @@ class ProgressService:
     @staticmethod
     async def get_player_progress_detail(
         db: AsyncSession,
-        session_id: uuid.UUID,
+        run_id: uuid.UUID,
         player_id: uuid.UUID,
         teacher_id: uuid.UUID,
     ) -> List:
@@ -495,14 +491,14 @@ class ProgressService:
             QuestionResultOption,
             RunProgressResultResponse,
         )
-        from app.services.run_service import _load_own_session
+        from app.services.run_service import _load_own_run
 
-        await _load_own_session(db, session_id, teacher_id)
+        await _load_own_run(db, run_id, teacher_id)
 
         result = await db.execute(
             select(RunProgress)
             .where(
-                RunProgress.session_id == session_id,
+                RunProgress.run_id == run_id,
                 RunProgress.player_id == player_id,
             )
             .options(selectinload(RunProgress.resource).selectinload(Resource.question))
@@ -547,17 +543,17 @@ class ProgressService:
     @staticmethod
     async def get_my_progress(
         db: AsyncSession,
-        session_id: uuid.UUID,
+        run_id: uuid.UUID,
         player: RunPlayer,
     ) -> List[RunProgressResponse]:
-        if player.session_id != session_id:
+        if player.run_id != run_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
             )
         result = await db.execute(
             select(RunProgress)
             .where(
-                RunProgress.session_id == session_id,
+                RunProgress.run_id == run_id,
                 RunProgress.player_id == player.id,
             )
             .order_by(RunProgress.step_order, RunProgress.assigned_at)
@@ -568,11 +564,11 @@ class ProgressService:
     @staticmethod
     async def get_team_progress(
         db: AsyncSession,
-        session_id: uuid.UUID,
+        run_id: uuid.UUID,
         player: RunPlayer,
     ) -> List[RunProgressResponse]:
         """Return teammates' completed progress items (team mode, for materials panel)."""
-        if player.session_id != session_id:
+        if player.run_id != run_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
             )
@@ -581,7 +577,7 @@ class ProgressService:
         result = await db.execute(
             select(RunProgress)
             .where(
-                RunProgress.session_id == session_id,
+                RunProgress.run_id == run_id,
                 RunProgress.team_id == player.team_id,
                 RunProgress.player_id != player.id,
                 RunProgress.status.in_(

@@ -197,6 +197,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
             }}
           >
             <button
+              type="button"
               onClick={() => router.push("/teacher/quests")}
               style={{
                 display: "flex",
@@ -256,7 +257,8 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
           >
             {STEPS.map((label, i) => (
               <button
-                key={i}
+                type="button"
+                key={label}
                 onClick={() => setStep(i)}
                 style={{
                   display: "flex",
@@ -328,6 +330,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
               </span>
             )}
             <button
+              type="button"
               onClick={handleSaveDraft}
               disabled={saving || !data.title || !data.map_id}
               className="builder-btn"
@@ -359,6 +362,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
 
             {step > 0 && (
               <button
+                type="button"
                 onClick={handleBack}
                 className="builder-btn"
                 style={{
@@ -379,6 +383,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
 
             {step < 2 ? (
               <button
+                type="button"
                 onClick={handleNext}
                 className="builder-btn"
                 style={{
@@ -404,6 +409,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handlePublish}
                 disabled={saving || !data.title || !data.map_id}
                 className="builder-btn"

@@ -24,7 +24,7 @@
     "profile": "Profile",
     "settings": "Settings",
     "logout": "Logout",
-    "sessions": "Sessions"
+    "runs": "Runs"
   },
   "auth": {
     "login": {
@@ -173,7 +173,7 @@
       "explanation": "Explanation",
       "shortAnswer": "Short answer",
       "openAnswer": "Open answer",
-      "startSession": "Start session",
+      "startRun": "Start run",
       "settingTime": "{n} min",
       "settingRandom": "Random order",
       "settingShowAll": "All texts at once",
@@ -212,8 +212,8 @@
     "account": "Account"
   },
   "game": {
-    "session": {
-      "newTitle": "New Session",
+    "run": {
+      "newTitle": "New Run",
       "quest": "Quest",
       "mode": "Game mode",
       "solo": "Individual",
@@ -235,21 +235,21 @@
       "showCorrect": "Show correct answers",
       "schedule": "Schedule start time",
       "scheduleEnd": "Schedule end time",
-      "sessionName": "Session name",
-      "create": "Create Session",
+      "runName": "Run name",
+      "create": "Create Run",
       "createHint": "After creating, you'll get a code to share with students",
-      "createError": "Failed to create session"
+      "createError": "Failed to create run"
     },
     "join": {
       "title": "Join a Quest",
-      "code": "Session Code",
+      "code": "Run Code",
       "codePlaceholder": "XXXXXX",
       "name": "Your full name",
       "namePlaceholder": "Enter your full name...",
       "submit": "Join",
-      "invalidCode": "Invalid session code",
-      "sessionFull": "Session is full",
-      "sessionClosed": "Session is closed",
+      "invalidCode": "Invalid run code",
+      "runFull": "Run is full",
+      "runClosed": "Run is closed",
       "switchPlayer": "Not you? Join as another student"
     },
     "lobby": {
@@ -259,12 +259,12 @@
       "start": "Start",
       "starting": "Starting...",
       "startError": "Failed to start",
-      "sessionCode": "Session Code",
+      "runCode": "Run Code",
       "teamCode": "Team",
       "minPlayers": "Waiting for teammates...",
       "waitingOptional": "You can start alone or wait for teammates",
       "waitingRequired": "Wait for teammates to join",
-      "sessionEndsAt": "Session ends at",
+      "runEndsAt": "Run ends at",
       "joinAsOther": "Join as another student",
       "leaveTeam": "Switch team",
       "leavingTeam": "Switching...",
@@ -326,9 +326,9 @@
       "playAgain": "Play again"
     },
     "monitor": {
-      "title": "Session Monitor",
-      "stop": "Stop Session",
-      "stopConfirm": "Stop the session for all players?",
+      "title": "Run Monitor",
+      "stop": "Stop Run",
+      "stopConfirm": "Stop the run for all players?",
       "pendingReview": "pending review",
       "participants": "Participants",
       "finished": "Finished",
@@ -346,19 +346,19 @@
       "statusCompleted": "Completed",
       "statusStopped": "Stopped",
       "statusScheduled": "Scheduled",
-      "deleteSession": "Delete session",
-      "deleteSessionConfirm": "Delete this session? All participant data will be lost.",
+      "deleteRun": "Delete run",
+      "deleteRunConfirm": "Delete this run? All participant data will be lost.",
       "deletePlayer": "Delete participant",
-      "deletePlayerConfirm": "Remove this participant from the session?",
+      "deletePlayerConfirm": "Remove this participant from the run?",
       "renamePlayer": "Rename",
       "renamePlaceholder": "Participant name",
       "monitoring": "Monitor",
       "results": "Results",
-      "sessionsCount": "{count} sessions",
-      "noSessions": "No sessions yet",
+      "runsCount": "{count} runs",
+      "noRuns": "No runs yet",
       "scheduleStartLabel": "Start",
       "scheduleEndLabel": "End",
-      "settingsTitle": "Session settings",
+      "settingsTitle": "Run settings",
       "playerDetail": "Player answer",
       "correctAnswer": "Correct answer",
       "viewedText": "Viewed",
@@ -372,15 +372,15 @@
       "joinedAt": "Joined",
       "finishedAt": "Finished",
       "durationLabel": "Duration",
-      "sessionEndsAt": "Session ends at",
+      "runEndsAt": "Run ends at",
       "timeLeft": "time left",
       "pointsUnit": "pt",
       "questPreview": "Quest preview",
       "editSettings": "Edit settings",
       "saveSettings": "Save",
-      "restart": "Restart session",
-      "restartConfirm": "Restart the session? Players who have not finished will be reset. Finished players keep their results.",
-      "sessionName": "Session name",
+      "restart": "Restart run",
+      "restartConfirm": "Restart the run? Players who have not finished will be reset. Finished players keep their results.",
+      "runName": "Run name",
       "endsAt": "Deadline",
       "scheduledAt": "Scheduled start"
     }
@@ -480,8 +480,8 @@
     "email": "Email",
     "saved": "Saved",
     "saveError": "Failed to save",
-    "cannotChangeRole": "You cannot switch to Student because you have resources, quests, or sessions",
-    "cannotChangeRoleHint": "You cannot switch to Student while you have resources, quests, or sessions"
+    "cannotChangeRole": "You cannot switch to Student because you have resources, quests, or runs",
+    "cannotChangeRoleHint": "You cannot switch to Student while you have resources, quests, or runs"
   },
   "student": {
     "title": "My Progress",

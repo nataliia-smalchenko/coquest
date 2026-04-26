@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models.game_run import GameRun, SessionStatus
+from app.models.game_run import GameRun, RunStatus
 from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.user import UserRole
 from app.services.run_service import RunService
@@ -57,24 +57,22 @@ async def _teacher_heartbeat(sid: str) -> None:
         pass  # normal shutdown — no action needed
 
 
-def _session_dict(session: GameRun) -> dict:
+def _run_dict(run: GameRun) -> dict:
     return {
-        "id": str(session.id),
-        "quest_id": str(session.quest_id),
-        "session_code": session.session_code,
-        "status": session.status.value
-        if hasattr(session.status, "value")
-        else session.status,
-        "max_players": session.max_players,
-        "allow_solo_in_team": session.allow_solo_in_team,
-        "keep_completed_in_materials": session.keep_completed_in_materials,
-        "show_feedback_after_answer": session.show_feedback_after_answer,
-        "show_score_after": session.show_score_after,
-        "show_correct_answers": session.show_correct_answers,
-        "allow_change_answers": session.allow_change_answers,
-        "players_count": len(session.players),
-        "started_at": session.started_at.isoformat() if session.started_at else None,
-        "ends_at": session.ends_at.isoformat() if session.ends_at else None,
+        "id": str(run.id),
+        "quest_id": str(run.quest_id),
+        "join_code": run.join_code,
+        "status": run.status.value if hasattr(run.status, "value") else run.status,
+        "max_players": run.max_players,
+        "allow_solo_in_team": run.allow_solo_in_team,
+        "keep_completed_in_materials": run.keep_completed_in_materials,
+        "show_feedback_after_answer": run.show_feedback_after_answer,
+        "show_score_after": run.show_score_after,
+        "show_correct_answers": run.show_correct_answers,
+        "allow_change_answers": run.allow_change_answers,
+        "players_count": len(run.players),
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "ends_at": run.ends_at.isoformat() if run.ends_at else None,
     }
 
 
@@ -91,12 +89,12 @@ def _player_dict(player: RunPlayer) -> dict:
     }
 
 
-@router.websocket("/session/{session_id}/player")
+@router.websocket("/run/{run_id}/player")
 async def ws_player(
     websocket: WebSocket,
-    session_id: uuid.UUID,
+    run_id: uuid.UUID,
 ):
-    sid = str(session_id)
+    sid = str(run_id)
 
     # Accept before auth so the token never appears in the URL or proxy logs
     await websocket.accept()
@@ -120,30 +118,30 @@ async def ws_player(
             await websocket.close(code=4001, reason="Unauthorized: invalid token")
             return
 
-        if player.session_id != session_id:
+        if player.run_id != run_id:
             await websocket.close(
-                code=4002, reason="Forbidden: token does not match session"
+                code=4002, reason="Forbidden: token does not match run"
             )
             return
 
-        session = await RunService.get_session_with_players(db, session_id)
-        if not session or session.status in (
-            SessionStatus.COMPLETED,
-            SessionStatus.STOPPED,
+        run = await RunService.get_run_with_players(db, run_id)
+        if not run or run.status in (
+            RunStatus.COMPLETED,
+            RunStatus.STOPPED,
         ):
-            await websocket.close(code=4003, reason="Session is closed")
+            await websocket.close(code=4003, reason="Run is closed")
             return
 
         player_id = str(player.id)
-        session_data = _session_dict(session)
+        run_data = _run_dict(run)
         player_data = _player_dict(player)
-        players_data = [_player_dict(p) for p in session.players]
+        players_data = [_player_dict(p) for p in run.players]
 
         # If time limit expired and player is not yet finished, mark them finished
         now = datetime.now(timezone.utc)
-        time_expired = session.ends_at is not None and session.ends_at < now
+        time_expired = run.ends_at is not None and run.ends_at < now
         if not time_expired and player.started_at:
-            settings_obj = await RunService.get_quest_settings(db, session.quest_id)
+            settings_obj = await RunService.get_quest_settings(db, run.quest_id)
             if settings_obj and settings_obj.time_limit_minutes:
                 player_ends_at = player.started_at + timedelta(
                     minutes=settings_obj.time_limit_minutes
@@ -152,7 +150,7 @@ async def ws_player(
                     time_expired = True
         already_finished = player.status == PlayerStatus.FINISHED
         if time_expired and not already_finished:
-            player = await RunService.player_timeout(db, session_id, player)
+            player = await RunService.player_timeout(db, run_id, player)
             already_finished = True
 
     await manager.connect_player(sid, player_id, websocket)
@@ -164,7 +162,7 @@ async def ws_player(
             "type": "connected",
             "player_id": player_id,
             "team_id": str(player.team_id) if player.team_id else None,
-            "session": session_data,
+            "run": run_data,
             "players": players_data,
         },
     )
@@ -177,8 +175,8 @@ async def ws_player(
             {"type": "player_finished", "player_id": player_id},
         )
 
-    # broadcast_to_session already notifies the teacher, so no separate send_to_teacher needed
-    await manager.broadcast_to_session(
+    # broadcast_to_run already notifies the teacher, so no separate send_to_teacher needed
+    await manager.broadcast_to_run(
         sid,
         {
             "type": "player_joined",
@@ -197,7 +195,7 @@ async def ws_player(
             await handle_player_message(sid, player_id, data)
     except WebSocketDisconnect:
         await manager.disconnect_player(sid, player_id)
-        await manager.broadcast_to_session(
+        await manager.broadcast_to_run(
             sid,
             {
                 "type": "player_left",
@@ -207,7 +205,7 @@ async def ws_player(
     except Exception:
         log.exception(
             "player_ws_unexpected_error",
-            session_id=sid,
+            run_id=sid,
             player_id=player_id,
         )
         await manager.disconnect_player(sid, player_id)
@@ -215,13 +213,13 @@ async def ws_player(
         heartbeat_task.cancel()
 
 
-@router.websocket("/session/{session_id}/teacher")
+@router.websocket("/run/{run_id}/teacher")
 async def ws_teacher(
     websocket: WebSocket,
-    session_id: uuid.UUID,
+    run_id: uuid.UUID,
     token: str = Query(...),
 ):
-    sid = str(session_id)
+    sid = str(run_id)
 
     # Authenticate JWT
     payload = verify_token(token)
@@ -239,18 +237,18 @@ async def ws_teacher(
             )
             return
 
-        session = await RunService.get_session_with_players(db, session_id)
+        run = await RunService.get_run_with_players(db, run_id)
 
-        if not session or session.teacher_id != user.id:
-            await websocket.close(code=4002, reason="Forbidden: not your session")
+        if not run or run.teacher_id != user.id:
+            await websocket.close(code=4002, reason="Forbidden: not your run")
             return
 
-        if session.status in (SessionStatus.COMPLETED, SessionStatus.STOPPED):
-            await websocket.close(code=4003, reason="Session is closed")
+        if run.status in (RunStatus.COMPLETED, RunStatus.STOPPED):
+            await websocket.close(code=4003, reason="Run is closed")
             return
 
         teacher_id = str(user.id)
-        session_data = _session_dict(session)
+        run_data = _run_dict(run)
 
     await manager.connect_teacher(sid, teacher_id, websocket)
 
@@ -259,7 +257,7 @@ async def ws_teacher(
         {
             "type": "connected",
             "role": "teacher",
-            "session": session_data,
+            "run": run_data,
         },
     )
 
@@ -274,7 +272,7 @@ async def ws_teacher(
     except WebSocketDisconnect:
         await manager.disconnect_teacher(sid)
     except Exception:
-        log.exception("teacher_ws_unexpected_error", session_id=sid)
+        log.exception("teacher_ws_unexpected_error", run_id=sid)
         await manager.disconnect_teacher(sid)
     finally:
         heartbeat_task.cancel()

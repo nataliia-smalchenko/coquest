@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { joinSession, rejoinSession } from "@/lib/api/sessions";
-import {
-  clearSessionStorage,
-  getSessionStorageByCode,
-  setSessionStorage,
-} from "@/hooks/useGameSession";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  clearRunStorage,
+  getRunStorageByCode,
+  setRunStorage,
+} from "@/hooks/useGameRun";
+import { useRouter } from "@/i18n/navigation";
+import {
+  getRunByCode,
+  joinRun,
+  playerStartRun,
+  rejoinRun,
+} from "@/lib/api/runs";
 
 export default function JoinPage() {
   const t = useTranslations("game.join");
@@ -23,9 +28,9 @@ export default function JoinPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stored session data for this code (if player previously joined)
-  const [storedSession, setStoredSession] = useState<{
-    session_id: string;
+  // Stored run data for this code (if player previously joined)
+  const [storedRun, setStoredRun] = useState<{
+    run_id: string;
     guest_token: string;
     player_id: string;
     display_name?: string;
@@ -37,9 +42,9 @@ export default function JoinPage() {
     if (c) {
       const upper = c.toUpperCase();
       setCode(upper);
-      const stored = getSessionStorageByCode(upper);
+      const stored = getRunStorageByCode(upper);
       if (stored) {
-        setStoredSession(stored);
+        setStoredRun(stored);
         if (stored.display_name) setName(stored.display_name);
       }
     }
@@ -48,19 +53,19 @@ export default function JoinPage() {
   // When code reaches 6 chars, check localStorage
   useEffect(() => {
     if (code.length === 6) {
-      const stored = getSessionStorageByCode(code);
-      setStoredSession(stored);
+      const stored = getRunStorageByCode(code);
+      setStoredRun(stored);
       if (stored?.display_name && !name) setName(stored.display_name);
     } else {
-      setStoredSession(null);
+      setStoredRun(null);
     }
-  }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [code, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSwitchPlayer = () => {
-    if (storedSession) {
-      clearSessionStorage(storedSession.session_id);
+    if (storedRun) {
+      clearRunStorage(storedRun.run_id);
     }
-    setStoredSession(null);
+    setStoredRun(null);
     setName("");
     setError(null);
   };
@@ -72,56 +77,66 @@ export default function JoinPage() {
     setError(null);
     try {
       // Try rejoin first if we have a stored token for this code
-      if (storedSession && !user) {
+      if (storedRun && !user) {
         try {
-          const player = await rejoinSession(
+          const player = await rejoinRun(
             code.toUpperCase(),
-            storedSession.guest_token,
+            storedRun.guest_token,
           );
-          setSessionStorage(player.session_id, {
-            guest_token: storedSession.guest_token,
+          setRunStorage(player.run_id, {
+            guest_token: storedRun.guest_token,
             player_id: player.id,
-            session_code: code.toUpperCase(),
+            join_code: code.toUpperCase(),
             display_name: player.display_name,
           });
           if (player.status === "playing") {
-            router.push(`/session/${player.session_id}/game`);
+            router.push(`/run/${player.run_id}/game`);
           } else if (player.status === "finished") {
-            router.push(`/session/${player.session_id}/results`);
+            router.push(`/run/${player.run_id}/results`);
           } else {
-            router.push(`/session/${player.session_id}/lobby`);
+            router.push(`/run/${player.run_id}/lobby`);
           }
           return;
         } catch {
-          // Rejoin failed (token expired / session deleted) — fall through to fresh join
-          clearSessionStorage(storedSession.session_id);
-          setStoredSession(null);
+          // Rejoin failed (token expired / run deleted) — fall through to fresh join
+          clearRunStorage(storedRun.run_id);
+          setStoredRun(null);
         }
       }
 
-      const player = await joinSession({
-        session_code: code.toUpperCase(),
-        guest_name: user ? undefined : name.trim() || undefined,
-      });
+      const [runInfo, player] = await Promise.all([
+        getRunByCode(code.toUpperCase()).catch(() => null),
+        joinRun({
+          join_code: code.toUpperCase(),
+          guest_name: user ? undefined : name.trim() || undefined,
+        }),
+      ]);
       if (player.guest_token) {
-        setSessionStorage(player.session_id, {
+        setRunStorage(player.run_id, {
           guest_token: player.guest_token,
           player_id: player.id,
-          session_code: code.toUpperCase(),
+          join_code: code.toUpperCase(),
           display_name: player.display_name,
         });
       }
-      router.push(`/session/${player.session_id}/lobby`);
+      const isTeamMode = (runInfo?.max_players ?? 1) > 1;
+      if (isTeamMode) {
+        router.push(`/run/${player.run_id}/lobby`);
+      } else {
+        // Individual mode: trigger resource distribution before entering the game
+        await playerStartRun(player.run_id, player.guest_token ?? "");
+        router.push(`/run/${player.run_id}/game`);
+      }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;
       if (msg?.toLowerCase().includes("full")) {
-        setError(t("sessionFull"));
+        setError(t("runFull"));
       } else if (
         msg?.toLowerCase().includes("closed") ||
         msg?.toLowerCase().includes("not found")
       ) {
-        setError(t("sessionClosed"));
+        setError(t("runClosed"));
       } else {
         setError(t("invalidCode"));
       }
@@ -142,12 +157,16 @@ export default function JoinPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Session code */}
+          {/* Run code */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label
+              htmlFor="join-code"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
+            >
               {t("code")}
             </label>
             <input
+              id="join-code"
               type="text"
               value={code}
               onChange={(e) =>
@@ -163,10 +182,14 @@ export default function JoinPage() {
           {/* Guest name (only if not logged in) */}
           {!user && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label
+                htmlFor="join-name"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
+              >
                 {t("name")}
               </label>
               <input
+                id="join-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -175,7 +198,7 @@ export default function JoinPage() {
                 required
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {storedSession && (
+              {storedRun && (
                 <button
                   type="button"
                   onClick={handleSwitchPlayer}
