@@ -321,22 +321,33 @@ async def _handle_chat_message(run_id: str, player_id: str, msg: ChatMessage) ->
         chat = RunChat(
             run_id=uuid.UUID(run_id),
             player_id=uuid.UUID(player_id),
+            team_id=player.team_id,
             message=message_text,
         )
         db.add(chat)
         await db.commit()
         await db.refresh(chat)
 
-    await manager.broadcast_to_run(
-        run_id,
-        {
-            "type": "chat_message",
-            "player_id": player_id,
-            "display_name": player.display_name,
-            "message": message_text,
-            "created_at": _iso(chat.created_at),
-        },
-    )
+        # In team mode, only broadcast to team members (not the whole run)
+        team_player_ids: list[str] | None = None
+        if player.team_id:
+            team_result = await db.execute(
+                select(RunPlayer.id).where(RunPlayer.team_id == player.team_id)
+            )
+            team_player_ids = [str(row[0]) for row in team_result.all()]
+
+    payload = {
+        "type": "chat_message",
+        "player_id": player_id,
+        "display_name": player.display_name,
+        "message": message_text,
+        "created_at": _iso(chat.created_at),
+    }
+
+    if team_player_ids:
+        await manager.broadcast_to_team(run_id, team_player_ids, payload)
+    else:
+        await manager.broadcast_to_run(run_id, payload)
 
 
 # teacher messages

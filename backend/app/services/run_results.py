@@ -107,6 +107,7 @@ class RunResultsService:
         run = result.scalar_one()
         show_correct = run.show_correct_answers
 
+        # In team mode, only show chat messages belonging to the player's team
         chat_messages = [
             RunChatMessage(
                 id=m.id,
@@ -117,6 +118,7 @@ class RunResultsService:
                 created_at=m.created_at,
             )
             for m in run.chat_messages
+            if not player.team_id or m.team_id == player.team_id
         ]
 
         enriched_progress: List[RunProgressResultResponse] = []

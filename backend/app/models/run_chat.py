@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, ForeignKey, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -23,6 +23,12 @@ class RunChat(Base):
         Uuid,
         ForeignKey("run_players.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    team_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("run_teams.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     message: Mapped[str] = mapped_column(Text, nullable=False)
