@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "@/i18n/navigation";
 import { ArrowLeft, FileText, Folder, HelpCircle, Loader2 } from "lucide-react";
-import { createResource } from "@/lib/api/resources";
-import { useResourceStore } from "@/hooks/useResourceStore";
+import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { SelectDropdown } from "@/components/ui/SelectDropdown";
+import { useResourceStore } from "@/hooks/useResourceStore";
+import { useRouter } from "@/i18n/navigation";
+import { createResource } from "@/lib/api/resources";
 import type { ResourceType } from "@/types/resource";
 
 export default function NewResourcePage() {
@@ -93,6 +93,7 @@ export default function NewResourcePage() {
           }}
         >
           <button
+            type="button"
             onClick={() => router.push("/teacher/resources")}
             style={{
               display: "flex",
@@ -106,12 +107,12 @@ export default function NewResourcePage() {
               padding: 0,
               flexShrink: 0,
             }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = "#111827")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")
-            }
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "#111827";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "#6b7280";
+            }}
           >
             <ArrowLeft size={16} />
             {tCommon("back")}
@@ -229,6 +230,7 @@ export default function NewResourcePage() {
               {/* Title */}
               <div>
                 <label
+                  htmlFor="new-resource-title"
                   style={{
                     display: "block",
                     fontSize: "13px",
@@ -241,7 +243,7 @@ export default function NewResourcePage() {
                   <span style={{ color: "#ef4444", marginLeft: "3px" }}>*</span>
                 </label>
                 <input
-                  autoFocus
+                  id="new-resource-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -257,12 +259,12 @@ export default function NewResourcePage() {
                     transition: "border-color 0.15s",
                     boxSizing: "border-box",
                   }}
-                  onFocus={(e) =>
-                    (e.currentTarget.style.borderColor = accentColor)
-                  }
-                  onBlur={(e) =>
-                    (e.currentTarget.style.borderColor = "#e5e7eb")
-                  }
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = accentColor;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#e5e7eb";
+                  }}
                 />
               </div>
 
@@ -292,7 +294,7 @@ export default function NewResourcePage() {
               {/* Tags */}
               {tags.length > 0 && (
                 <div>
-                  <label
+                  <p
                     style={{
                       display: "block",
                       fontSize: "13px",
@@ -302,7 +304,7 @@ export default function NewResourcePage() {
                     }}
                   >
                     {tEditor("tags")}
-                  </label>
+                  </p>
                   <div
                     style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}
                   >
@@ -356,6 +358,7 @@ export default function NewResourcePage() {
 
               {/* Submit */}
               <button
+                type="button"
                 onClick={handleCreate}
                 disabled={saving || !title.trim()}
                 style={{

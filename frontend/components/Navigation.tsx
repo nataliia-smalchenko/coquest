@@ -1,19 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Activity, BookOpen, Menu, Sword, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { usePathname } from "@/i18n/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { Link } from "@/i18n/navigation";
-import {
-  Activity,
-  BookOpen,
-  LayoutDashboard,
-  Menu,
-  Sword,
-  X,
-} from "lucide-react";
 
 export default function Navigation() {
   const t = useTranslations("nav");
@@ -29,7 +21,7 @@ export default function Navigation() {
   // Close menu on route change
   useEffect(() => {
     setMenuOpen(false);
-  }, [pathname]);
+  }, []);
 
   // Hide navigation during active gameplay
   const isGamePage =
@@ -188,6 +180,7 @@ export default function Navigation() {
                   {user.full_name ?? t("profile")}
                 </Link>
                 <button
+                  type="button"
                   onClick={logout}
                   style={{
                     fontSize: "14px",
@@ -205,6 +198,7 @@ export default function Navigation() {
 
               {/* Mobile burger */}
               <button
+                type="button"
                 className="mobile-nav"
                 onClick={() => setMenuOpen((v) => !v)}
                 style={{
@@ -259,6 +253,7 @@ export default function Navigation() {
 
               {/* Mobile burger for unauthenticated */}
               <button
+                type="button"
                 className="mobile-nav"
                 onClick={() => setMenuOpen((v) => !v)}
                 style={{
@@ -285,7 +280,9 @@ export default function Navigation() {
       {menuOpen && (
         <>
           {/* Backdrop */}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay dismisses menu on click */}
           <div
+            role="presentation"
             onClick={() => setMenuOpen(false)}
             style={{
               position: "fixed",
@@ -330,6 +327,7 @@ export default function Navigation() {
                 {user ? user.full_name : "CoQuest"}
               </span>
               <button
+                type="button"
                 onClick={() => setMenuOpen(false)}
                 style={{
                   display: "flex",
@@ -415,6 +413,7 @@ export default function Navigation() {
               </div>
               {user && (
                 <button
+                  type="button"
                   onClick={logout}
                   style={{
                     display: "flex",

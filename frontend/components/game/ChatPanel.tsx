@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types/run";
 
 interface ChatPanelProps {
@@ -20,7 +20,7 @@ export default function ChatPanel({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,11 +38,11 @@ export default function ChatPanel({
             Поки що немає повідомлень
           </p>
         )}
-        {messages.map((msg, i) => {
+        {messages.map((msg) => {
           const isMe = msg.player_id === myPlayerId;
           return (
             <div
-              key={i}
+              key={`${msg.player_id}-${msg.timestamp}`}
               className={`flex items-start gap-2 ${isMe ? "flex-row-reverse" : ""}`}
             >
               <div

@@ -1,12 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type {
-  ChatMessage,
-  GameRun,
-  RunPlayer,
-  RunProgress,
-} from "@/types/run";
+import type { ChatMessage, GameRun, RunPlayer, RunProgress } from "@/types/run";
 
 interface GameRunStore {
   run: GameRun | null;
@@ -159,17 +154,13 @@ export const useGameRun = create<GameRunStore>((set, get) => ({
       }
       case "run_completed": {
         set((state) => ({
-          run: state.run
-            ? { ...state.run, status: "completed" }
-            : state.run,
+          run: state.run ? { ...state.run, status: "completed" } : state.run,
         }));
         break;
       }
       case "run_stopped": {
         set((state) => ({
-          run: state.run
-            ? { ...state.run, status: "stopped" }
-            : state.run,
+          run: state.run ? { ...state.run, status: "stopped" } : state.run,
         }));
         break;
       }
@@ -239,9 +230,7 @@ export function getRunStorageByCode(code: string): {
 } | null {
   if (typeof window === "undefined") return null;
   try {
-    const runId = localStorage.getItem(
-      `coquest_code_${code.toUpperCase()}`,
-    );
+    const runId = localStorage.getItem(`coquest_code_${code.toUpperCase()}`);
     if (!runId) return null;
     const stored = getRunStorage(runId);
     if (!stored) return null;

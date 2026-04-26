@@ -1,8 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, Link } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
 import {
   Activity,
   AlertTriangle,
@@ -11,9 +8,11 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { useLocale } from "next-intl";
-import { listRuns, deleteRun } from "@/lib/api/runs";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { Link, useRouter } from "@/i18n/navigation";
+import { deleteRun, listRuns } from "@/lib/api/runs";
 import type { RunListItem, RunStatus } from "@/types/run";
 
 function effectiveStatus(s: RunListItem): RunStatus {
@@ -170,13 +169,16 @@ export default function TeacherRunsPage() {
                 </div>
 
                 {/* Actions */}
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation wrapper, not an interactive element */}
                 <div
+                  role="presentation"
                   className="flex items-center gap-2"
                   onClick={(e) => e.stopPropagation()}
                   style={{ position: "relative", zIndex: 1 }}
                 >
                   {effectiveStatus(s) === "active" && (
                     <button
+                      type="button"
                       onClick={() =>
                         router.push(`/teacher/runs/${s.id}/monitor`)
                       }
@@ -189,6 +191,7 @@ export default function TeacherRunsPage() {
                   {(effectiveStatus(s) === "completed" ||
                     effectiveStatus(s) === "stopped") && (
                     <button
+                      type="button"
                       onClick={() =>
                         router.push(`/teacher/runs/${s.id}/monitor`)
                       }
@@ -200,6 +203,7 @@ export default function TeacherRunsPage() {
                   )}
                   {effectiveStatus(s) !== "active" && (
                     <button
+                      type="button"
                       onClick={() => setDeleteId(s.id)}
                       className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                       title={t("deleteRun")}
@@ -232,12 +236,14 @@ export default function TeacherRunsPage() {
             </p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setDeleteId(null)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
                 disabled={deleting}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"

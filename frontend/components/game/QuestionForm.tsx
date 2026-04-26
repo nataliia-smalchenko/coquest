@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
+import { useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { QuestionPublicResponse } from "@/types/resource";
 
@@ -63,6 +63,7 @@ export default function QuestionForm({
       {/* Question body — HTML with possible images */}
       <div
         className="tiptap-preview prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted question content
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.body) }}
       />
 
@@ -92,7 +93,7 @@ export default function QuestionForm({
               </div>
               {opt.image_url && (
                 <Image
-                  src={opt.image_url!}
+                  src={opt.image_url ?? ""}
                   alt=""
                   width={0}
                   height={0}
@@ -141,7 +142,7 @@ export default function QuestionForm({
               </div>
               {opt.image_url && (
                 <Image
-                  src={opt.image_url!}
+                  src={opt.image_url ?? ""}
                   alt=""
                   width={0}
                   height={0}

@@ -2,8 +2,8 @@
 
 import { BookOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "@/i18n/navigation";
 
 export default function StudentPage() {

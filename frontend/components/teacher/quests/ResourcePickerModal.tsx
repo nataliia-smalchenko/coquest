@@ -1,7 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
 import {
   ChevronDown,
   FileText,
@@ -10,13 +8,15 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { getFolders, getTags, getResources } from "@/lib/api/resources";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getFolders, getResources, getTags } from "@/lib/api/resources";
+import type { QuestResourceItem } from "@/types/quest";
 import type {
   FolderResponse,
   ResourceResponse,
   TagResponse,
 } from "@/types/resource";
-import type { QuestResourceItem } from "@/types/quest";
 
 const LIMIT = 20;
 
@@ -114,7 +114,8 @@ export function ResourcePickerModal({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [offset],
+    // biome-ignore lint/correctness/useExhaustiveDependencies: buildParams is a stable helper, intentionally omitted
+    [offset, buildParams],
   );
 
   // Reset & load when modal opens
@@ -215,7 +216,9 @@ export function ResourcePickerModal({
 
   return (
     <>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay dismisses modal on click */}
       <div
+        role="presentation"
         onClick={onClose}
         style={{
           position: "fixed",
@@ -259,6 +262,7 @@ export function ResourcePickerModal({
             {t("addResources")}
           </h3>
           <button
+            type="button"
             onClick={onClose}
             style={{
               border: "none",
@@ -316,6 +320,7 @@ export function ResourcePickerModal({
           <div style={{ display: "flex", gap: "6px" }}>
             {(["", "text", "question"] as const).map((type) => (
               <button
+                type="button"
                 key={type}
                 onClick={() => setTypeFilter(type)}
                 style={{
@@ -403,6 +408,7 @@ export function ResourcePickerModal({
                 const active = tagFilters.has(tag.id);
                 return (
                   <button
+                    type="button"
                     key={tag.id}
                     onClick={() => toggleTag(tag.id)}
                     style={{
@@ -433,6 +439,7 @@ export function ResourcePickerModal({
                 const colors = DIFFICULTY_COLORS[d];
                 return (
                   <button
+                    type="button"
                     key={d}
                     onClick={() => setDifficultyFilter(active ? "" : d)}
                     style={{
@@ -458,7 +465,7 @@ export function ResourcePickerModal({
         {/* List */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
           {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
+            Array.from({ length: 5 }, (_, i) => i).map((i) => (
               <div
                 key={i}
                 style={{
@@ -491,9 +498,15 @@ export function ResourcePickerModal({
                   : null;
                 const hasMeta = folderName || r.tags.length > 0 || r.difficulty;
                 return (
+                  // biome-ignore lint/a11y/useSemanticElements: resource row needs div for complex layout with children
                   <div
                     key={r.id}
+                    role="button"
+                    tabIndex={isAdded ? -1 : 0}
                     onClick={() => toggle(r.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") toggle(r.id);
+                    }}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -618,6 +631,7 @@ export function ResourcePickerModal({
               {hasMore && (
                 <div style={{ padding: "10px 8px" }}>
                   <button
+                    type="button"
                     onClick={() => fetchPage(false)}
                     disabled={loadingMore}
                     style={{
@@ -650,6 +664,7 @@ export function ResourcePickerModal({
         {/* Footer */}
         <div style={{ padding: "16px 20px", borderTop: "1px solid #e5e7eb" }}>
           <button
+            type="button"
             onClick={handleAdd}
             disabled={selected.size === 0}
             style={{

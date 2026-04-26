@@ -1,20 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
-import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import {
+  arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronDown,
-  ChevronUp,
   ChevronsDownUp,
   ChevronsUpDown,
+  ChevronUp,
   ExternalLink,
   FileText,
   GripVertical,
@@ -23,11 +21,13 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { getMaps, getMap } from "@/lib/api/maps";
-import { getFolders, getResource, getResources } from "@/lib/api/resources";
-import { ResourcePickerModal } from "@/components/teacher/quests/ResourcePickerModal";
-import { ResourceContentPreview } from "@/components/teacher/quests/ResourceContentPreview";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import MapPreview from "@/components/teacher/quests/MapPreview";
+import { ResourceContentPreview } from "@/components/teacher/quests/ResourceContentPreview";
+import { ResourcePickerModal } from "@/components/teacher/quests/ResourcePickerModal";
+import { getMap, getMaps } from "@/lib/api/maps";
+import { getFolders, getResource, getResources } from "@/lib/api/resources";
 import type { MapListItem, MapResponse } from "@/types/map";
 import type { QuestResourceItem } from "@/types/quest";
 import type {
@@ -119,6 +119,7 @@ function SortableResourceRow({
         }}
       >
         <button
+          type="button"
           {...attributes}
           {...listeners}
           style={{
@@ -167,7 +168,7 @@ function SortableResourceRow({
               whiteSpace: "nowrap",
             }}
           >
-            {resource?.title ?? item.resource_id.slice(0, 8) + "..."}
+            {resource?.title ?? `${item.resource_id.slice(0, 8)}...`}
           </p>
           {hasMeta && (
             <div
@@ -270,6 +271,7 @@ function SortableResourceRow({
 
         {/* Expand toggle */}
         <button
+          type="button"
           onClick={onToggle}
           style={{
             border: "none",
@@ -286,6 +288,7 @@ function SortableResourceRow({
 
         {/* Delete */}
         <button
+          type="button"
           onClick={onRemove}
           style={{
             border: "none",
@@ -425,6 +428,7 @@ export default function MapAndResourcesStep({
   };
 
   // Pre-fetch details for question-type resources so points are visible without expanding
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchDetail changes on every render, intentionally omitted
   useEffect(() => {
     for (const item of resources) {
       const res = resourceCache[item.resource_id];
@@ -553,9 +557,15 @@ export default function MapAndResourcesStep({
             {maps.map((m) => {
               const active = mapId === m.id;
               return (
+                // biome-ignore lint/a11y/useSemanticElements: map card needs div for complex preview layout
                 <div
                   key={m.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onMapChange(m.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") onMapChange(m.id);
+                  }}
                   style={{
                     borderRadius: "12px",
                     border: active
@@ -674,6 +684,7 @@ export default function MapAndResourcesStep({
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             {resources.length > 0 && (
               <button
+                type="button"
                 onClick={handleToggleAll}
                 title={allExpanded ? t("collapseAll") : t("expandAll")}
                 style={{
@@ -709,6 +720,7 @@ export default function MapAndResourcesStep({
               </button>
             )}
             <button
+              type="button"
               onClick={() => setPickerOpen(true)}
               style={{
                 display: "inline-flex",

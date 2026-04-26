@@ -1,23 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { useRouter, Link } from "@/i18n/navigation";
 import {
   Archive,
   BookOpen,
   Calendar,
   Compass,
   Globe,
-  Map,
+  Map as MapIcon,
   Pencil,
   Trash2,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
-  getQuests,
-  deleteQuest,
-  publishQuest,
   archiveQuest,
+  deleteQuest,
+  getQuests,
+  publishQuest,
 } from "@/lib/api/quests";
 import type { QuestListItem, QuestStatus } from "@/types/quest";
 
@@ -43,6 +43,7 @@ export function QuestList() {
       .finally(() => setLoading(false));
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load is intentionally defined outside useCallback, runs once on mount
   useEffect(() => {
     load();
   }, []);
@@ -102,6 +103,7 @@ export function QuestList() {
           {t("title")}
         </h1>
         <button
+          type="button"
           onClick={() => router.push("/teacher/quests/new")}
           style={{
             display: "inline-flex",
@@ -116,14 +118,14 @@ export function QuestList() {
             fontWeight: 600,
             cursor: "pointer",
           }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.backgroundColor =
-              "#1d4ed8")
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.backgroundColor =
-              "#2563eb")
-          }
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+              "#1d4ed8";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+              "#2563eb";
+          }}
         >
           + {t("new")}
         </button>
@@ -131,7 +133,7 @@ export function QuestList() {
 
       {loading ? (
         <div style={gridStyle}>
-          {Array.from({ length: 3 }).map((_, i) => (
+          {Array.from({ length: 3 }, (_, i) => i).map((i) => (
             <div
               key={i}
               style={{
@@ -189,6 +191,7 @@ export function QuestList() {
                   color: "inherit",
                 }}
               >
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: visual hover effect on card, Link handles navigation */}
                 <div
                   className="quest-card"
                   style={{
@@ -287,7 +290,7 @@ export function QuestList() {
                           color: "#9ca3af",
                         }}
                       >
-                        <Map size={13} /> {q.map_name}
+                        <MapIcon size={13} /> {q.map_name}
                       </span>
                     )}
                     <span
@@ -318,6 +321,7 @@ export function QuestList() {
                     }}
                   >
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         router.push(`/teacher/quests/${q.id}/edit`);
@@ -351,6 +355,7 @@ export function QuestList() {
                       <Pencil size={14} />
                     </button>
                     <button
+                      type="button"
                       onClick={(e) => handleToggleStatus(e, q)}
                       title={q.status === "published" ? "Archive" : "Publish"}
                       style={{
@@ -393,6 +398,7 @@ export function QuestList() {
                       )}
                     </button>
                     <button
+                      type="button"
                       onClick={(e) => handleDelete(e, q.id)}
                       title={tCommon("delete")}
                       style={{

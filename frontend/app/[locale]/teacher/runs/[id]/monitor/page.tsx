@@ -18,10 +18,11 @@ import {
   Users,
   X,
 } from "lucide-react";
-import TimerDisplay from "@/components/game/TimerDisplay";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import TimerDisplay from "@/components/game/TimerDisplay";
 import { useTeacherWebSocket } from "@/hooks/useWebSocket";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
@@ -37,7 +38,6 @@ import {
   updateRunSettings,
 } from "@/lib/api/runs";
 import { sanitizeHtml } from "@/lib/sanitize";
-import Image from "next/image";
 import type {
   GameRun,
   PlayerProgressSummary,
@@ -106,10 +106,10 @@ function SegmentedProgressBar({ pp }: { pp: PlayerProgressSummary }) {
 
   return (
     <div className="w-full flex rounded-full h-2 overflow-hidden bg-gray-100 gap-px">
-      {segments.map(({ count, color }, i) =>
+      {segments.map(({ count, color }) =>
         count > 0 ? (
           <div
-            key={i}
+            key={color}
             className="h-full transition-all duration-300"
             style={{
               width: `${(count / total) * 100}%`,
@@ -147,9 +147,9 @@ function SegmentLegend({
     <div className="flex flex-wrap mt-1">
       {items
         .filter((it) => it.count > 0)
-        .map((it, i) => (
+        .map((it) => (
           <span
-            key={i}
+            key={it.label}
             className="flex items-center gap-1.5 text-xs text-gray-500 mr-2"
           >
             <span
@@ -171,7 +171,7 @@ function PlayerDetailDrawer({
   onClose,
   onReviewed,
   t,
-  tCommon,
+  tCommon: _tCommon,
 }: {
   runId: string;
   pp: PlayerProgressSummary;
@@ -225,7 +225,9 @@ function PlayerDetailDrawer({
   );
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismisses drawer on click
     <div
+      role="presentation"
       style={{
         position: "fixed",
         inset: 0,
@@ -267,6 +269,7 @@ function PlayerDetailDrawer({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
           >
@@ -307,7 +310,7 @@ function PlayerDetailDrawer({
                 }
 
                 // Get selected options
-                const q = p.question!;
+                const q = p.question ?? { question_type: "open", options: [] };
                 const answer = p.answer as Record<string, unknown> | null;
                 const isChoice =
                   q.question_type === "single" ||
@@ -491,6 +494,7 @@ function PlayerDetailDrawer({
                           className="flex-1 border border-gray-300 rounded-lg px-2.5 py-1 text-sm  bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
+                          type="button"
                           onClick={() => handleReview(p.id)}
                           disabled={submitting === p.id || !reviewScores[p.id]}
                           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
@@ -645,9 +649,7 @@ export default function MonitorPage() {
       setDeletePlayerId(null);
       const data = await getMonitor(runId);
       setMonitor(data);
-      setRun((s) =>
-        s ? { ...data.run, status: s.status } : data.run,
-      );
+      setRun((s) => (s ? { ...data.run, status: s.status } : data.run));
     } catch {
       // ignore
     } finally {
@@ -664,17 +666,11 @@ export default function MonitorPage() {
     if (!renamePlayerId) return;
     setRenameSaving(true);
     try {
-      await updateGuestName(
-        runId,
-        renamePlayerId,
-        renameValue.trim() || null,
-      );
+      await updateGuestName(runId, renamePlayerId, renameValue.trim() || null);
       setRenamePlayerId(null);
       const data = await getMonitor(runId);
       setMonitor(data);
-      setRun((s) =>
-        s ? { ...data.run, status: s.status } : data.run,
-      );
+      setRun((s) => (s ? { ...data.run, status: s.status } : data.run));
     } catch {
       // ignore
     } finally {
@@ -737,9 +733,7 @@ export default function MonitorPage() {
       getMonitor(runId)
         .then((data) => {
           setMonitor(data);
-          setRun((s) =>
-            s ? { ...data.run, status: s.status } : data.run,
-          );
+          setRun((s) => (s ? { ...data.run, status: s.status } : data.run));
           // Sync detailPlayer panel if open
           const dp = detailPlayerRef.current;
           if (dp) {
@@ -750,7 +744,7 @@ export default function MonitorPage() {
           }
         })
         .catch(() => {}),
-    [runId, setMonitor, setRun, setDetailPlayer],
+    [runId],
   );
 
   useEffect(() => {
@@ -767,16 +761,12 @@ export default function MonitorPage() {
     (raw: unknown) => {
       const data = raw as Record<string, unknown>;
 
-      if (
-        data.type === "run_completed" ||
-        data.type === "run_stopped"
-      ) {
+      if (data.type === "run_completed" || data.type === "run_stopped") {
         setRun((s) =>
           s
             ? {
                 ...s,
-                status:
-                  data.type === "run_completed" ? "completed" : "stopped",
+                status: data.type === "run_completed" ? "completed" : "stopped",
               }
             : s,
         );
@@ -786,7 +776,7 @@ export default function MonitorPage() {
         refreshMonitor();
       }
     },
-    [setRun, refreshMonitor],
+    [refreshMonitor],
   );
 
   useTeacherWebSocket(runId, token, handleWsMessage);
@@ -843,8 +833,7 @@ export default function MonitorPage() {
   const isActive = runStatus === "active";
   const canStart = runStatus === "waiting" || runStatus === "scheduled";
   const canDelete = runStatus !== "active";
-  const canRestart =
-    runStatus === "stopped" || runStatus === "completed";
+  const canRestart = runStatus === "stopped" || runStatus === "completed";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -868,6 +857,7 @@ export default function MonitorPage() {
               {run?.join_code}
             </span>
             <button
+              type="button"
               onClick={handleCopyLink}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors"
             >
@@ -903,8 +893,7 @@ export default function MonitorPage() {
                   {t("runEndsAt")}: {formatDate(run.ends_at, locale)}
                   {isActive && new Date(run.ends_at) > new Date() && (
                     <span className="ml-1 text-gray-400 font-normal">
-                      (<TimerDisplay ends_at={run.ends_at} />{" "}
-                      {t("timeLeft")})
+                      (<TimerDisplay ends_at={run.ends_at} /> {t("timeLeft")})
                     </span>
                   )}
                 </span>
@@ -914,6 +903,7 @@ export default function MonitorPage() {
         <div className="flex items-center gap-2">
           {canStart && (
             <button
+              type="button"
               onClick={handleStart}
               disabled={starting}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition-colors"
@@ -924,6 +914,7 @@ export default function MonitorPage() {
           )}
           {isActive && (
             <button
+              type="button"
               onClick={() => setShowConfirm(true)}
               className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium px-4 py-2.5 rounded-xl text-sm transition-colors border border-red-200"
             >
@@ -933,6 +924,7 @@ export default function MonitorPage() {
           )}
           {canRestart && (
             <button
+              type="button"
               onClick={() => setShowRestartConfirm(true)}
               className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium px-4 py-2.5 rounded-xl text-sm transition-colors border border-blue-200"
             >
@@ -942,6 +934,7 @@ export default function MonitorPage() {
           )}
           {canDelete && (
             <button
+              type="button"
               onClick={() => setShowDeleteRun(true)}
               className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-red-600 font-medium px-3 py-2.5 rounded-xl text-sm transition-colors border border-gray-200"
             >
@@ -985,6 +978,7 @@ export default function MonitorPage() {
               {t("settingsTitle")}
             </p>
             <button
+              type="button"
               onClick={handleOpenEditSettings}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-600 transition-colors"
             >
@@ -1003,8 +997,7 @@ export default function MonitorPage() {
                 </>
               ) : (
                 <>
-                  <Users size={11} /> {tRun("teamMode")} ·{" "}
-                  {run.max_players}
+                  <Users size={11} /> {tRun("teamMode")} · {run.max_players}
                 </>
               )}
             </span>
@@ -1022,10 +1015,7 @@ export default function MonitorPage() {
               on={run.keep_completed_in_materials}
               label={tRun("keepCompleted")}
             />
-            <SettingChip
-              on={run.show_score_after}
-              label={tRun("showScore")}
-            />
+            <SettingChip on={run.show_score_after} label={tRun("showScore")} />
             {run.show_score_after && (
               <SettingChip
                 on={run.show_correct_answers}
@@ -1039,10 +1029,16 @@ export default function MonitorPage() {
       {/* Players list */}
       <div className="space-y-3">
         {players.map((pp: PlayerProgressSummary) => (
+          // biome-ignore lint/a11y/useSemanticElements: player card needs div for complex layout
           <div
             key={pp.player.id}
             className="bg-white rounded-2xl shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow"
+            role="button"
+            tabIndex={0}
             onClick={() => setDetailPlayer(pp)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") setDetailPlayer(pp);
+            }}
           >
             <div className="flex items-center gap-3 mb-3">
               <div
@@ -1060,12 +1056,13 @@ export default function MonitorPage() {
 
               <div className="flex-1 min-w-0">
                 {renamePlayerId === pp.player.id ? (
+                  // biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation wrapper for rename input
                   <div
+                    role="presentation"
                     className="flex items-center gap-2"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <input
-                      autoFocus
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
                       onKeyDown={(e) => {
@@ -1076,6 +1073,7 @@ export default function MonitorPage() {
                       className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 focus:border-gray-500 w-40"
                     />
                     <button
+                      type="button"
                       onClick={handleSaveRename}
                       disabled={renameSaving}
                       className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors"
@@ -1083,6 +1081,7 @@ export default function MonitorPage() {
                       {tCommon("save")}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setRenamePlayerId(null)}
                       className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5"
                     >
@@ -1127,11 +1126,14 @@ export default function MonitorPage() {
               </div>
 
               {renamePlayerId !== pp.player.id && (
+                // biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation wrapper for action buttons
                 <div
+                  role="presentation"
                   className="flex items-center gap-1 flex-shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
+                    type="button"
                     onClick={() =>
                       handleStartRename(pp.player.id, pp.player.display_name)
                     }
@@ -1141,6 +1143,7 @@ export default function MonitorPage() {
                     <Pencil size={14} />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setDeletePlayerId(pp.player.id)}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                     title={t("deletePlayer")}
@@ -1220,12 +1223,14 @@ export default function MonitorPage() {
             <p className="text-gray-600 text-sm mb-6">{t("stopConfirm")}</p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowConfirm(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleStop}
                 disabled={stopping}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -1255,12 +1260,14 @@ export default function MonitorPage() {
             </p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowDeleteRun(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleDeleteRun}
                 disabled={deletingRun}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -1285,10 +1292,14 @@ export default function MonitorPage() {
 
             {/* Name */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label
+                htmlFor="edit-run-name"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
                 {t("runName")}
               </label>
               <input
+                id="edit-run-name"
                 value={editForm.name ?? ""}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, name: e.target.value }))
@@ -1299,10 +1310,14 @@ export default function MonitorPage() {
 
             {/* Ends at */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label
+                htmlFor="edit-run-ends-at"
+                className="block text-xs font-medium text-gray-500 mb-1"
+              >
                 {t("endsAt")}
               </label>
               <input
+                id="edit-run-ends-at"
                 type="datetime-local"
                 value={
                   editForm.ends_at
@@ -1348,12 +1363,14 @@ export default function MonitorPage() {
 
             <div className="flex gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setShowEditSettings(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleSaveSettings}
                 disabled={savingSettings}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -1384,12 +1401,14 @@ export default function MonitorPage() {
             <p className="text-gray-600 text-sm mb-6">{t("restartConfirm")}</p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowRestartConfirm(false)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleRestart}
                 disabled={restarting}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -1419,12 +1438,14 @@ export default function MonitorPage() {
             </p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setDeletePlayerId(null)}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 {tCommon("cancel")}
               </button>
               <button
+                type="button"
                 onClick={handleDeletePlayer}
                 disabled={deletingPlayer}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"

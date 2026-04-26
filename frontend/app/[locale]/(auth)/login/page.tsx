@@ -1,24 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
-import { useAuth } from "@/hooks/useAuth";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { GoogleLogin } from "@react-oauth/google";
-import api from "@/lib/api";
 import Cookies from "js-cookie";
 import {
+  BookOpen,
+  CheckCircle2,
   Eye,
   EyeOff,
+  GraduationCap,
   Loader2,
   MailCheck,
-  CheckCircle2,
-  GraduationCap,
-  BookOpen,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "@/i18n/navigation";
+import api from "@/lib/api";
 
 const loginSchema = z.object({
   email: z.email({ message: "invalidEmail" }),
@@ -70,8 +70,10 @@ export default function LoginPage() {
     try {
       const user = await login(data.email, data.password);
       redirectByRole(user.role);
-    } catch (err: any) {
-      if (err.response?.status === 403) {
+    } catch (err: unknown) {
+      if (
+        (err as { response?: { status?: number } }).response?.status === 403
+      ) {
         setNeedsVerification(true);
         setUserEmail(data.email);
       } else {
@@ -137,7 +139,7 @@ export default function LoginPage() {
       setCustomError("");
       await api.post("/api/auth/resend-verification", { email: userEmail });
       setSuccessMessage(tVerify("successMessage"));
-    } catch (err) {
+    } catch (_err) {
       setCustomError(tErrors("verificationFailed"));
     }
   };
@@ -250,12 +252,14 @@ export default function LoginPage() {
 
           <div className="flex flex-col space-y-3">
             <button
+              type="button"
               onClick={handleResendVerification}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-all"
             >
               {t("resendVerification")}
             </button>
             <button
+              type="button"
               onClick={() => {
                 setNeedsVerification(false);
                 setCustomError("");
@@ -312,10 +316,14 @@ export default function LoginPage() {
 
           {/* Email field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="login-email"
+              className="block text-sm font-medium text-gray-700"
+            >
               {t("email")}
             </label>
             <input
+              id="login-email"
               {...register("email")}
               type="email"
               autoComplete="email"
@@ -325,18 +333,22 @@ export default function LoginPage() {
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {tErrors(errors.email.message as any)}
+                {tErrors(errors.email.message as string)}
               </p>
             )}
           </div>
 
           {/* Password field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="login-password"
+              className="block text-sm font-medium text-gray-700"
+            >
               {t("password")}
             </label>
             <div className="relative mt-1">
               <input
+                id="login-password"
                 {...register("password")}
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
@@ -355,7 +367,7 @@ export default function LoginPage() {
             </div>
             {errors.password && (
               <p className="mt-1 text-xs text-red-600 font-medium">
-                {tErrors(errors.password.message as any)}
+                {tErrors(errors.password.message as string)}
               </p>
             )}
           </div>

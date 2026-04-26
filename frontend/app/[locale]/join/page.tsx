@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { joinRun, rejoinRun } from "@/lib/api/runs";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import {
   clearRunStorage,
   getRunStorageByCode,
   setRunStorage,
 } from "@/hooks/useGameRun";
-import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "@/i18n/navigation";
+import { joinRun, rejoinRun } from "@/lib/api/runs";
 
 export default function JoinPage() {
   const t = useTranslations("game.join");
@@ -54,7 +54,7 @@ export default function JoinPage() {
     } else {
       setStoredRun(null);
     }
-  }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [code, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSwitchPlayer = () => {
     if (storedRun) {
@@ -144,10 +144,14 @@ export default function JoinPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Run code */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label
+              htmlFor="join-code"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
+            >
               {t("code")}
             </label>
             <input
+              id="join-code"
               type="text"
               value={code}
               onChange={(e) =>
@@ -163,10 +167,14 @@ export default function JoinPage() {
           {/* Guest name (only if not logged in) */}
           {!user && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label
+                htmlFor="join-name"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
+              >
                 {t("name")}
               </label>
               <input
+                id="join-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}

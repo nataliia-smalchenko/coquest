@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Image from "next/image";
-import { useTranslations } from "next-intl";
-import { cloudinaryUrl } from "@/lib/cloudinary";
-import { Check } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { Check } from "lucide-react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { ResourceDetailResponse } from "@/types/resource";
 
@@ -33,7 +33,7 @@ function TextPreview({ body }: { body: Record<string, unknown> }) {
     import("@/lib/highlightCode").then(({ applyHighlighting }) => {
       if (ref.current) applyHighlighting(ref.current);
     });
-  }, [html]);
+  }, []);
 
   if (!html) {
     return (
@@ -48,6 +48,7 @@ function TextPreview({ body }: { body: Record<string, unknown> }) {
       ref={ref}
       className="tiptap-preview"
       style={{ fontSize: "14px", color: "#111827", lineHeight: 1.6 }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted tiptap content
       dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   );
@@ -69,7 +70,7 @@ function QuestionPreview({
     import("@/lib/highlightCode").then(({ applyHighlighting }) => {
       if (bodyRef.current) applyHighlighting(bodyRef.current);
     });
-  }, [body]);
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -84,6 +85,7 @@ function QuestionPreview({
           color: "#111827",
           lineHeight: 1.5,
         }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted question content
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(body) }}
       />
 
@@ -192,9 +194,9 @@ function QuestionPreview({
             {tp("shortAnswer")}
           </span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {correct_answers.map((ans, i) => (
+            {correct_answers.map((ans) => (
               <span
-                key={i}
+                key={ans}
                 style={{
                   padding: "4px 10px",
                   borderRadius: "8px",

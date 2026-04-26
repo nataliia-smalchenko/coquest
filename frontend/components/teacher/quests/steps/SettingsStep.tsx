@@ -66,10 +66,14 @@ export default function SettingsStep({ settings, onChange }: Props) {
               paddingLeft: "26px",
             }}
           >
-            <label style={{ fontSize: "13px", color: "#6b7280" }}>
+            <label
+              htmlFor="time-limit-minutes"
+              style={{ fontSize: "13px", color: "#6b7280" }}
+            >
               {t("minutes")}
             </label>
             <input
+              id="time-limit-minutes"
               type="number"
               min={1}
               max={180}
@@ -126,10 +130,14 @@ export default function SettingsStep({ settings, onChange }: Props) {
               paddingLeft: "26px",
             }}
           >
-            <label style={{ fontSize: "13px", color: "#6b7280" }}>
+            <label
+              htmlFor="max-grade-value"
+              style={{ fontSize: "13px", color: "#6b7280" }}
+            >
               {t("maxGradeValue")}
             </label>
             <input
+              id="max-grade-value"
               type="number"
               min={1}
               max={100}

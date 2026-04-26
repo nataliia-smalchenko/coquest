@@ -12,6 +12,7 @@ import {
   Play,
   Shuffle,
 } from "lucide-react";
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
@@ -20,7 +21,6 @@ import { getMap, getMaps } from "@/lib/api/maps";
 import { getQuest } from "@/lib/api/quests";
 import { getResource } from "@/lib/api/resources";
 import { sanitizeHtml } from "@/lib/sanitize";
-import Image from "next/image";
 import type { MapResponse } from "@/types/map";
 import type { QuestResponse, QuestStatus } from "@/types/quest";
 import type { ResourceDetailResponse } from "@/types/resource";
@@ -170,6 +170,7 @@ export default function QuestPreview({ questId }: Props) {
             }}
           >
             <button
+              type="button"
               onClick={() => router.push("/teacher/quests")}
               style={{
                 display: "flex",
@@ -237,6 +238,7 @@ export default function QuestPreview({ questId }: Props) {
           >
             {quest.status === "published" && (
               <button
+                type="button"
                 onClick={() =>
                   router.push(`/teacher/runs/new?quest_id=${quest.id}`)
                 }
@@ -267,6 +269,7 @@ export default function QuestPreview({ questId }: Props) {
               </button>
             )}
             <button
+              type="button"
               onClick={() => router.push(`/teacher/quests/${quest.id}/edit`)}
               style={{
                 display: "inline-flex",
@@ -369,9 +372,9 @@ export default function QuestPreview({ questId }: Props) {
               {tp("settings")}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {chips.map((chip, i) => (
+              {chips.map((chip) => (
                 <span
-                  key={i}
+                  key={chip.label}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -611,7 +614,7 @@ function TextMaterialView({
     import("@/lib/highlightCode").then(({ applyHighlighting }) => {
       if (ref.current) applyHighlighting(ref.current);
     });
-  }, [html]);
+  }, []);
 
   if (!html)
     return (
@@ -625,6 +628,7 @@ function TextMaterialView({
       ref={ref}
       className="tiptap-preview"
       style={{ fontSize: "14px", color: "#111827", lineHeight: 1.6 }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted tiptap content
       dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   );
@@ -647,7 +651,7 @@ function QuestionView({
     import("@/lib/highlightCode").then(({ applyHighlighting }) => {
       if (bodyRef.current) applyHighlighting(bodyRef.current);
     });
-  }, [body]);
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -770,9 +774,9 @@ function QuestionView({
             {tp("shortAnswer")}
           </span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {correct_answers.map((ans, i) => (
+            {correct_answers.map((ans) => (
               <span
-                key={i}
+                key={ans}
                 style={{
                   padding: "5px 12px",
                   borderRadius: "8px",

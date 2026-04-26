@@ -1,6 +1,11 @@
-import api from "./api";
 import Cookies from "js-cookie";
-import { AuthResponse, LoginCredentials, RegisterData, User } from "@/types";
+import type {
+  AuthResponse,
+  LoginCredentials,
+  RegisterData,
+  User,
+} from "@/types";
+import api from "./api";
 
 export const authService = {
   async register(data: RegisterData): Promise<AuthResponse> {

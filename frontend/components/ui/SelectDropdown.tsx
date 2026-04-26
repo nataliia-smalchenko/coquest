@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export interface SelectOption {
   value: string;
@@ -85,6 +85,7 @@ export function SelectDropdown({
     <div ref={containerRef} style={{ position: "relative" }}>
       {label && (
         <label
+          htmlFor={`select-dropdown-${label}`}
           style={{
             display: "block",
             fontSize: "12px",
@@ -101,6 +102,7 @@ export function SelectDropdown({
 
       <button
         ref={btnRef}
+        id={`select-dropdown-${label}`}
         type="button"
         onClick={handleToggle}
         style={{

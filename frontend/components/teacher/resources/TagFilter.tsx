@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Check, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Plus, X, Check } from "lucide-react";
+import { useState } from "react";
 import { useResourceStore } from "@/hooks/useResourceStore";
 
 const PRESET_COLORS = [
@@ -69,6 +69,7 @@ export function TagFilter() {
           {t("tags.title")}
         </span>
         <button
+          type="button"
           onClick={() => setIsAdding((v) => !v)}
           className="p-1 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors focus:outline-none"
           title={t("tags.new")}
@@ -80,7 +81,6 @@ export function TagFilter() {
       {isAdding && (
         <div className="mt-4 p-3 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3">
           <input
-            autoFocus
             value={tagName}
             onChange={(e) => setTagName(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -123,6 +123,7 @@ export function TagFilter() {
 
           <div className="flex gap-2 items-center justify-between">
             <button
+              type="button"
               onClick={handleCreateTag}
               disabled={saving || !tagName.trim()}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-1.5 text-xs font-semibold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -130,6 +131,7 @@ export function TagFilter() {
               {saving ? "..." : t("tags.new")}
             </button>
             <button
+              type="button"
               onClick={() => {
                 setIsAdding(false);
                 setTagName("");

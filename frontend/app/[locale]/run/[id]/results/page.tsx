@@ -1,26 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { useRouter } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
 import {
   CheckCircle,
-  XCircle,
-  Clock,
-  Home,
   ChevronDown,
   ChevronUp,
+  Clock,
+  Home,
+  XCircle,
 } from "lucide-react";
-import { sanitizeHtml } from "@/lib/sanitize";
 import Image from "next/image";
-import { getResults } from "@/lib/api/runs";
+import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { clearRunStorage, getRunStorage } from "@/hooks/useGameRun";
+import { useRouter } from "@/i18n/navigation";
+import { getResults } from "@/lib/api/runs";
+import { sanitizeHtml } from "@/lib/sanitize";
 import type {
   GameRunResultResponse,
-  RunProgressResult,
-  RunPlayer,
   QuestionResultOption,
+  RunPlayer,
+  RunProgressResult,
 } from "@/types/run";
 
 // helpers
@@ -170,9 +170,7 @@ export default function ResultsPage() {
   const router = useRouter();
   const runId = params.id as string;
 
-  const [results, setResults] = useState<GameRunResultResponse | null>(
-    null,
-  );
+  const [results, setResults] = useState<GameRunResultResponse | null>(null);
   const [myPlayer, setMyPlayer] = useState<RunPlayer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -207,6 +205,7 @@ export default function ResultsPage() {
     }
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: loadResults is defined inline and recreated each render, intentionally omitted
   useEffect(() => {
     const stored = getRunStorage(runId);
     if (stored) {
@@ -215,6 +214,7 @@ export default function ResultsPage() {
       setNeedToken(true);
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
   const myProgress: RunProgressResult[] = myPlayer
@@ -298,6 +298,7 @@ export default function ResultsPage() {
           />
           {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
           <button
+            type="button"
             onClick={() => loadResults(tokenInput)}
             disabled={!tokenInput.trim()}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -393,7 +394,7 @@ export default function ResultsPage() {
               </p>
             )}
             <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
-              {myProgress.map((p, i) => {
+              {myProgress.map((p, _i) => {
                 const isCorrect = p.score !== null && p.score >= 1;
                 const isPending = p.requires_review && p.score === null;
                 const isWrong =
@@ -415,9 +416,17 @@ export default function ResultsPage() {
                     }
                   >
                     {/* Row header */}
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: role is conditionally set to "button" when hasDetail is true */}
                     <div
                       className={`px-5 py-4 flex items-center gap-3 ${hasDetail ? "cursor-pointer select-none" : ""}`}
                       onClick={() => hasDetail && toggleExpand(p.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          hasDetail && toggleExpand(p.id);
+                        }
+                      }}
+                      role={hasDetail ? "button" : undefined}
+                      tabIndex={hasDetail ? 0 : undefined}
                     >
                       {isCorrect ? (
                         <CheckCircle
@@ -441,7 +450,7 @@ export default function ResultsPage() {
                       <span className="text-sm text-gray-700 flex-1">
                         {p.resource_title
                           ? p.resource_title
-                          : t("question", { n: i + 1 })}
+                          : t("question", { n: _i + 1 })}
                         {showScore && p.score !== null && (
                           <span className="ml-2 text-xs text-gray-400">
                             {p.question
@@ -497,7 +506,7 @@ export default function ResultsPage() {
                   {t("answeredBy", { name: teammate.display_name })}
                 </p>
                 <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
-                  {tProgress.map((p, i) => {
+                  {tProgress.map((p, _i) => {
                     const isCorrect = p.score !== null && p.score >= 1;
                     const isPending = p.requires_review && p.score === null;
                     const isWrong =
@@ -518,9 +527,17 @@ export default function ResultsPage() {
                                 : ""
                         }
                       >
+                        {/* biome-ignore lint/a11y/noStaticElementInteractions: role is conditionally set to "button" when hasDetail is true */}
                         <div
                           className={`px-5 py-4 flex items-center gap-3 ${hasDetail ? "cursor-pointer select-none" : ""}`}
                           onClick={() => hasDetail && toggleExpand(p.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              hasDetail && toggleExpand(p.id);
+                            }
+                          }}
+                          role={hasDetail ? "button" : undefined}
+                          tabIndex={hasDetail ? 0 : undefined}
                         >
                           {isCorrect ? (
                             <CheckCircle
@@ -541,7 +558,7 @@ export default function ResultsPage() {
                             <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-300 flex-shrink-0" />
                           )}
                           <span className="text-sm text-gray-700 flex-1">
-                            {p.resource_title ?? t("question", { n: i + 1 })}
+                            {p.resource_title ?? t("question", { n: _i + 1 })}
                             {showScore && p.score !== null && (
                               <span className="ml-2 text-xs text-gray-400">
                                 {p.question
@@ -586,6 +603,7 @@ export default function ResultsPage() {
         {/* Play again */}
         {results.join_code && (
           <button
+            type="button"
             onClick={() => {
               clearRunStorage(runId);
               router.push(`/join?code=${results.join_code}`);
@@ -598,6 +616,7 @@ export default function ResultsPage() {
 
         {/* Back home */}
         <button
+          type="button"
           onClick={() => router.push("/")}
           className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition-colors text-sm"
         >

@@ -135,24 +135,12 @@ export default function LobbyPage() {
       if (last.type === "team_started" || last.type === "run_started") {
         router.push(`/run/${runId}/game`);
       }
-      if (
-        last.type === "run_completed" ||
-        last.type === "run_stopped"
-      ) {
+      if (last.type === "run_completed" || last.type === "run_stopped") {
         router.push(`/run/${runId}/results`);
       }
     },
     // storedRef is excluded: accessed via .current to avoid reconnect churn
-    [
-      handleWsMessage,
-      router,
-      runId,
-      setRun,
-      setMyPlayer,
-      setPlayers,
-      setTeamPlayers,
-      setTeamId,
-    ],
+    [handleWsMessage, router, runId, setRun, setMyPlayer],
   );
 
   usePlayerWebSocket(runId, stored?.guest_token ?? "", handleMessage);

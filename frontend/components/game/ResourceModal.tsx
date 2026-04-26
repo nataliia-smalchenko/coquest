@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { X, CheckCircle, XCircle, Clock } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { CheckCircle, Clock, X, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { ResourceDetailPublicResponse } from "@/types/resource";
@@ -91,12 +91,14 @@ export default function ResourceModal({
     import("@/lib/highlightCode").then(({ applyHighlighting }) => {
       if (contentRef.current) applyHighlighting(contentRef.current);
     });
-  }, [resource, answerResult]);
+  }, []);
 
   const isAnswered =
     progress.status === "answered" || progress.status === "viewed";
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: overlay backdrop dismisses modal on click
+    // biome-ignore lint/a11y/useKeyWithClickEvents: overlay backdrop, keyboard navigation not applicable
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
@@ -116,6 +118,7 @@ export default function ResourceModal({
             {resource?.title ?? t("resource")}
           </h3>
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
           >
@@ -138,6 +141,7 @@ export default function ResourceModal({
             <>
               <div
                 className="tiptap-preview prose prose-sm max-w-none text-gray-700 [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted tiptap content
                 dangerouslySetInnerHTML={{
                   __html: sanitizeHtml(
                     renderTiptap(
@@ -148,6 +152,7 @@ export default function ResourceModal({
               />
               {!isAnswered && (
                 <button
+                  type="button"
                   onClick={onMarkViewed}
                   disabled={isSubmitting}
                   className="mt-5 w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
@@ -165,107 +170,108 @@ export default function ResourceModal({
             </>
           )}
 
-          {!loading && resource?.type === "question" && resource.question && (
-            <>
-              {answerResult != null ? (
-                <div className="space-y-4">
-                  <div
-                    className="tiptap-preview prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
-                    dangerouslySetInnerHTML={{
-                      __html: sanitizeHtml(resource.question.body),
-                    }}
-                  />
-                  {answerResult.requires_review ? (
-                    <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3 text-sm">
-                      <Clock size={16} />
-                      {t("pendingAnswer")}
-                    </div>
-                  ) : answerResult.correct ? (
-                    <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm font-medium">
-                      <CheckCircle size={16} />
-                      {t("correct")}
-                      <span className="ml-auto text-xs font-semibold">
-                        {answerResult.score !== null
-                          ? `+${+(answerResult.score * resource.question.points).toFixed(1)} / ${resource.question.points} ${t("pointsUnit")}`
-                          : `+${resource.question.points} / ${resource.question.points} ${t("pointsUnit")}`}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm font-medium">
-                      <XCircle size={16} />
-                      {t("incorrect")}
-                      <span className="ml-auto text-xs font-semibold">
-                        0 / {resource.question.points} {t("pointsUnit")}
-                      </span>
-                    </div>
-                  )}
-                  {resource.question.explanation && (
-                    <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
-                      <span className="font-medium">{t("explanation")}: </span>
-                      {resource.question.explanation}
-                    </div>
-                  )}
-                </div>
-              ) : isAnswered ? (
-                <div className="space-y-3">
-                  <div
-                    className="tiptap-preview prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
-                    dangerouslySetInnerHTML={{
-                      __html: sanitizeHtml(resource.question.body),
-                    }}
-                  />
-                  {(resource.question.question_type === "single" ||
-                    resource.question.question_type === "multiple") && (
-                    <ul className="space-y-1.5">
-                      {resource.question.options.map((opt) => {
-                        const selected = getSelectedIds(
-                          progress.answer,
-                          resource.question!.question_type,
-                        ).includes(opt.id);
-                        return (
-                          <li
-                            key={opt.id}
-                            className={`flex items-center gap-2 border rounded-lg px-3 py-2 text-sm ${
-                              selected
-                                ? "bg-blue-50 border-blue-300 font-medium"
-                                : "bg-gray-50 border-gray-200 text-gray-600"
-                            }`}
-                          >
-                            <span className="flex-1">{opt.text}</span>
-                            {selected && (
-                              <CheckCircle
-                                size={14}
-                                className="text-blue-500 flex-shrink-0"
-                              />
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                  {resource.question.question_type !== "single" &&
-                    resource.question.question_type !== "multiple" && (
-                      <div className="border border-blue-200 bg-blue-50 rounded-lg px-3 py-2 text-sm text-gray-800">
-                        <span className="block text-xs text-blue-500 font-medium mb-0.5">
-                          {t("yourAnswer")}
-                        </span>
-                        {getAnswerText(progress.answer) || "—"}
-                      </div>
-                    )}
-                  <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg px-3 py-2 text-sm font-medium">
-                    <CheckCircle size={14} />
-                    {t("alreadyAnswered")}
-                  </div>
-                </div>
-              ) : (
-                <QuestionForm
-                  question={resource.question}
-                  onSubmit={onSubmitAnswer}
-                  isSubmitting={isSubmitting}
+          {!loading &&
+            resource?.type === "question" &&
+            resource.question &&
+            (answerResult != null ? (
+              <div className="space-y-4">
+                <div
+                  className="tiptap-preview prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted question content
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(resource.question.body),
+                  }}
                 />
-              )}
-            </>
-          )}
+                {answerResult.requires_review ? (
+                  <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3 text-sm">
+                    <Clock size={16} />
+                    {t("pendingAnswer")}
+                  </div>
+                ) : answerResult.correct ? (
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm font-medium">
+                    <CheckCircle size={16} />
+                    {t("correct")}
+                    <span className="ml-auto text-xs font-semibold">
+                      {answerResult.score !== null
+                        ? `+${+(answerResult.score * resource.question.points).toFixed(1)} / ${resource.question.points} ${t("pointsUnit")}`
+                        : `+${resource.question.points} / ${resource.question.points} ${t("pointsUnit")}`}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm font-medium">
+                    <XCircle size={16} />
+                    {t("incorrect")}
+                    <span className="ml-auto text-xs font-semibold">
+                      0 / {resource.question.points} {t("pointsUnit")}
+                    </span>
+                  </div>
+                )}
+                {resource.question.explanation && (
+                  <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
+                    <span className="font-medium">{t("explanation")}: </span>
+                    {resource.question.explanation}
+                  </div>
+                )}
+              </div>
+            ) : isAnswered ? (
+              <div className="space-y-3">
+                <div
+                  className="tiptap-preview prose prose-sm max-w-none text-gray-800 [&_img]:rounded-md [&_code]:before:content-none [&_code]:after:content-none [&_pre_code]:text-black"
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted question content
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(resource.question.body),
+                  }}
+                />
+                {(resource.question.question_type === "single" ||
+                  resource.question.question_type === "multiple") && (
+                  <ul className="space-y-1.5">
+                    {resource.question.options.map((opt) => {
+                      const selected = getSelectedIds(
+                        progress.answer,
+                        resource.question?.question_type,
+                      ).includes(opt.id);
+                      return (
+                        <li
+                          key={opt.id}
+                          className={`flex items-center gap-2 border rounded-lg px-3 py-2 text-sm ${
+                            selected
+                              ? "bg-blue-50 border-blue-300 font-medium"
+                              : "bg-gray-50 border-gray-200 text-gray-600"
+                          }`}
+                        >
+                          <span className="flex-1">{opt.text}</span>
+                          {selected && (
+                            <CheckCircle
+                              size={14}
+                              className="text-blue-500 flex-shrink-0"
+                            />
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {resource.question.question_type !== "single" &&
+                  resource.question.question_type !== "multiple" && (
+                    <div className="border border-blue-200 bg-blue-50 rounded-lg px-3 py-2 text-sm text-gray-800">
+                      <span className="block text-xs text-blue-500 font-medium mb-0.5">
+                        {t("yourAnswer")}
+                      </span>
+                      {getAnswerText(progress.answer) || "—"}
+                    </div>
+                  )}
+                <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg px-3 py-2 text-sm font-medium">
+                  <CheckCircle size={14} />
+                  {t("alreadyAnswered")}
+                </div>
+              </div>
+            ) : (
+              <QuestionForm
+                question={resource.question}
+                onSubmit={onSubmitAnswer}
+                isSubmitting={isSubmitting}
+              />
+            ))}
 
           {!loading && !resource && (
             <p className="text-center text-gray-400 py-8 text-sm">

@@ -1,17 +1,17 @@
 import axios, {
-  AxiosError,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
+  type AxiosError,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
 } from "axios";
 import Cookies from "js-cookie";
-import { RefreshResponse } from "@/types/auth";
+import type { RefreshResponse } from "@/types/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // Interface for requests waiting for a new token
 interface FailedRequest {
   resolve: (token: string) => void;
-  reject: (err: any) => void;
+  reject: (err: unknown) => void;
 }
 
 /** Redirect to /login while preserving the current i18n locale prefix. */
@@ -34,10 +34,10 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);
-    else prom.resolve(token!);
+    else prom.resolve(token ?? "");
   });
   failedQueue = [];
 };

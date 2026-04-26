@@ -3,7 +3,7 @@
 import { BookOpen, Lightbulb, MessageSquare, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ChatPanel from "@/components/game/ChatPanel";
 import MapInteractive from "@/components/game/MapInteractive";
 import ResourceModal from "@/components/game/ResourceModal";
@@ -24,11 +24,7 @@ import {
 } from "@/lib/api/runs";
 import type { MapResponse } from "@/types/map";
 import type { ResourceDetailPublicResponse } from "@/types/resource";
-import type {
-  GameInfoResponse,
-  GameRun,
-  RunProgress,
-} from "@/types/run";
+import type { GameInfoResponse, GameRun, RunProgress } from "@/types/run";
 
 interface AnswerResult {
   correct: boolean | null;
@@ -128,7 +124,7 @@ export default function GamePage() {
   const activeObjectId = activeProgress?.map_object_id ?? null;
 
   // In team mode: am I the hint player for the current step?
-  const iAmHintPlayer =
+  const _iAmHintPlayer =
     isTeamMode && teamStepInfo?.hint_player_id === myPlayerId;
 
   // In team mode: am I the active player for current question step?
@@ -160,9 +156,7 @@ export default function GamePage() {
   }, [gameInfo?.settings?.time_limit_minutes, myPlayer?.started_at]);
 
   const effectiveEndsAt = useMemo(() => {
-    const candidates = [playerEndsAt, run?.ends_at].filter(
-      Boolean,
-    ) as string[];
+    const candidates = [playerEndsAt, run?.ends_at].filter(Boolean) as string[];
     if (candidates.length === 0) return null;
     return candidates.reduce((a, b) => (new Date(a) < new Date(b) ? a : b));
   }, [playerEndsAt, run?.ends_at]);
@@ -226,32 +220,30 @@ export default function GamePage() {
   // In team mode: load initial step info (hint/active player) for reconnect/page-load case
   useEffect(() => {
     if (!stored || !isTeamMode || !myPlayer?.team_id || !map) return;
-    getTeamStepInfo(runId, myPlayer.team_id, stored.guest_token).then(
-      (si) => {
-        if (!si) return;
-        setTeamStepInfo(si as TeamStepInfo);
-        // Show hint if I am the hint player
-        if (si.hint_player_id === stored.player_id && si.map_object_id) {
-          const obj = map.objects.find((o) => o.id === si.map_object_id);
-          if (obj) {
-            const hints =
-              obj.hints.filter((h) => h.language === locale).length > 0
-                ? obj.hints.filter((h) => h.language === locale)
-                : obj.hints.filter((h) => h.language === "uk").length > 0
-                  ? obj.hints.filter((h) => h.language === "uk")
-                  : obj.hints;
-            if (hints.length > 0) {
-              const hint = hints[Math.floor(Math.random() * hints.length)];
-              setPendingHint(hint.hint_text);
-              setPendingHintIsTeam(
-                si.resource_type === "question" &&
-                  si.active_player_id !== stored.player_id,
-              );
-            }
+    getTeamStepInfo(runId, myPlayer.team_id, stored.guest_token).then((si) => {
+      if (!si) return;
+      setTeamStepInfo(si as TeamStepInfo);
+      // Show hint if I am the hint player
+      if (si.hint_player_id === stored.player_id && si.map_object_id) {
+        const obj = map.objects.find((o) => o.id === si.map_object_id);
+        if (obj) {
+          const hints =
+            obj.hints.filter((h) => h.language === locale).length > 0
+              ? obj.hints.filter((h) => h.language === locale)
+              : obj.hints.filter((h) => h.language === "uk").length > 0
+                ? obj.hints.filter((h) => h.language === "uk")
+                : obj.hints;
+          if (hints.length > 0) {
+            const hint = hints[Math.floor(Math.random() * hints.length)];
+            setPendingHint(hint.hint_text);
+            setPendingHintIsTeam(
+              si.resource_type === "question" &&
+                si.active_player_id !== stored.player_id,
+            );
           }
         }
-      },
-    );
+      }
+    });
   }, [stored, runId, isTeamMode, myPlayer?.team_id, map, locale]);
 
   // Show hint when a new active object is revealed
@@ -391,7 +383,7 @@ export default function GamePage() {
         }
         // Apply initial step info for hint/active player
         const si = data.step_info as TeamStepInfo | undefined;
-        if (si && si.hint_player_id) {
+        if (si?.hint_player_id) {
           handleTeamStepEventRef.current({ ...si, progress_updates: [] });
         }
       }
@@ -456,10 +448,7 @@ export default function GamePage() {
         }
       }
 
-      if (
-        data.type === "run_completed" ||
-        data.type === "run_stopped"
-      ) {
+      if (data.type === "run_completed" || data.type === "run_stopped") {
         router.push(`/run/${runId}/results`);
       }
     },
@@ -471,11 +460,6 @@ export default function GamePage() {
       setProgress,
       updateProgress,
       updatePlayer,
-      setAnswerResult,
-      setUnreadChat,
-      setTeamProgress,
-      setTeamStepInfo,
-      setTextViewers,
       runId,
       router,
     ],
@@ -526,7 +510,7 @@ export default function GamePage() {
         if (prog?.resource_id && res.title) {
           setResourceTitles((prev) => ({
             ...prev,
-            [prog.resource_id!]: res.title,
+            [prog.resource_id ?? ""]: res.title,
           }));
         }
       } catch {
@@ -625,9 +609,8 @@ export default function GamePage() {
 
   // Team text step: waiting info
   const totalTeamMembers =
-    run?.players?.filter((p) => p.team_id === myPlayer?.team_id).length ??
-    0;
-  const currentTextStepId = useMemo(() => {
+    run?.players?.filter((p) => p.team_id === myPlayer?.team_id).length ?? 0;
+  const _currentTextStepId = useMemo(() => {
     if (!isTeamMode) return null;
     const active = progress.find(
       (p) => p.status === "assigned" && p.map_object_id,

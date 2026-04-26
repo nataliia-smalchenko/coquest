@@ -50,7 +50,7 @@ export interface CloudinaryImage {
 export interface TextContentResponse {
   id: string;
   resource_id: string;
-  body: Record<string, any>;
+  body: Record<string, unknown>;
   images: CloudinaryImage[];
 }
 

@@ -74,6 +74,7 @@ export default function MapInteractive({
       `}</style>
 
       {/* Background */}
+      {/* biome-ignore lint/performance/noImgElement: SVG map background, Next/Image doesn't support SVG well */}
       <img
         src={`/maps/${map.slug}/background.svg`}
         alt=""
@@ -91,6 +92,9 @@ export default function MapInteractive({
 
         return (
           <div key={obj.id} style={getObjectStyle(obj, map)}>
+            {/* biome-ignore lint/performance/noImgElement: SVG map object, Next/Image doesn't support SVG well */}
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: map objects use click only; keyboard navigation handled at parent level */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: map object img requires click for game interaction */}
             <img
               src={`/maps/${map.slug}/objects/${obj.slug}.svg`}
               alt=""

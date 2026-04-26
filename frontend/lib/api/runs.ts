@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import type { ResourceDetailPublicResponse } from "@/types/resource";
 import type {
   GameInfoResponse,
   GameRun,
@@ -6,10 +7,9 @@ import type {
   RunListItem,
   RunPlayer,
   RunProgress,
-  Team,
   TeacherMonitorResponse,
+  Team,
 } from "@/types/run";
-import type { ResourceDetailPublicResponse } from "@/types/resource";
 
 export async function listRuns(): Promise<RunListItem[]> {
   const { data } = await api.get("/api/runs/");
@@ -181,12 +181,9 @@ export async function getProgressResource(
   progress_id: string,
   guest_token: string,
 ): Promise<ResourceDetailPublicResponse> {
-  const { data } = await api.get(
-    `/api/runs/progress/${progress_id}/resource`,
-    {
-      headers: { "X-Guest-Token": guest_token },
-    },
-  );
+  const { data } = await api.get(`/api/runs/progress/${progress_id}/resource`, {
+    headers: { "X-Guest-Token": guest_token },
+  });
   return data;
 }
 
@@ -220,13 +217,10 @@ export async function reviewAnswer(
   score: number,
   feedback?: string,
 ): Promise<RunProgress> {
-  const { data } = await api.post(
-    `/api/runs/progress/${progress_id}/review`,
-    {
-      score,
-      feedback,
-    },
-  );
+  const { data } = await api.post(`/api/runs/progress/${progress_id}/review`, {
+    score,
+    feedback,
+  });
   return data;
 }
 
@@ -273,10 +267,7 @@ export async function updateRunSettings(
   run_id: string,
   data: import("@/types/run").RunUpdate,
 ): Promise<GameRun> {
-  const { data: res } = await api.patch(
-    `/api/runs/${run_id}/settings`,
-    data,
-  );
+  const { data: res } = await api.patch(`/api/runs/${run_id}/settings`, data);
   return res;
 }
 
