@@ -43,7 +43,7 @@ export default function ChatPanel({
           const isMe = msg.player_id === myPlayerId;
           return (
             <div
-              key={`${msg.player_id}-${msg.timestamp}`}
+              key={msg.id}
               className={`flex items-start gap-2 ${isMe ? "flex-row-reverse" : ""}`}
             >
               <div

@@ -87,7 +87,11 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(error, null);
         Cookies.remove("access_token");
-        redirectToLogin();
+        // Only redirect authenticated requests — guest/unauthenticated requests
+        // (no Authorization header) should fail silently without a login redirect.
+        if (originalRequest.headers?.Authorization) {
+          redirectToLogin();
+        }
         return Promise.reject(error);
       }
 

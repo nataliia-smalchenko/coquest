@@ -5,7 +5,7 @@ import { create } from "zustand";
 import api from "@/lib/api";
 import { authService } from "@/lib/auth";
 import { getApiDetail } from "@/lib/errors";
-import type { User } from "@/types";
+import type { RegisterData, User } from "@/types";
 
 interface AuthState {
   user: User | null;
@@ -13,7 +13,7 @@ interface AuthState {
   error: string | null;
   language: string;
   login: (email: string, password: string) => Promise<User>;
-  register: (data: Record<string, unknown>) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   fetchUser: () => Promise<void>;
   setLanguage: (lang: string) => Promise<void>;

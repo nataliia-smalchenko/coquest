@@ -308,7 +308,13 @@ function PlayerDetailDrawer({
                 }
 
                 // Get selected options
-                const q = p.question ?? { question_type: "open", options: [] };
+                const q = p.question ?? {
+                  question_type: "open",
+                  options: [],
+                  body: "",
+                  points: 0,
+                  correct_answers: [] as string[],
+                };
                 const answer = p.answer as Record<string, unknown> | null;
                 const isChoice =
                   q.question_type === "single" ||

@@ -220,7 +220,7 @@ export default function ResourceModal({
                     {resource.question.options.map((opt) => {
                       const selected = getSelectedIds(
                         progress.answer,
-                        resource.question?.question_type,
+                        resource.question!.question_type,
                       ).includes(opt.id);
                       return (
                         <li

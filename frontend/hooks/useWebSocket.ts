@@ -17,14 +17,25 @@ const RECONNECT_MAX_ATTEMPTS = 10;
  * `onMessage` is stored in a ref internally, so replacing the callback
  * (e.g. after a state change in the consumer) never triggers a reconnect.
  * Messages are delivered directly to the callback — no state accumulation.
+ *
+ * `authMessage` — if provided, sent as the first frame after the socket opens
+ * (used by the player endpoint which expects `{ token }` before it will
+ * respond with the `connected` payload).
  */
-function useWebSocket(url: string | null, onMessage: (data: unknown) => void) {
+function useWebSocket(
+  url: string | null,
+  onMessage: (data: unknown) => void,
+  authMessage?: Record<string, unknown> | null,
+) {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
 
   // Always holds the latest callback without causing reconnects
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
+
+  const authMessageRef = useRef(authMessage);
+  authMessageRef.current = authMessage;
 
   const wsRef = useRef<WebSocket | null>(null);
   const attemptsRef = useRef(0);
@@ -38,6 +49,9 @@ function useWebSocket(url: string | null, onMessage: (data: unknown) => void) {
     const socket = new WebSocket(url);
 
     socket.onopen = () => {
+      if (authMessageRef.current) {
+        socket.send(JSON.stringify(authMessageRef.current));
+      }
       setConnected(true);
       setReconnecting(false);
       attemptsRef.current = 0;
@@ -106,10 +120,9 @@ export function usePlayerWebSocket(
   onMessage: (data: unknown) => void,
 ) {
   const url =
-    runId && guestToken
-      ? `${WS_BASE}/api/ws/run/${runId}/player?guest_token=${guestToken}`
-      : null;
-  return useWebSocket(url, onMessage);
+    runId && guestToken ? `${WS_BASE}/api/ws/run/${runId}/player` : null;
+  const authMessage = guestToken ? { token: guestToken } : null;
+  return useWebSocket(url, onMessage, authMessage);
 }
 
 export function useTeacherWebSocket(
