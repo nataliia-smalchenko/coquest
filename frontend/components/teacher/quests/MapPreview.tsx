@@ -25,6 +25,7 @@ export default function MapPreview({ map, className }: MapPreviewProps) {
       style={{ aspectRatio }}
     >
       {/* Background */}
+      {/* biome-ignore lint/performance/noImgElement: SVG map background, Next/Image doesn't support SVG well */}
       <img
         src={`/maps/${map.slug}/background.svg`}
         alt=""
@@ -33,20 +34,23 @@ export default function MapPreview({ map, className }: MapPreviewProps) {
       />
 
       {/* Objects */}
-      {map.objects.filter((obj) => obj.slug !== "background").map((obj) => (
-        <img
-          key={obj.id}
-          src={`/maps/${map.slug}/objects/${obj.slug}.svg`}
-          alt=""
-          style={getObjectStyle(obj, map)}
-          draggable={false}
-          className={
-            obj.is_interactive
-              ? "cursor-pointer opacity-100 hover:opacity-80 transition-opacity duration-150"
-              : ""
-          }
-        />
-      ))}
+      {map.objects
+        .filter((obj) => obj.slug !== "background")
+        .map((obj) => (
+          // biome-ignore lint/performance/noImgElement: SVG map object, Next/Image doesn't support SVG well
+          <img
+            key={obj.id}
+            src={`/maps/${map.slug}/objects/${obj.slug}.svg`}
+            alt=""
+            style={getObjectStyle(obj, map)}
+            draggable={false}
+            className={
+              obj.is_interactive
+                ? "cursor-pointer opacity-100 hover:opacity-80 transition-opacity duration-150"
+                : ""
+            }
+          />
+        ))}
     </div>
   );
 }

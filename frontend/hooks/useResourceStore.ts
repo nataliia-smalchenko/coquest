@@ -3,18 +3,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
+  createTag as apiCreateTag,
   deleteResource as apiDeleteResource,
+  deleteTag as apiDeleteTag,
   getFolders,
   getResources,
   getTags,
-  createTag as apiCreateTag,
-  deleteTag as apiDeleteTag,
 } from "@/lib/api/resources";
 import type {
   FolderResponse,
   ResourceResponse,
-  TagResponse,
   TagCreate,
+  TagResponse,
 } from "@/types/resource";
 
 interface ResourceStore {

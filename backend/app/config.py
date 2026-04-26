@@ -1,4 +1,3 @@
-import os
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -46,6 +45,16 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_UPLOAD_PRESET: str = "coquest_preset"
+
+    # Game run business rules
+    RESULTS_AVAILABLE_DAYS: int = 30  # how long results are accessible after a run ends
+    TEAM_WAIT_TIMEOUT_MINUTES: int = (
+        30  # max time a WAITING team can exist before cleanup
+    )
+
+    # WebSocket
+    WS_HEARTBEAT_INTERVAL_SECONDS: int = 30  # interval between server → client pings
 
     model_config = SettingsConfigDict(
         env_file=".env",

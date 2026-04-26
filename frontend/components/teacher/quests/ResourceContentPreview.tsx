@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Image from "next/image";
-import { useTranslations } from "next-intl";
-import { cloudinaryUrl } from "@/lib/cloudinary";
-import { Check } from "lucide-react";
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { Check } from "lucide-react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { ResizableImage } from "@/components/editor/ResizableImage";
+import { useHighlightCode } from "@/hooks/useHighlightCode";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { ResourceDetailResponse } from "@/types/resource";
 
@@ -24,16 +24,8 @@ function renderTiptap(body: Record<string, unknown>): string {
 
 function TextPreview({ body }: { body: Record<string, unknown> }) {
   const tp = useTranslations("quests.preview");
-  const ref = useRef<HTMLDivElement>(null);
   const html = renderTiptap(body);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (ref.current) applyHighlighting(ref.current);
-    });
-  }, [html]);
+  const ref = useHighlightCode<HTMLDivElement>([html]);
 
   if (!html) {
     return (
@@ -48,6 +40,7 @@ function TextPreview({ body }: { body: Record<string, unknown> }) {
       ref={ref}
       className="tiptap-preview"
       style={{ fontSize: "14px", color: "#111827", lineHeight: 1.6 }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted tiptap content
       dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   );
@@ -61,15 +54,7 @@ function QuestionPreview({
   const tp = useTranslations("quests.preview");
   const { question_type, body, options, correct_answers, explanation } =
     question;
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (bodyRef.current) applyHighlighting(bodyRef.current);
-    });
-  }, [body]);
+  const bodyRef = useHighlightCode<HTMLDivElement>([body]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -84,6 +69,7 @@ function QuestionPreview({
           color: "#111827",
           lineHeight: 1.5,
         }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted question content
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(body) }}
       />
 
@@ -192,9 +178,9 @@ function QuestionPreview({
             {tp("shortAnswer")}
           </span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {correct_answers.map((ans, i) => (
+            {correct_answers.map((ans) => (
               <span
-                key={i}
+                key={ans}
                 style={{
                   padding: "4px 10px",
                   borderRadius: "8px",

@@ -3,8 +3,8 @@
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import type { Node } from "@tiptap/pm/model";
 import type { ViewMutationRecord } from "@tiptap/pm/view";
-import { lowlight, CODE_LANGUAGES } from "./codeHighlight";
 import { applyHljsInlineColors } from "@/lib/hljsColors";
+import { CODE_LANGUAGES, lowlight } from "./codeHighlight";
 
 // Selector styles
 const SELECT_STYLE = [

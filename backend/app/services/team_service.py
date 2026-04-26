@@ -1,19 +1,19 @@
-import random
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from datetime import timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete as sa_delete, func, select
+from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.game_session import GameSession, SessionStatus
-from app.models.session_chat import SessionChat
-from app.models.session_player import PlayerStatus, SessionPlayer
-from app.models.session_progress import SessionProgress
-from app.models.session_team import SessionTeam, TeamStatus
-from app.schemas.session import (
+from app.config import settings
+from app.models.game_run import GameRun, RunStatus
+from app.models.run_chat import RunChat
+from app.models.run_player import PlayerStatus, RunPlayer
+from app.models.run_progress import RunProgress, ProgressStatus
+from app.models.run_team import RunTeam, TeamStatus
+from app.schemas.run import (
     TeamPlayerResponse,
     TeamResponse,
 )
@@ -25,10 +25,10 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-def _team_response(team: SessionTeam) -> TeamResponse:
+def _team_response(team: RunTeam) -> TeamResponse:
     return TeamResponse(
         id=team.id,
-        session_id=team.session_id,
+        run_id=team.run_id,
         status=team.status,
         players=[
             TeamPlayerResponse(
@@ -44,42 +44,42 @@ def _team_response(team: SessionTeam) -> TeamResponse:
     )
 
 
-async def _find_or_create_team(db: AsyncSession, session: GameSession) -> SessionTeam:
+async def _find_or_create_team(db: AsyncSession, run: GameRun) -> RunTeam:
     """Find a waiting team with an open slot, or create a new one."""
-    return await _find_or_create_team_excluding(db, session, None)
+    return await _find_or_create_team_excluding(db, run, None)
 
 
 async def _find_or_create_team_excluding(
     db: AsyncSession,
-    session: GameSession,
+    run: GameRun,
     exclude_team_id: Optional[uuid.UUID],
-) -> SessionTeam:
+) -> RunTeam:
     """Find a waiting team with an open slot (excluding a given team), or create a new one."""
     query = (
-        select(SessionTeam)
+        select(RunTeam)
         .where(
-            SessionTeam.session_id == session.id,
-            SessionTeam.status == TeamStatus.WAITING,
+            RunTeam.run_id == run.id,
+            RunTeam.status == TeamStatus.WAITING,
         )
-        .options(selectinload(SessionTeam.players))
-        .order_by(SessionTeam.created_at)
+        .options(selectinload(RunTeam.players))
+        .order_by(RunTeam.created_at)
     )
     if exclude_team_id is not None:
-        query = query.where(SessionTeam.id != exclude_team_id)
+        query = query.where(RunTeam.id != exclude_team_id)
     result = await db.execute(query)
     waiting_teams = list(result.scalars().all())
-    team = next(
-        (t for t in waiting_teams if len(t.players) < session.max_players), None
-    )
+    team = next((t for t in waiting_teams if len(t.players) < run.max_players), None)
     if not team:
-        team = SessionTeam(session_id=session.id)
+        team = RunTeam(run_id=run.id)
         db.add(team)
         await db.flush()
     return team
 
 
 async def _cleanup_stale_teams(
-    db: AsyncSession, session: GameSession, max_wait_minutes: int = 30
+    db: AsyncSession,
+    run: GameRun,
+    max_wait_minutes: int = settings.TEAM_WAIT_TIMEOUT_MINUTES,
 ) -> bool:
     """Delete WAITING teams (and all their players) that have not started within the given window.
 
@@ -87,13 +87,13 @@ async def _cleanup_stale_teams(
     """
     cutoff = _now() - timedelta(minutes=max_wait_minutes)
     stale_result = await db.execute(
-        select(SessionTeam)
+        select(RunTeam)
         .where(
-            SessionTeam.session_id == session.id,
-            SessionTeam.status == TeamStatus.WAITING,
-            SessionTeam.created_at < cutoff,
+            RunTeam.run_id == run.id,
+            RunTeam.status == TeamStatus.WAITING,
+            RunTeam.created_at < cutoff,
         )
-        .options(selectinload(SessionTeam.players))
+        .options(selectinload(RunTeam.players))
     )
     stale_teams = list(stale_result.scalars().all())
     if not stale_teams:
@@ -106,16 +106,12 @@ async def _cleanup_stale_teams(
             team.hint_player_id = None
             await db.flush()
             await db.execute(
-                sa_delete(SessionProgress).where(
-                    SessionProgress.player_id.in_(player_ids)
-                )
+                sa_delete(RunProgress).where(RunProgress.player_id.in_(player_ids))
             )
             await db.execute(
-                sa_delete(SessionChat).where(SessionChat.player_id.in_(player_ids))
+                sa_delete(RunChat).where(RunChat.player_id.in_(player_ids))
             )
-            await db.execute(
-                sa_delete(SessionPlayer).where(SessionPlayer.id.in_(player_ids))
-            )
+            await db.execute(sa_delete(RunPlayer).where(RunPlayer.id.in_(player_ids)))
         await db.delete(team)
 
     await db.flush()
@@ -126,18 +122,18 @@ class TeamService:
     @staticmethod
     async def get_team(
         db: AsyncSession,
-        session_id: uuid.UUID,
+        run_id: uuid.UUID,
         team_id: uuid.UUID,
-        player: SessionPlayer,
+        player: RunPlayer,
     ) -> TeamResponse:
-        if player.team_id != team_id or player.session_id != session_id:
+        if player.team_id != team_id or player.run_id != run_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
             )
         result = await db.execute(
-            select(SessionTeam)
-            .where(SessionTeam.id == team_id, SessionTeam.session_id == session_id)
-            .options(selectinload(SessionTeam.players))
+            select(RunTeam)
+            .where(RunTeam.id == team_id, RunTeam.run_id == run_id)
+            .options(selectinload(RunTeam.players))
         )
         team = result.scalar_one_or_none()
         if not team:
@@ -148,15 +144,15 @@ class TeamService:
 
     @staticmethod
     async def leave_team(
-        db: AsyncSession, session_id: uuid.UUID, player: SessionPlayer
+        db: AsyncSession, run_id: uuid.UUID, player: RunPlayer
     ) -> tuple:
         """Move a player from their current waiting team to a different team.
 
         Returns (updated_player, new_team, old_team_member_ids).
         """
-        from app.services.session_service import _player_response
+        from app.services.run_service import _player_response
 
-        if player.session_id != session_id:
+        if player.run_id != run_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
             )
@@ -168,9 +164,9 @@ class TeamService:
 
         # Load old team with its members
         old_team_result = await db.execute(
-            select(SessionTeam)
-            .where(SessionTeam.id == player.team_id)
-            .options(selectinload(SessionTeam.players))
+            select(RunTeam)
+            .where(RunTeam.id == player.team_id)
+            .options(selectinload(RunTeam.players))
         )
         old_team = old_team_result.scalar_one_or_none()
 
@@ -183,30 +179,25 @@ class TeamService:
         old_team_id = old_team.id
         old_member_ids = [str(p.id) for p in old_team.players if p.id != player.id]
 
-        # Load session for team lookup
-        session_result = await db.execute(
-            select(GameSession)
-            .where(GameSession.id == session_id)
-            .options(selectinload(GameSession.players))
+        # Load run for team lookup
+        run_result = await db.execute(
+            select(GameRun)
+            .where(GameRun.id == run_id)
+            .options(selectinload(GameRun.players))
         )
-        session = session_result.scalar_one_or_none()
+        run = run_result.scalar_one_or_none()
 
-        # Remove player from old team
+        # Delete old team if this player was the only member (checked before detach).
+        team_will_be_empty = len(old_team.players) == 1
         player.team_id = None
         await db.flush()
 
-        # Delete old team if now empty
-        count_result = await db.execute(
-            select(func.count()).where(SessionPlayer.team_id == old_team_id)
-        )
-        if count_result.scalar_one() == 0:
-            stale_team = await db.get(SessionTeam, old_team_id)
-            if stale_team:
-                await db.delete(stale_team)
-                await db.flush()
+        if team_will_be_empty:
+            await db.delete(old_team)
+            await db.flush()
 
         # Assign to a new waiting team
-        new_team = await _find_or_create_team_excluding(db, session, old_team_id)
+        new_team = await _find_or_create_team_excluding(db, run, old_team_id)
         player.team_id = new_team.id
         await db.flush()
 
@@ -215,9 +206,9 @@ class TeamService:
 
         # Reload new team with current players
         new_team_result = await db.execute(
-            select(SessionTeam)
-            .where(SessionTeam.id == new_team.id)
-            .options(selectinload(SessionTeam.players))
+            select(RunTeam)
+            .where(RunTeam.id == new_team.id)
+            .options(selectinload(RunTeam.players))
         )
         new_team_loaded = new_team_result.scalar_one()
 
@@ -226,22 +217,22 @@ class TeamService:
     @staticmethod
     async def start_team(
         db: AsyncSession,
-        session_id: uuid.UUID,
+        run_id: uuid.UUID,
         team_id: uuid.UUID,
-        player: SessionPlayer,
+        player: RunPlayer,
     ) -> TeamResponse:
         """Team mode: player starts their team's quest."""
-        from app.services.session_service import SessionService
+        from app.services.run_service import RunService
 
-        if player.team_id != team_id or player.session_id != session_id:
+        if player.team_id != team_id or player.run_id != run_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
             )
 
         result = await db.execute(
-            select(SessionTeam)
-            .where(SessionTeam.id == team_id, SessionTeam.session_id == session_id)
-            .options(selectinload(SessionTeam.players))
+            select(RunTeam)
+            .where(RunTeam.id == team_id, RunTeam.run_id == run_id)
+            .options(selectinload(RunTeam.players))
         )
         team = result.scalar_one_or_none()
         if not team:
@@ -253,33 +244,33 @@ class TeamService:
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Team already started"
             )
 
-        from app.services.session_service import _load_session
+        from app.services.run_service import _load_run
 
-        session = await _load_session(db, session_id)
-        if session.status not in (
-            SessionStatus.WAITING,
-            SessionStatus.SCHEDULED,
-            SessionStatus.ACTIVE,
+        run = await _load_run(db, run_id)
+        if run.status not in (
+            RunStatus.WAITING,
+            RunStatus.SCHEDULED,
+            RunStatus.ACTIVE,
         ):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Session is not active"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Run is not active"
             )
 
-        if not session.allow_solo_in_team and len(team.players) < 2:
+        if not run.allow_solo_in_team and len(team.players) < 2:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Need at least one teammate to start",
             )
 
-        await SessionService._distribute_resources_for_team(db, session, team)
+        await RunService._distribute_resources_for_team(db, run, team)
 
         now = _now()
         team.status = TeamStatus.ACTIVE
         team.started_at = now
 
-        if session.status != SessionStatus.ACTIVE:
-            session.status = SessionStatus.ACTIVE
-            session.started_at = now
+        if run.status != RunStatus.ACTIVE:
+            run.status = RunStatus.ACTIVE
+            run.started_at = now
 
         for p in team.players:
             p.status = PlayerStatus.PLAYING
@@ -288,32 +279,31 @@ class TeamService:
         await db.commit()
 
         result = await db.execute(
-            select(SessionTeam)
-            .where(SessionTeam.id == team_id)
-            .options(selectinload(SessionTeam.players))
+            select(RunTeam)
+            .where(RunTeam.id == team_id)
+            .options(selectinload(RunTeam.players))
         )
         return _team_response(result.scalar_one())
 
     @staticmethod
     async def get_team_step_info(
         db: AsyncSession,
-        session_id: uuid.UUID,
+        run_id: uuid.UUID,
         team_id: uuid.UUID,
     ) -> Dict:
         """Return current active step info for a team (for WS events on start)."""
         from app.models.resource import Resource
-        from app.models.session_progress import ProgressStatus
 
         # Find first ASSIGNED record with map_object_id (current active step)
         active_result = await db.execute(
-            select(SessionProgress)
+            select(RunProgress)
             .where(
-                SessionProgress.session_id == session_id,
-                SessionProgress.team_id == team_id,
-                SessionProgress.map_object_id != None,  # noqa: E711
-                SessionProgress.status == ProgressStatus.ASSIGNED,
+                RunProgress.run_id == run_id,
+                RunProgress.team_id == team_id,
+                RunProgress.map_object_id != None,  # noqa: E711
+                RunProgress.status == ProgressStatus.ASSIGNED,
             )
-            .order_by(SessionProgress.step_order)
+            .order_by(RunProgress.step_order)
             .limit(1)
         )
         active_rec = active_result.scalar_one_or_none()
@@ -325,7 +315,7 @@ class TeamService:
         resource = await db.get(Resource, resource_id)
         resource_type = resource.type if resource else "question"
 
-        team_obj = await db.get(SessionTeam, team_id)
+        team_obj = await db.get(RunTeam, team_id)
         hint_pid = (
             str(team_obj.hint_player_id)
             if team_obj and team_obj.hint_player_id

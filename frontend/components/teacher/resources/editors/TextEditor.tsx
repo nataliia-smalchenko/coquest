@@ -1,14 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import { ResizableImage } from "@/components/editor/ResizableImage";
-import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
-import { CodeBlockWithSelector } from "@/components/editor/CodeBlockWithSelector";
+import Placeholder from "@tiptap/extension-placeholder";
+import Underline from "@tiptap/extension-underline";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
 import {
   Bold,
   Check,
@@ -22,6 +18,10 @@ import {
   Save,
   Underline as UnderlineIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useRef, useState } from "react";
+import { CodeBlockWithSelector } from "@/components/editor/CodeBlockWithSelector";
+import { ResizableImage } from "@/components/editor/ResizableImage";
 import { getUploadSignature, upsertTextContent } from "@/lib/api/resources";
 import type { CloudinaryImage, TextContentResponse } from "@/types/resource";
 
@@ -324,6 +324,8 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
       </div>
 
       {/* Editor area */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: editor area, click to focus is standard behavior */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: editor handles keyboard events internally via EditorContent */}
       <div
         style={{ minHeight: "380px", padding: "20px 24px", cursor: "text" }}
         onClick={() => editor.commands.focus()}
@@ -371,6 +373,7 @@ export function TextEditor({ resourceId, initial, onSaved }: TextEditorProps) {
         }}
       >
         <button
+          type="button"
           onClick={handleSave}
           disabled={saving}
           style={{

@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 
+
 @pytest.mark.asyncio
 async def test_health_check(client: AsyncClient):
     response = await client.get("/api/health")
@@ -8,6 +9,7 @@ async def test_health_check(client: AsyncClient):
     data = response.json()
     assert data["status"] == "healthy"
     assert "version" in data
+
 
 @pytest.mark.asyncio
 async def test_root(client: AsyncClient):

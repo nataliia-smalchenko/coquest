@@ -1,11 +1,11 @@
 "use client";
 
 import type { MapObject, MapResponse } from "@/types/map";
-import type { SessionProgress } from "@/types/session";
+import type { RunProgress } from "@/types/run";
 
 interface MapInteractiveProps {
   map: MapResponse;
-  progress: SessionProgress[];
+  progress: RunProgress[];
   onObjectClick: (mapObjectId: string, progressId: string) => void;
   activeObjectId?: string | null;
   highlightObjectId?: string | null;
@@ -33,7 +33,7 @@ export default function MapInteractive({
 }: MapInteractiveProps) {
   const aspectRatio = map.original_width / map.original_height;
 
-  const progressByObject = new Map<string, SessionProgress>();
+  const progressByObject = new Map<string, RunProgress>();
   for (const p of progress) {
     if (p.map_object_id) {
       const existing = progressByObject.get(p.map_object_id);
@@ -74,6 +74,7 @@ export default function MapInteractive({
       `}</style>
 
       {/* Background */}
+      {/* biome-ignore lint/performance/noImgElement: SVG map background, Next/Image doesn't support SVG well */}
       <img
         src={`/maps/${map.slug}/background.svg`}
         alt=""
@@ -91,6 +92,9 @@ export default function MapInteractive({
 
         return (
           <div key={obj.id} style={getObjectStyle(obj, map)}>
+            {/* biome-ignore lint/performance/noImgElement: SVG map object, Next/Image doesn't support SVG well */}
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: map objects use click only; keyboard navigation handled at parent level */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: map object img requires click for game interaction */}
             <img
               src={`/maps/${map.slug}/objects/${obj.slug}.svg`}
               alt=""

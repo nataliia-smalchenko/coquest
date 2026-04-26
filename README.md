@@ -22,6 +22,7 @@
 ## Features
 
 **For teachers**
+
 - Build a resource library: rich text materials, single/multiple choice and open-ended questions with image support
 - Compose quests by placing resources on an interactive classroom map
 - Configure sessions: team size, answer feedback, score visibility, time limits, scheduling
@@ -29,12 +30,14 @@
 - Review and score open-ended answers in real time
 
 **For students**
+
 - Join a session with a 6-character code — no account required
 - Navigate an interactive map and complete assigned tasks
 - Collaborate in teams with a shared hint system and in-game chat
 - View results immediately after the session ends
 
 **Platform**
+
 - Bilingual UI: Ukrainian (default) and English
 - Google OAuth alongside email/password registration
 - Image uploads via Cloudinary (direct browser-to-cloud)
@@ -44,17 +47,17 @@
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, Zustand |
-| Rich text | Tiptap with syntax highlighting (lowlight) |
-| Backend | Python 3.11, FastAPI, SQLAlchemy (async), Alembic |
-| Database | PostgreSQL (asyncpg driver) |
-| Cache / pub-sub | Redis |
-| Auth | JWT (HS256) + Google OAuth via Authlib |
-| Email | Resend API with Jinja2 HTML templates |
-| Media | Cloudinary (signed upload flow) |
-| Infrastructure | Docker Compose |
+| Layer           | Technology                                                 |
+| --------------- | ---------------------------------------------------------- |
+| Frontend        | Next.js 14 (App Router), TypeScript, Tailwind CSS, Zustand |
+| Rich text       | Tiptap with syntax highlighting (lowlight)                 |
+| Backend         | Python 3.11, FastAPI, SQLAlchemy (async), Alembic          |
+| Database        | PostgreSQL (asyncpg driver)                                |
+| Cache / pub-sub | Redis                                                      |
+| Auth            | JWT (HS256) + Google OAuth via Authlib                     |
+| Email           | Resend API with Jinja2 HTML templates                      |
+| Media           | Cloudinary (signed upload flow)                            |
+| Infrastructure  | Docker Compose                                             |
 
 ---
 
@@ -121,25 +124,25 @@ App runs on `http://localhost:3000`
 
 ### `backend/.env`
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL async URL (`postgresql+asyncpg://...`) |
-| `REDIS_URL` | Redis connection URL |
-| `SECRET_KEY` | JWT signing secret |
-| `RESEND_API_KEY` | Resend API key for transactional email |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
-| `CLOUDINARY_API_KEY` | Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+| Variable                | Description                                       |
+| ----------------------- | ------------------------------------------------- |
+| `DATABASE_URL`          | PostgreSQL async URL (`postgresql+asyncpg://...`) |
+| `REDIS_URL`             | Redis connection URL                              |
+| `SECRET_KEY`            | JWT signing secret                                |
+| `RESEND_API_KEY`        | Resend API key for transactional email            |
+| `GOOGLE_CLIENT_ID`      | Google OAuth client ID                            |
+| `GOOGLE_CLIENT_SECRET`  | Google OAuth client secret                        |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name                             |
+| `CLOUDINARY_API_KEY`    | Cloudinary API key                                |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret                             |
 
 ### `frontend/.env.local`
 
-| Variable | Description |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Backend base URL (e.g. `http://localhost:8000`) |
-| `NEXT_PUBLIC_WS_URL` | WebSocket base URL (e.g. `ws://localhost:8000`) |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| Variable                       | Description                                     |
+| ------------------------------ | ----------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`          | Backend base URL (e.g. `http://localhost:8000`) |
+| `NEXT_PUBLIC_WS_URL`           | WebSocket base URL (e.g. `ws://localhost:8000`) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth client ID                          |
 
 ---
 
@@ -170,34 +173,34 @@ coquest/
 
 ### Player channel (`/api/ws/session/{id}/player`)
 
-| Event | Direction | Description |
-|---|---|---|
-| `connected` | server → player | Initial state: session data, player list |
-| `session_started` | server → player | Game started, initial progress assigned |
-| `team_started` | server → player | Team's gameplay begins |
-| `answer_result` | server → player | Score and correctness after answer submission |
-| `team_step_advanced` | server → player | Team progressed to next map object |
-| `object_updated` | server → player | New resource assigned to a map object |
-| `text_viewed` | server → player | Text resource marked as viewed |
-| `player_finished` | server → all | A player completed all their tasks |
-| `session_completed` | server → all | All players finished |
-| `chat_message` | both | In-game team chat |
-| `submit_answer` | player → server | Submit answer to a question |
-| `mark_viewed` | player → server | Mark a text resource as read |
+| Event                | Direction       | Description                                   |
+| -------------------- | --------------- | --------------------------------------------- |
+| `connected`          | server → player | Initial state: session data, player list      |
+| `session_started`    | server → player | Game started, initial progress assigned       |
+| `team_started`       | server → player | Team's gameplay begins                        |
+| `answer_result`      | server → player | Score and correctness after answer submission |
+| `team_step_advanced` | server → player | Team progressed to next map object            |
+| `object_updated`     | server → player | New resource assigned to a map object         |
+| `text_viewed`        | server → player | Text resource marked as viewed                |
+| `player_finished`    | server → all    | A player completed all their tasks            |
+| `session_completed`  | server → all    | All players finished                          |
+| `chat_message`       | both            | In-game team chat                             |
+| `submit_answer`      | player → server | Submit answer to a question                   |
+| `mark_viewed`        | player → server | Mark a text resource as read                  |
 
 ### Teacher channel (`/api/ws/session/{id}/teacher`)
 
-| Event | Direction | Description |
-|---|---|---|
-| `connected` | server → teacher | Initial session state |
-| `player_joined` | server → teacher | New player connected |
-| `player_answered` | server → teacher | Player submitted an answer |
+| Event                | Direction        | Description                 |
+| -------------------- | ---------------- | --------------------------- |
+| `connected`          | server → teacher | Initial session state       |
+| `player_joined`      | server → teacher | New player connected        |
+| `player_answered`    | server → teacher | Player submitted an answer  |
 | `player_viewed_text` | server → teacher | Player read a text resource |
-| `player_finished` | server → teacher | Player completed all tasks |
-| `session_completed` | server → teacher | Session finished |
-| `start_session` | teacher → server | Start the session |
-| `stop_session` | teacher → server | Stop the session early |
-| `review_answer` | teacher → server | Score an open-ended answer |
+| `player_finished`    | server → teacher | Player completed all tasks  |
+| `session_completed`  | server → teacher | Session finished            |
+| `start_session`      | teacher → server | Start the session           |
+| `stop_session`       | teacher → server | Stop the session early      |
+| `review_answer`      | teacher → server | Score an open-ended answer  |
 
 ---
 
@@ -227,6 +230,7 @@ npm run format
 # Backend
 cd backend
 ruff check .
+ruff format .
 ```
 
 3. Open a pull request against `develop`

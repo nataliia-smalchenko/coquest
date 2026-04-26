@@ -1,8 +1,8 @@
 "use client";
 
+import type { NodeViewProps } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import type { NodeViewProps } from "@tiptap/core";
 
 // Explicit list of classes for Tailwind to scan (prevents JIT purging of dynamically generated classes)
 // img-mw-100 img-mw-200 img-mw-300 img-mw-400 img-mw-500 img-mw-532
@@ -30,6 +30,7 @@ function ResizableImageView({
         }}
         contentEditable={false}
       >
+        {/* biome-ignore lint/performance/noImgElement: Tiptap editor node, Next/Image incompatible with editor extensions */}
         <img
           src={src}
           alt={alt}
@@ -97,13 +98,13 @@ export const ResizableImage = Image.extend({
           const classMwMatch = (el.getAttribute("class") ?? "").match(
             /\bimg-mw-(\d+)\b/,
           );
-          if (classMwMatch) return parseInt(classMwMatch[1]);
+          if (classMwMatch) return parseInt(classMwMatch[1], 10);
           // Old format: class="img-w-50"
           const classWMatch = (el.getAttribute("class") ?? "").match(
             /\bimg-w-(\d+)\b/,
           );
           if (classWMatch) {
-            const w = parseInt(classWMatch[1]);
+            const w = parseInt(classWMatch[1], 10);
             if (w <= 25) return 200;
             if (w <= 50) return 300;
             if (w <= 75) return 400;
@@ -114,7 +115,7 @@ export const ResizableImage = Image.extend({
             /width:\s*(\d+)%/,
           );
           if (styleMatch) {
-            const w = parseInt(styleMatch[1]);
+            const w = parseInt(styleMatch[1], 10);
             if (w <= 25) return 200;
             if (w <= 50) return 300;
             if (w <= 75) return 400;

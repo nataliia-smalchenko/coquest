@@ -1,11 +1,16 @@
+import { type NextRequest, NextResponse } from "next/server";
 import createMiddleware from "next-intl/middleware";
-import { NextRequest, NextResponse } from "next/server";
 import { routing } from "./i18n/routing";
 
 const intlMiddleware = createMiddleware(routing);
 
 // Languages that map to Ukrainian interface
 const UKRAINIAN_LANGS = new Set(["uk", "ru"]);
+
+// Routes that require an authenticated user (checked against locale-stripped path)
+// Note: /run/* is intentionally excluded — those pages are guest-accessible and
+// handle their own auth via localStorage guest_token (redirecting to /join if absent).
+const PROTECTED_PREFIXES = ["/teacher", "/student", "/profile"];
 
 function detectLocale(acceptLanguage: string | null): "uk" | "en" {
   if (!acceptLanguage) return "en";
@@ -18,8 +23,35 @@ function detectLocale(acceptLanguage: string | null): "uk" | "en" {
   return "en";
 }
 
+/** Strip the locale segment (/uk or /en) to get the canonical path. */
+function stripLocale(pathname: string): string {
+  return pathname.replace(/^\/(uk|en)(?=\/|$)/, "") || "/";
+}
+
+/** Build a login redirect that preserves the current locale prefix. */
+function loginRedirect(request: NextRequest): NextResponse {
+  const url = request.nextUrl.clone();
+  const hasLocale = /^\/(uk|en)(\/|$)/.test(request.nextUrl.pathname);
+  const localeSegment = hasLocale
+    ? `/${request.nextUrl.pathname.split("/")[1]}`
+    : "";
+  url.pathname = `${localeSegment}/login`;
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const canonical = stripLocale(pathname);
+
+  // Guard protected routes: require at least one auth cookie to exist.
+  // The API enforces real token validity; this only prevents obvious unauthenticated access.
+  if (PROTECTED_PREFIXES.some((prefix) => canonical.startsWith(prefix))) {
+    const hasToken =
+      request.cookies.has("access_token") ||
+      request.cookies.has("refresh_token");
+    if (!hasToken) return loginRedirect(request);
+  }
 
   // If user already has an explicit locale in the URL or a remembered cookie → skip detection
   const hasLocaleInPath = /^\/(uk|en)(\/|$)/.test(pathname);

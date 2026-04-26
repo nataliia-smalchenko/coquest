@@ -14,11 +14,11 @@ from app.models.quest import (
     QuestSettings,
     QuestResource,
 )
-from app.models.game_session import GameSession, SessionStatus
-from app.models.session_team import SessionTeam, TeamStatus
-from app.models.session_player import SessionPlayer, PlayerStatus
-from app.models.session_progress import SessionProgress, ProgressStatus
-from app.models.session_chat import SessionChat
+from app.models.game_run import GameRun, RunStatus
+from app.models.run_team import RunTeam, TeamStatus
+from app.models.run_player import RunPlayer, PlayerStatus
+from app.models.run_progress import RunProgress, ProgressStatus
+from app.models.run_chat import RunChat
 
 __all__ = [
     "Base",
@@ -42,13 +42,13 @@ __all__ = [
     "QuestTranslation",
     "QuestSettings",
     "QuestResource",
-    "GameSession",
-    "SessionStatus",
-    "SessionTeam",
+    "GameRun",
+    "RunStatus",
+    "RunTeam",
     "TeamStatus",
-    "SessionPlayer",
+    "RunPlayer",
     "PlayerStatus",
-    "SessionProgress",
+    "RunProgress",
     "ProgressStatus",
-    "SessionChat",
+    "RunChat",
 ]

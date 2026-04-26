@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 
 from app.services.quest_service import QuestService, _make_slug, _get_own_quest
-from app.models.quest import Quest, QuestSettings, QuestTranslation, QuestResource
-from app.models.map import Map, MapTranslation
+from app.models.quest import Quest
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _exec_returning(scalar=None, scalars=None):
     """Build a mock db.execute() return value."""
@@ -53,6 +53,7 @@ def _make_quest(**kwargs) -> Quest:
 # _make_slug
 # ---------------------------------------------------------------------------
 
+
 class TestMakeSlug:
     def test_returns_string(self):
         result = _make_slug("My Quest")
@@ -93,6 +94,7 @@ class TestMakeSlug:
 # _get_own_quest
 # ---------------------------------------------------------------------------
 
+
 class TestGetOwnQuest:
     @pytest.mark.asyncio
     async def test_returns_quest_when_found(self):
@@ -113,6 +115,7 @@ class TestGetOwnQuest:
 # ---------------------------------------------------------------------------
 # QuestService.list_quests
 # ---------------------------------------------------------------------------
+
 
 class TestListQuests:
     @pytest.mark.asyncio
@@ -186,6 +189,7 @@ class TestListQuests:
 # QuestService.create_quest
 # ---------------------------------------------------------------------------
 
+
 class TestCreateQuest:
     @pytest.mark.asyncio
     async def test_adds_quest_translation_settings_and_resources(self):
@@ -215,7 +219,9 @@ class TestCreateQuest:
         data.settings = settings
         data.resources = [resource_item]
 
-        with patch("app.services.quest_service._make_slug", return_value="new-quest-abc12345"):
+        with patch(
+            "app.services.quest_service._make_slug", return_value="new-quest-abc12345"
+        ):
             result = await QuestService.create_quest(db, uuid.uuid4(), data)
 
         assert db.add.call_count >= 3  # Quest + Translation + Settings + QuestResource
@@ -243,7 +249,9 @@ class TestCreateQuest:
         data.settings = settings
         data.resources = []
 
-        with patch("app.services.quest_service._make_slug", return_value="empty-quest-abc"):
+        with patch(
+            "app.services.quest_service._make_slug", return_value="empty-quest-abc"
+        ):
             result = await QuestService.create_quest(db, uuid.uuid4(), data)
 
         assert result is created_quest
@@ -253,6 +261,7 @@ class TestCreateQuest:
 # QuestService.get_quest
 # ---------------------------------------------------------------------------
 
+
 class TestGetQuest:
     @pytest.mark.asyncio
     async def test_delegates_to_get_own_quest(self):
@@ -261,7 +270,9 @@ class TestGetQuest:
             "app.services.quest_service._get_own_quest", new_callable=AsyncMock
         ) as mock_get:
             mock_get.return_value = quest
-            result = await QuestService.get_quest(MagicMock(), quest.id, quest.teacher_id)
+            result = await QuestService.get_quest(
+                MagicMock(), quest.id, quest.teacher_id
+            )
         assert result is quest
         mock_get.assert_called_once()
 
@@ -269,6 +280,7 @@ class TestGetQuest:
 # ---------------------------------------------------------------------------
 # QuestService.update_quest
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateQuest:
     def _make_update_data(self, **kwargs):
@@ -293,7 +305,7 @@ class TestUpdateQuest:
         ) as mock_get:
             mock_get.return_value = quest
             data = self._make_update_data(map_id=new_map_id)
-            result = await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
+            await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
 
         assert quest.map_id == new_map_id
 
@@ -313,7 +325,9 @@ class TestUpdateQuest:
             "app.services.quest_service._get_own_quest", new_callable=AsyncMock
         ) as mock_get:
             mock_get.return_value = quest
-            data = self._make_update_data(title="New Title", description="New Desc", language=lang)
+            data = self._make_update_data(
+                title="New Title", description="New Desc", language=lang
+            )
             await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
 
         assert translation.title == "New Title"
@@ -382,7 +396,9 @@ class TestUpdateQuest:
         with patch(
             "app.services.quest_service._get_own_quest", new_callable=AsyncMock
         ) as mock_get:
-            mock_get.side_effect = HTTPException(status_code=404, detail="Quest not found")
+            mock_get.side_effect = HTTPException(
+                status_code=404, detail="Quest not found"
+            )
             data = self._make_update_data()
             with pytest.raises(HTTPException) as exc_info:
                 await QuestService.update_quest(db, uuid.uuid4(), uuid.uuid4(), data)
@@ -392,6 +408,7 @@ class TestUpdateQuest:
 # ---------------------------------------------------------------------------
 # QuestService.delete_quest
 # ---------------------------------------------------------------------------
+
 
 class TestDeleteQuest:
     @pytest.mark.asyncio
@@ -413,7 +430,9 @@ class TestDeleteQuest:
         with patch(
             "app.services.quest_service._get_own_quest", new_callable=AsyncMock
         ) as mock_get:
-            mock_get.side_effect = HTTPException(status_code=404, detail="Quest not found")
+            mock_get.side_effect = HTTPException(
+                status_code=404, detail="Quest not found"
+            )
             with pytest.raises(HTTPException) as exc_info:
                 await QuestService.delete_quest(db, uuid.uuid4(), uuid.uuid4())
         assert exc_info.value.status_code == 404
@@ -422,6 +441,7 @@ class TestDeleteQuest:
 # ---------------------------------------------------------------------------
 # QuestService._set_status / publish_quest / archive_quest
 # ---------------------------------------------------------------------------
+
 
 class TestSetStatus:
     @pytest.mark.asyncio
@@ -433,7 +453,9 @@ class TestSetStatus:
             "app.services.quest_service._get_own_quest", new_callable=AsyncMock
         ) as mock_get:
             mock_get.return_value = quest
-            result = await QuestService._set_status(db, quest.id, quest.teacher_id, "published")
+            result = await QuestService._set_status(
+                db, quest.id, quest.teacher_id, "published"
+            )
 
         assert quest.status == "published"
         db.commit.assert_called_once()

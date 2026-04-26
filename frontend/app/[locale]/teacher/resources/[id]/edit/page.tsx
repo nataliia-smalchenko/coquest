@@ -1,9 +1,5 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
 import {
   ArrowLeft,
   Check,
@@ -16,19 +12,22 @@ import {
   Save,
   X,
 } from "lucide-react";
-
+import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { use, useEffect, useState } from "react";
+import { QuestionEditor } from "@/components/teacher/resources/editors/QuestionEditor";
+import { TextEditor } from "@/components/teacher/resources/editors/TextEditor";
+import { SelectDropdown } from "@/components/ui/SelectDropdown";
+import { useResourceStore } from "@/hooks/useResourceStore";
+import { useRouter } from "@/i18n/navigation";
 import {
   createResource,
   deleteResource,
   getResource,
   updateResource,
-  upsertTextContent,
   upsertQuestion,
+  upsertTextContent,
 } from "@/lib/api/resources";
-import { useResourceStore } from "@/hooks/useResourceStore";
-import { TextEditor } from "@/components/teacher/resources/editors/TextEditor";
-import { QuestionEditor } from "@/components/teacher/resources/editors/QuestionEditor";
-import { SelectDropdown } from "@/components/ui/SelectDropdown";
 import type { ResourceDetailResponse } from "@/types/resource";
 
 interface EditPageProps {
@@ -49,8 +48,8 @@ export default function EditResourcePage({ params }: EditPageProps) {
     fetchFolders,
     fetchTags,
     resources,
-    selectedFolderId,
-    selectedTagIds: storeTagIds,
+    selectedFolderId: _selectedFolderId,
+    selectedTagIds: _storeTagIds,
   } = useResourceStore();
 
   const [resource, setResource] = useState<ResourceDetailResponse | null>(null);
@@ -227,6 +226,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
           }}
         >
           <button
+            type="button"
             onClick={() => router.push("/teacher/resources")}
             style={{
               display: "flex",
@@ -240,12 +240,12 @@ export default function EditResourcePage({ params }: EditPageProps) {
               padding: 0,
               flexShrink: 0,
             }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = "#111827")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")
-            }
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "#111827";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "#6b7280";
+            }}
           >
             <ArrowLeft size={16} />
             <span className="topbar-back-label">{tCommon("back")}</span>
@@ -304,6 +304,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
             }}
           >
             <button
+              type="button"
               onClick={handleCopy}
               disabled={copying || !!creatingNext || cancelling}
               style={{
@@ -349,6 +350,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
               <span className="topbar-btn-label">{tEditor("copy")}</span>
             </button>
             <button
+              type="button"
               onClick={() => handleCreateNext("text")}
               disabled={!!creatingNext || cancelling}
               style={{
@@ -386,6 +388,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
               <span className="topbar-btn-label">{t("createNextText")}</span>
             </button>
             <button
+              type="button"
               onClick={() => handleCreateNext("question")}
               disabled={!!creatingNext || cancelling}
               style={{
@@ -426,6 +429,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
             </button>
             {isNew && (
               <button
+                type="button"
                 onClick={handleCancel}
                 disabled={cancelling || !!creatingNext}
                 style={{
@@ -539,8 +543,12 @@ export default function EditResourcePage({ params }: EditPageProps) {
                 boxSizing: "border-box",
                 transition: "border-color 0.15s",
               }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = accentColor)}
-              onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = accentColor;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#e5e7eb";
+              }}
             />
 
             {/* Folder + Tags row */}
@@ -571,7 +579,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
               {/* Tags */}
               {tags.length > 0 && (
                 <div style={{ flex: 1, minWidth: "200px" }}>
-                  <label
+                  <p
                     style={{
                       display: "block",
                       fontSize: "12px",
@@ -583,7 +591,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
                     }}
                   >
                     {tEditor("tags")}
-                  </label>
+                  </p>
                   <div
                     style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}
                   >
@@ -640,6 +648,7 @@ export default function EditResourcePage({ params }: EditPageProps) {
               }}
             >
               <button
+                type="button"
                 onClick={saveMeta}
                 disabled={metaSaving}
                 style={{

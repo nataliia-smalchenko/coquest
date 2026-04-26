@@ -1,17 +1,26 @@
 import axios, {
-  AxiosError,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
+  type AxiosError,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
 } from "axios";
 import Cookies from "js-cookie";
-import { RefreshResponse } from "@/types/auth";
+import type { RefreshResponse } from "@/types/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // Interface for requests waiting for a new token
 interface FailedRequest {
   resolve: (token: string) => void;
-  reject: (err: any) => void;
+  reject: (err: unknown) => void;
+}
+
+/** Redirect to /login while preserving the current i18n locale prefix. */
+function redirectToLogin(): void {
+  if (typeof window === "undefined") return;
+  const segments = window.location.pathname.split("/");
+  const LOCALES = ["uk", "en"];
+  const localePrefix = LOCALES.includes(segments[1]) ? `/${segments[1]}` : "";
+  window.location.href = `${localePrefix}/login`;
 }
 
 const api = axios.create({
@@ -25,10 +34,10 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);
-    else prom.resolve(token!);
+    else prom.resolve(token ?? "");
   });
   failedQueue = [];
 };
@@ -78,8 +87,10 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(error, null);
         Cookies.remove("access_token");
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
+        // Only redirect authenticated requests — guest/unauthenticated requests
+        // (no Authorization header) should fail silently without a login redirect.
+        if (originalRequest.headers?.Authorization) {
+          redirectToLogin();
         }
         return Promise.reject(error);
       }
@@ -109,9 +120,7 @@ api.interceptors.response.use(
 
         Cookies.remove("access_token");
         Cookies.remove("refresh_token");
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
+        redirectToLogin();
         return Promise.reject(refreshError);
       }
     }

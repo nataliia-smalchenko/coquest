@@ -34,7 +34,7 @@ const CONFIG: DOMPurify.Config = {
 };
 
 export function sanitizeHtml(dirty: string): string {
-  if (typeof window === "undefined") return dirty; // SSR: DOMPurify needs DOM
+  if (typeof window === "undefined") return ""; // SSR: DOMPurify unavailable — never pass raw HTML through
   // biome-ignore lint/suspicious/noExplicitAny: dompurify config type mismatch between bundled versions
   return (DOMPurify as any).sanitize(dirty, CONFIG) as string;
 }

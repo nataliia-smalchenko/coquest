@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { useTranslations } from "next-intl";
-import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
 import CharacterCount from "@tiptap/extension-character-count";
-import { ResizableImage } from "@/components/editor/ResizableImage";
-import { CodeBlockWithSelector } from "@/components/editor/CodeBlockWithSelector";
+import Underline from "@tiptap/extension-underline";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
 import {
   Bold,
   Check,
@@ -25,9 +18,16 @@ import {
   Underline as UnderlineIcon,
   X,
 } from "lucide-react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { z } from "zod";
+import { CodeBlockWithSelector } from "@/components/editor/CodeBlockWithSelector";
+import { ResizableImage } from "@/components/editor/ResizableImage";
+import { SelectDropdown } from "@/components/ui/SelectDropdown";
 import { getUploadSignature, upsertQuestion } from "@/lib/api/resources";
 import type { QuestionResponse, QuestionType } from "@/types/resource";
-import { SelectDropdown } from "@/components/ui/SelectDropdown";
 
 const DIFFICULTY_LEVELS = [
   "beginner",
@@ -214,6 +214,7 @@ export function QuestionEditor({
   );
 
   // Auto-update points when difficulty changes, unless user has customized points
+  // biome-ignore lint/correctness/useExhaustiveDependencies: difficultyDefault is a stable helper defined inline, intentionally omitted
   useEffect(() => {
     const prev = prevDifficultyRef.current;
     if (difficulty !== prev) {
@@ -392,9 +393,12 @@ export function QuestionEditor({
 
       {/* Points */}
       <div>
-        <label style={labelStyle}>{t("points")}</label>
+        <label htmlFor="question-points" style={labelStyle}>
+          {t("points")}
+        </label>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <input
+            id="question-points"
             type="number"
             min={1}
             step={1}
@@ -424,7 +428,7 @@ export function QuestionEditor({
 
       {/* Difficulty — chip selector */}
       <div>
-        <label style={labelStyle}>{t("difficulty")}</label>
+        <p style={labelStyle}>{t("difficulty")}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
           {DIFFICULTY_LEVELS.map((level) => {
             const selected = difficulty === level;
@@ -459,10 +463,10 @@ export function QuestionEditor({
 
       {/* Body — Tiptap */}
       <div>
-        <label style={labelStyle}>
+        <p style={labelStyle}>
           {t("body")}{" "}
           <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-        </label>
+        </p>
         <div
           style={{
             border: `1.5px solid ${errors.body ? "#ef4444" : "#e5e7eb"}`,
@@ -570,7 +574,7 @@ export function QuestionEditor({
       {/* Options (single / multiple) */}
       {showOptions && (
         <div>
-          <label style={labelStyle}>{t("options")}</label>
+          <p style={labelStyle}>{t("options")}</p>
           <div
             style={{ display: "flex", flexDirection: "column", gap: "10px" }}
           >
@@ -799,7 +803,7 @@ export function QuestionEditor({
       {/* Short answer */}
       {questionType === "short" && (
         <div>
-          <label style={labelStyle}>{t("correctAnswers")}</label>
+          <p style={labelStyle}>{t("correctAnswers")}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {shortFields.map((field, idx) => (
               <div
@@ -923,8 +927,11 @@ export function QuestionEditor({
 
       {/* Explanation */}
       <div>
-        <label style={labelStyle}>{t("explanation")}</label>
+        <label htmlFor="question-explanation" style={labelStyle}>
+          {t("explanation")}
+        </label>
         <textarea
+          id="question-explanation"
           {...register("explanation")}
           placeholder={t("explanationPlaceholder")}
           rows={2}

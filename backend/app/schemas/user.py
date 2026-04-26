@@ -1,20 +1,17 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
-from datetime import datetime
-from typing import Optional, Literal
 import re
 import uuid
-from enum import Enum
+from datetime import datetime
+from typing import List, Optional, Literal
 
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-class UserRole(str, Enum):
-    TEACHER = "teacher"
-    STUDENT = "student"
+from app.models.user import UserRole
 
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=255)
-    role: UserRole  # Автоматично створює випадаючий список у Swagger
+    role: UserRole  # Generates a dropdown in Swagger UI
 
 
 class UserCreate(UserBase):
@@ -87,3 +84,19 @@ class UserUpdate(BaseModel):
 
     full_name: Optional[str] = Field(None, min_length=2, max_length=255)
     role: Optional[UserRole] = None
+
+
+# Admin schemas
+class AdminChangeRoleRequest(BaseModel):
+    """Body for PATCH /api/admin/users/{id}/role"""
+
+    role: UserRole
+
+
+class AdminUserListResponse(BaseModel):
+    """Paginated user list returned by GET /api/admin/users"""
+
+    users: List[UserResponse]
+    total: int
+    offset: int
+    limit: int

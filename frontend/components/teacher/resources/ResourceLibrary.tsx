@@ -1,8 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
 import {
   FileText,
   Filter,
@@ -12,11 +9,14 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useResourceStore } from "@/hooks/useResourceStore";
+import { useRouter } from "@/i18n/navigation";
 import { createResource } from "@/lib/api/resources";
 import { FolderTree } from "./FolderTree";
-import { TagFilter } from "./TagFilter";
 import { ResourceList } from "./ResourceList";
+import { TagFilter } from "./TagFilter";
 
 export function ResourceLibrary() {
   const t = useTranslations("resources");
@@ -131,7 +131,9 @@ export function ResourceLibrary() {
       {/* Mobile filter drawer overlay */}
       {filterOpen && (
         <>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay dismisses filter drawer on click */}
           <div
+            role="presentation"
             onClick={() => setFilterOpen(false)}
             style={{
               position: "fixed",
@@ -173,6 +175,7 @@ export function ResourceLibrary() {
                 {t("filters")}
               </span>
               <button
+                type="button"
                 onClick={() => setFilterOpen(false)}
                 style={{
                   display: "flex",
@@ -237,6 +240,7 @@ export function ResourceLibrary() {
           >
             {/* Mobile filter button */}
             <button
+              type="button"
               className="filter-btn-mobile"
               onClick={() => setFilterOpen(true)}
               style={{
@@ -285,6 +289,7 @@ export function ResourceLibrary() {
 
             {(selectedFolderId !== null || selectedTagIds.length > 0) && (
               <button
+                type="button"
                 onClick={clearFilters}
                 title={t("clearFilters")}
                 style={{
@@ -302,16 +307,14 @@ export function ResourceLibrary() {
                   whiteSpace: "nowrap",
                   transition: "background-color 0.15s",
                 }}
-                onMouseEnter={(e) =>
-                  ((
-                    e.currentTarget as HTMLButtonElement
-                  ).style.backgroundColor = "#fee2e2")
-                }
-                onMouseLeave={(e) =>
-                  ((
-                    e.currentTarget as HTMLButtonElement
-                  ).style.backgroundColor = "#fef2f2")
-                }
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#fee2e2";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "#fef2f2";
+                }}
               >
                 <FilterX size={13} />
                 <span className="btn-label">{t("clearFilters")}</span>
@@ -321,6 +324,7 @@ export function ResourceLibrary() {
 
           <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
             <button
+              type="button"
               onClick={() => handleNewResource("text")}
               disabled={!!creating}
               className="new-resource-btn"
@@ -359,6 +363,7 @@ export function ResourceLibrary() {
               <span className="btn-label">{t("newText")}</span>
             </button>
             <button
+              type="button"
               onClick={() => handleNewResource("question")}
               disabled={!!creating}
               className="new-resource-btn"
@@ -441,8 +446,12 @@ export function ResourceLibrary() {
                 boxSizing: "border-box",
                 transition: "border-color 0.15s",
               }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "#2563eb")}
-              onBlur={(e) => (e.currentTarget.style.borderColor = "#d1d5db")}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "#2563eb";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#d1d5db";
+              }}
             />
           </div>
 
@@ -476,7 +485,9 @@ export function ResourceLibrary() {
             }}
           >
             <Loader2 size={32} color="#2563eb" className="animate-spin" />
-            <span style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}>
+            <span
+              style={{ fontSize: "14px", fontWeight: 500, color: "#374151" }}
+            >
               {creating === "text" ? t("newText") : t("newQuestion")}…
             </span>
           </div>

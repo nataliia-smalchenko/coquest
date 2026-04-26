@@ -12,15 +12,16 @@ import {
   Play,
   Shuffle,
 } from "lucide-react";
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
+import { useHighlightCode } from "@/hooks/useHighlightCode";
 import { useRouter } from "@/i18n/navigation";
 import { getMap, getMaps } from "@/lib/api/maps";
 import { getQuest } from "@/lib/api/quests";
 import { getResource } from "@/lib/api/resources";
 import { sanitizeHtml } from "@/lib/sanitize";
-import Image from "next/image";
 import type { MapResponse } from "@/types/map";
 import type { QuestResponse, QuestStatus } from "@/types/quest";
 import type { ResourceDetailResponse } from "@/types/resource";
@@ -170,6 +171,7 @@ export default function QuestPreview({ questId }: Props) {
             }}
           >
             <button
+              type="button"
               onClick={() => router.push("/teacher/quests")}
               style={{
                 display: "flex",
@@ -237,8 +239,9 @@ export default function QuestPreview({ questId }: Props) {
           >
             {quest.status === "published" && (
               <button
+                type="button"
                 onClick={() =>
-                  router.push(`/teacher/sessions/new?quest_id=${quest.id}`)
+                  router.push(`/teacher/runs/new?quest_id=${quest.id}`)
                 }
                 style={{
                   display: "inline-flex",
@@ -263,10 +266,11 @@ export default function QuestPreview({ questId }: Props) {
                 }}
               >
                 <Play size={13} />
-                <span className="hide-mobile">{t("preview.startSession")}</span>
+                <span className="hide-mobile">{t("preview.startRun")}</span>
               </button>
             )}
             <button
+              type="button"
               onClick={() => router.push(`/teacher/quests/${quest.id}/edit`)}
               style={{
                 display: "inline-flex",
@@ -369,9 +373,9 @@ export default function QuestPreview({ questId }: Props) {
               {tp("settings")}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {chips.map((chip, i) => (
+              {chips.map((chip) => (
                 <span
-                  key={i}
+                  key={chip.label}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -601,17 +605,8 @@ function TextMaterialView({
   content: Record<string, unknown> | undefined;
   tp: ReturnType<typeof useTranslations<"quests.preview">>;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
   const html = content ? renderTiptap(content) : "";
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (ref.current) applyHighlighting(ref.current);
-    });
-  }, [html]);
+  const ref = useHighlightCode<HTMLDivElement>([html]);
 
   if (!html)
     return (
@@ -625,6 +620,7 @@ function TextMaterialView({
       ref={ref}
       className="tiptap-preview"
       style={{ fontSize: "14px", color: "#111827", lineHeight: 1.6 }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted tiptap content
       dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   );
@@ -639,15 +635,7 @@ function QuestionView({
 }) {
   const { question_type, body, options, correct_answers, explanation } =
     question;
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (!el || !el.querySelector("pre code")) return;
-    import("@/lib/highlightCode").then(({ applyHighlighting }) => {
-      if (bodyRef.current) applyHighlighting(bodyRef.current);
-    });
-  }, [body]);
+  const bodyRef = useHighlightCode<HTMLDivElement>([body]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -662,7 +650,7 @@ function QuestionView({
           color: "#111827",
           lineHeight: 1.5,
         }}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanctioned HTML
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from trusted question content
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(body) }}
       />
 
@@ -770,9 +758,9 @@ function QuestionView({
             {tp("shortAnswer")}
           </span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {correct_answers.map((ans, i) => (
+            {correct_answers.map((ans) => (
               <span
-                key={i}
+                key={ans}
                 style={{
                   padding: "5px 12px",
                   borderRadius: "8px",

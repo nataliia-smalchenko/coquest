@@ -1,8 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { useRouter, Link } from "@/i18n/navigation";
 import {
   Calendar,
   FileText,
@@ -11,7 +8,10 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 import { useResourceStore } from "@/hooks/useResourceStore";
+import { Link, useRouter } from "@/i18n/navigation";
 import type { DifficultyLevel, ResourceResponse } from "@/types/resource";
 
 const DIFFICULTY_STYLE: Record<DifficultyLevel, { bg: string; color: string }> =
@@ -39,7 +39,7 @@ export function ResourceCard({ resource }: ResourceCardProps) {
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(tCommon("delete") + "?")) return;
+    if (!confirm(`${tCommon("delete")}?`)) return;
     setDeleting(true);
     try {
       await deleteResource(resource.id);
@@ -68,6 +68,7 @@ export function ResourceCard({ resource }: ResourceCardProps) {
       href={`/teacher/resources/${resource.id}/edit`}
       style={{ display: "block", textDecoration: "none", color: "inherit" }}
     >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: visual hover effect on card container, not interactive */}
       <div
         style={{
           background: "white",
@@ -97,6 +98,12 @@ export function ResourceCard({ resource }: ResourceCardProps) {
           if (actions) actions.style.opacity = "0";
         }}
         onMouseOver={(e) => {
+          const actions = e.currentTarget.querySelector(
+            "[data-actions]",
+          ) as HTMLElement | null;
+          if (actions) actions.style.opacity = "1";
+        }}
+        onFocus={(e) => {
           const actions = e.currentTarget.querySelector(
             "[data-actions]",
           ) as HTMLElement | null;
@@ -292,6 +299,7 @@ export function ResourceCard({ resource }: ResourceCardProps) {
             }}
           >
             <button
+              type="button"
               onClick={handleEdit}
               title={tCommon("edit")}
               style={{
@@ -319,6 +327,7 @@ export function ResourceCard({ resource }: ResourceCardProps) {
               <Pencil size={14} />
             </button>
             <button
+              type="button"
               onClick={handleDelete}
               title={tCommon("delete")}
               style={{

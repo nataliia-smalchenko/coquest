@@ -1,92 +1,132 @@
 import json
-import logging
 from typing import Dict, Optional, Set
 
+import structlog
 from fastapi import WebSocket
+from starlette.websockets import WebSocketState
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 class ConnectionManager:
     def __init__(self) -> None:
-        # session_id -> {player_id -> WebSocket}
-        self.sessions: Dict[str, Dict[str, WebSocket]] = {}
-        # session_id -> teacher WebSocket
+        # run_id -> {player_id -> WebSocket}  (active player WS connections)
+        self.player_connections: Dict[str, Dict[str, WebSocket]] = {}
+        # run_id -> teacher WebSocket
         self.teachers: Dict[str, WebSocket] = {}
 
     # connect / disconnect
     async def connect_player(
-        self, session_id: str, player_id: str, websocket: WebSocket
+        self, run_id: str, player_id: str, websocket: WebSocket
     ) -> None:
-        await websocket.accept()
-        if session_id not in self.sessions:
-            self.sessions[session_id] = {}
-        self.sessions[session_id][player_id] = websocket
-        logger.info("Player %s connected to session %s", player_id, session_id)
+        # Skip accept if the connection was already accepted (e.g. in ws_player)
+        if websocket.application_state != WebSocketState.CONNECTED:
+            await websocket.accept()
+        if run_id not in self.player_connections:
+            self.player_connections[run_id] = {}
+        self.player_connections[run_id][player_id] = websocket
+        log.info("player_connected", run_id=run_id, player_id=player_id)
 
     async def connect_teacher(
-        self, session_id: str, teacher_id: str, websocket: WebSocket
+        self, run_id: str, teacher_id: str, websocket: WebSocket
     ) -> None:
         await websocket.accept()
-        self.teachers[session_id] = websocket
-        logger.info("Teacher %s connected to session %s", teacher_id, session_id)
+        self.teachers[run_id] = websocket
+        log.info("teacher_connected", run_id=run_id, teacher_id=teacher_id)
 
-    async def disconnect_player(self, session_id: str, player_id: str) -> None:
-        if session_id in self.sessions:
-            self.sessions[session_id].pop(player_id, None)
-            if not self.sessions[session_id]:
-                del self.sessions[session_id]
-        logger.info("Player %s disconnected from session %s", player_id, session_id)
+    async def disconnect_player(self, run_id: str, player_id: str) -> None:
+        if run_id in self.player_connections:
+            self.player_connections[run_id].pop(player_id, None)
+            if not self.player_connections[run_id]:
+                del self.player_connections[run_id]
+        log.info("player_disconnected", run_id=run_id, player_id=player_id)
 
-    async def disconnect_teacher(self, session_id: str) -> None:
-        self.teachers.pop(session_id, None)
-        logger.info("Teacher disconnected from session %s", session_id)
+    async def disconnect_teacher(self, run_id: str) -> None:
+        self.teachers.pop(run_id, None)
+        log.info("teacher_disconnected", run_id=run_id)
 
     # send helpers
-    async def send_to_player(
-        self, session_id: str, player_id: str, message: dict
-    ) -> None:
-        ws = self.sessions.get(session_id, {}).get(player_id)
+    async def send_to_player(self, run_id: str, player_id: str, message: dict) -> None:
+        ws = self.player_connections.get(run_id, {}).get(player_id)
         if ws:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
-                await self.disconnect_player(session_id, player_id)
+                log.error(
+                    "send_to_player_failed",
+                    run_id=run_id,
+                    player_id=player_id,
+                    exc_info=True,
+                )
+                await self.disconnect_player(run_id, player_id)
 
-    async def send_to_teacher(self, session_id: str, message: dict) -> None:
-        ws = self.teachers.get(session_id)
+    async def send_to_teacher(self, run_id: str, message: dict) -> None:
+        ws = self.teachers.get(run_id)
         if ws:
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
-                await self.disconnect_teacher(session_id)
+                log.error(
+                    "send_to_teacher_failed",
+                    run_id=run_id,
+                    exc_info=True,
+                )
+                await self.disconnect_teacher(run_id)
 
-    async def broadcast_to_session(
+    async def broadcast_to_run(
         self,
-        session_id: str,
+        run_id: str,
         message: dict,
         exclude_player_id: Optional[str] = None,
     ) -> None:
         """Broadcast to all players (optionally excluding one) + teacher."""
-        for pid, ws in list(self.sessions.get(session_id, {}).items()):
+        for pid, ws in list(self.player_connections.get(run_id, {}).items()):
             if pid == exclude_player_id:
                 continue
             try:
                 await ws.send_text(json.dumps(message))
             except Exception:
-                await self.disconnect_player(session_id, pid)
-        await self.send_to_teacher(session_id, message)
+                log.error(
+                    "broadcast_failed",
+                    run_id=run_id,
+                    player_id=pid,
+                    exc_info=True,
+                )
+                await self.disconnect_player(run_id, pid)
+        await self.send_to_teacher(run_id, message)
 
-    async def broadcast_to_all(self, session_id: str, message: dict) -> None:
+    async def broadcast_to_team(
+        self,
+        run_id: str,
+        player_ids: list[str],
+        message: dict,
+    ) -> None:
+        """Send a message only to specific players within a run (e.g. team members)."""
+        target_set = set(player_ids)
+        for pid, ws in list(self.player_connections.get(run_id, {}).items()):
+            if pid not in target_set:
+                continue
+            try:
+                await ws.send_text(json.dumps(message))
+            except Exception:
+                log.error(
+                    "broadcast_to_team_failed",
+                    run_id=run_id,
+                    player_id=pid,
+                    exc_info=True,
+                )
+                await self.disconnect_player(run_id, pid)
+
+    async def broadcast_to_all(self, run_id: str, message: dict) -> None:
         """Broadcast to all players + teacher without exclusions."""
-        await self.broadcast_to_session(session_id, message)
+        await self.broadcast_to_run(run_id, message)
 
     # introspection
-    def get_connected_players(self, session_id: str) -> Set[str]:
-        return set(self.sessions.get(session_id, {}).keys())
+    def get_connected_players(self, run_id: str) -> Set[str]:
+        return set(self.player_connections.get(run_id, {}).keys())
 
-    def is_teacher_connected(self, session_id: str) -> bool:
-        return session_id in self.teachers
+    def is_teacher_connected(self, run_id: str) -> bool:
+        return run_id in self.teachers
 
 
 manager = ConnectionManager()

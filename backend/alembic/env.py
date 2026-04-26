@@ -9,7 +9,7 @@ from alembic import context
 from app.config import settings
 from app.database import Base
 
-import app.models
+import app.models  # noqa: F401
 
 # Alembic configuration
 config = context.config

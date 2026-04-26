@@ -9,12 +9,13 @@ from app.services.websocket_handlers import (
     handle_player_message,
     handle_teacher_message,
 )
-from app.models.session_progress import SessionProgress, ProgressStatus
+from app.models.run_progress import RunProgress, ProgressStatus
 
 
 # ---------------------------------------------------------------------------
 # _iso
 # ---------------------------------------------------------------------------
+
 
 class TestIso:
     def test_returns_isoformat_for_datetime(self):
@@ -30,11 +31,12 @@ class TestIso:
 # _progress_dict
 # ---------------------------------------------------------------------------
 
+
 class TestProgressDict:
     def _make_progress(self, **kw):
-        p = MagicMock(spec=SessionProgress)
+        p = MagicMock(spec=RunProgress)
         p.id = kw.get("id", uuid.uuid4())
-        p.session_id = kw.get("session_id", uuid.uuid4())
+        p.run_id = kw.get("run_id", uuid.uuid4())
         p.player_id = kw.get("player_id", uuid.uuid4())
         p.resource_id = kw.get("resource_id", uuid.uuid4())
         p.map_object_id = kw.get("map_object_id", None)
@@ -50,7 +52,7 @@ class TestProgressDict:
         p = self._make_progress()
         result = _progress_dict(p)
         assert "id" in result
-        assert "session_id" in result
+        assert "run_id" in result
         assert "player_id" in result
         assert "resource_id" in result
         assert "map_object_id" in result
@@ -81,6 +83,7 @@ class TestProgressDict:
 # handle_player_message — routing
 # ---------------------------------------------------------------------------
 
+
 class TestHandlePlayerMessage:
     @pytest.mark.asyncio
     async def test_routes_submit_answer(self):
@@ -88,7 +91,15 @@ class TestHandlePlayerMessage:
             "app.services.websocket_handlers._handle_submit_answer",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_player_message("sid", "pid", {"type": "submit_answer", "progress_id": str(uuid.uuid4()), "answer": {}})
+            await handle_player_message(
+                "sid",
+                "pid",
+                {
+                    "type": "submit_answer",
+                    "progress_id": str(uuid.uuid4()),
+                    "answer": {},
+                },
+            )
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
@@ -97,7 +108,9 @@ class TestHandlePlayerMessage:
             "app.services.websocket_handlers._handle_mark_viewed",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_player_message("sid", "pid", {"type": "mark_viewed", "progress_id": str(uuid.uuid4())})
+            await handle_player_message(
+                "sid", "pid", {"type": "mark_viewed", "progress_id": str(uuid.uuid4())}
+            )
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
@@ -106,7 +119,9 @@ class TestHandlePlayerMessage:
             "app.services.websocket_handlers._handle_chat_message",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_player_message("sid", "pid", {"type": "chat_message", "message": "hi"})
+            await handle_player_message(
+                "sid", "pid", {"type": "chat_message", "message": "hi"}
+            )
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
@@ -131,7 +146,9 @@ class TestHandlePlayerMessage:
                 "app.services.websocket_handlers.manager.send_to_player",
                 new_callable=AsyncMock,
             ) as mock_send:
-                await handle_player_message("sid", "pid", {"type": "chat_message", "message": "x"})
+                await handle_player_message(
+                    "sid", "pid", {"type": "chat_message", "message": "x"}
+                )
 
         mock_send.assert_called_once()
         assert mock_send.call_args[0][2]["type"] == "error"
@@ -141,23 +158,24 @@ class TestHandlePlayerMessage:
 # handle_teacher_message — routing
 # ---------------------------------------------------------------------------
 
+
 class TestHandleTeacherMessage:
     @pytest.mark.asyncio
-    async def test_routes_start_session(self):
+    async def test_routes_start_run(self):
         with patch(
-            "app.services.websocket_handlers._handle_start_session",
+            "app.services.websocket_handlers._handle_start_run",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_teacher_message("sid", "tid", {"type": "start_session"})
+            await handle_teacher_message("sid", "tid", {"type": "start_run"})
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_routes_stop_session(self):
+    async def test_routes_stop_run(self):
         with patch(
-            "app.services.websocket_handlers._handle_stop_session",
+            "app.services.websocket_handlers._handle_stop_run",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_teacher_message("sid", "tid", {"type": "stop_session"})
+            await handle_teacher_message("sid", "tid", {"type": "stop_run"})
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
@@ -166,7 +184,15 @@ class TestHandleTeacherMessage:
             "app.services.websocket_handlers._handle_review_answer",
             new_callable=AsyncMock,
         ) as mock_handler:
-            await handle_teacher_message("sid", "tid", {"type": "review_answer", "progress_id": str(uuid.uuid4()), "score": 1.0})
+            await handle_teacher_message(
+                "sid",
+                "tid",
+                {
+                    "type": "review_answer",
+                    "progress_id": str(uuid.uuid4()),
+                    "score": 1.0,
+                },
+            )
         mock_handler.assert_called_once()
 
     @pytest.mark.asyncio
@@ -182,7 +208,7 @@ class TestHandleTeacherMessage:
     @pytest.mark.asyncio
     async def test_sends_error_on_handler_exception(self):
         with patch(
-            "app.services.websocket_handlers._handle_start_session",
+            "app.services.websocket_handlers._handle_start_run",
             new_callable=AsyncMock,
             side_effect=Exception("crash"),
         ):
@@ -190,7 +216,7 @@ class TestHandleTeacherMessage:
                 "app.services.websocket_handlers.manager.send_to_teacher",
                 new_callable=AsyncMock,
             ) as mock_send:
-                await handle_teacher_message("sid", "tid", {"type": "start_session"})
+                await handle_teacher_message("sid", "tid", {"type": "start_run"})
 
         mock_send.assert_called_once()
         assert mock_send.call_args[0][1]["type"] == "error"
