@@ -596,12 +596,9 @@ export default function GamePage() {
     );
   }, [isTeamMode, myPlayer?.team_id, run?.players]);
 
-  // Solo redirect when own items are all done
-  useEffect(() => {
-    if (!isTeamMode && isAllCompleted) {
-      router.push(`/run/${runId}/results`);
-    }
-  }, [isTeamMode, isAllCompleted, runId, router]);
+  // Solo redirect is handled by the "player_finished" WS event (see handleWsMessageCb).
+  // Do NOT redirect based on isAllCompleted — the local progress array may be transiently
+  // "all done" before newly queued items arrive from the server via getMyProgress().
 
   // Team text step: waiting info
   const totalTeamMembers =
