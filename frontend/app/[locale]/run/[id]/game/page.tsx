@@ -188,7 +188,7 @@ export default function GamePage() {
         const info = await getGameInfo(runId, stored.guest_token, locale);
         setGameInfo(info);
         if (info.map_slug) {
-          const mapData = await getMap(info.map_slug);
+          const mapData = await getMap(info.map_slug, locale);
           setMap(mapData);
         }
       } catch {
@@ -222,25 +222,16 @@ export default function GamePage() {
       // Show hint if I am the hint player
       if (si.hint_player_id === stored.player_id && si.map_object_id) {
         const obj = map.objects.find((o) => o.id === si.map_object_id);
-        if (obj) {
-          const hints =
-            obj.hints.filter((h) => h.language === locale).length > 0
-              ? obj.hints.filter((h) => h.language === locale)
-              : obj.hints.filter((h) => h.language === "uk").length > 0
-                ? obj.hints.filter((h) => h.language === "uk")
-                : obj.hints;
-          if (hints.length > 0) {
-            const hint = hints[Math.floor(Math.random() * hints.length)];
-            setPendingHint(hint.hint_text);
-            setPendingHintIsTeam(
-              si.resource_type === "question" &&
-                si.active_player_id !== stored.player_id,
-            );
-          }
+        if (obj?.hints[0]) {
+          setPendingHint(obj.hints[0].hint_text);
+          setPendingHintIsTeam(
+            si.resource_type === "question" &&
+              si.active_player_id !== stored.player_id,
+          );
         }
       }
     });
-  }, [stored, runId, isTeamMode, myPlayer?.team_id, map, locale]);
+  }, [stored, runId, isTeamMode, myPlayer?.team_id, map]);
 
   // Show hint when a new active object is revealed
   // Solo mode only — team mode uses WS team_step events
@@ -252,22 +243,11 @@ export default function GamePage() {
     shownHintObjects.current.add(activeProgress.id);
 
     const obj = map.objects.find((o) => o.id === activeObjectId);
-    if (!obj) return;
+    if (!obj?.hints[0]) return;
 
-    const localized = obj.hints.filter((h) => h.language === locale);
-    const fallback = obj.hints.filter((h) => h.language === "uk");
-    const candidates =
-      localized.length > 0
-        ? localized
-        : fallback.length > 0
-          ? fallback
-          : obj.hints;
-    if (candidates.length === 0) return;
-
-    const hint = candidates[Math.floor(Math.random() * candidates.length)];
-    setPendingHint(hint.hint_text);
+    setPendingHint(obj.hints[0].hint_text);
     setPendingHintIsTeam(false);
-  }, [activeObjectId, activeProgress, map, locale, isTeamMode]);
+  }, [activeObjectId, activeProgress, map, isTeamMode]);
 
   // Handle team_step event: show hint to hint player
   const handleTeamStepEvent = useCallback(
@@ -282,29 +262,17 @@ export default function GamePage() {
         map
       ) {
         const obj = map.objects.find((o) => o.id === stepInfo.map_object_id);
-        if (obj) {
-          const localized = obj.hints.filter((h) => h.language === locale);
-          const fallback = obj.hints.filter((h) => h.language === "uk");
-          const candidates =
-            localized.length > 0
-              ? localized
-              : fallback.length > 0
-                ? fallback
-                : obj.hints;
-          if (candidates.length > 0) {
-            const hint =
-              candidates[Math.floor(Math.random() * candidates.length)];
-            setPendingHint(hint.hint_text);
-            // "for teammate" only when hint player is NOT the active player
-            setPendingHintIsTeam(
-              stepInfo.resource_type === "question" &&
-                stepInfo.active_player_id !== myPlayerId,
-            );
-          }
+        if (obj?.hints[0]) {
+          setPendingHint(obj.hints[0].hint_text);
+          // "for teammate" only when hint player is NOT the active player
+          setPendingHintIsTeam(
+            stepInfo.resource_type === "question" &&
+              stepInfo.active_player_id !== myPlayerId,
+          );
         }
       }
     },
-    [myPlayerId, map, locale],
+    [myPlayerId, map],
   );
 
   const modalProgressIdRef = useRef<string | null>(null);
@@ -596,12 +564,9 @@ export default function GamePage() {
     );
   }, [isTeamMode, myPlayer?.team_id, run?.players]);
 
-  // Solo redirect when own items are all done
-  useEffect(() => {
-    if (!isTeamMode && isAllCompleted) {
-      router.push(`/run/${runId}/results`);
-    }
-  }, [isTeamMode, isAllCompleted, runId, router]);
+  // Solo redirect is handled by the "player_finished" WS event (see handleWsMessageCb).
+  // Do NOT redirect based on isAllCompleted — the local progress array may be transiently
+  // "all done" before newly queued items arrive from the server via getMyProgress().
 
   // Team text step: waiting info
   const totalTeamMembers =

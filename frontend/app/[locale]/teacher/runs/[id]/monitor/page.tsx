@@ -57,10 +57,17 @@ function formatDate(iso: string, locale: string) {
 }
 
 function formatTime(iso: string, locale: string) {
-  return new Date(iso).toLocaleTimeString(locale, {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
+  return `${date} ${time}`;
 }
 
 function formatDuration(startedAt: string, finishedAt: string) {
@@ -207,13 +214,14 @@ function PlayerDetailDrawer({
   };
 
   // Only show items this player actually answered/viewed (skip unstarted)
-  // Pending-review items float to the top
+  // Unreviewed open questions float to the top, the rest sorted by step_order (quest order)
   const questionItems = (items ?? [])
     .filter((p) => p.question !== null && p.status !== "assigned")
     .sort((a, b) => {
       const aPending = a.requires_review && a.score === null ? 0 : 1;
       const bPending = b.requires_review && b.score === null ? 0 : 1;
-      return aPending - bPending;
+      if (aPending !== bPending) return aPending - bPending;
+      return (a.step_order ?? 0) - (b.step_order ?? 0);
     });
   const textItems = (items ?? []).filter(
     (p) =>
@@ -797,7 +805,19 @@ export default function MonitorPage() {
     }
   };
 
-  const players = monitor?.players_progress ?? [];
+  const players = useMemo(() => {
+    const list = monitor?.players_progress ?? [];
+    return [...list].sort((a, b) => {
+      // Players with finished_at come first, sorted descending (most recent first)
+      const aTime = a.player.finished_at
+        ? new Date(a.player.finished_at).getTime()
+        : 0;
+      const bTime = b.player.finished_at
+        ? new Date(b.player.finished_at).getTime()
+        : 0;
+      return bTime - aTime;
+    });
+  }, [monitor?.players_progress]);
 
   // Map unique team_ids to stable colors
   const teamColorMap = useMemo(() => {

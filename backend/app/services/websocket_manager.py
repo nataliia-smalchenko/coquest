@@ -95,6 +95,28 @@ class ConnectionManager:
                 await self.disconnect_player(run_id, pid)
         await self.send_to_teacher(run_id, message)
 
+    async def broadcast_to_team(
+        self,
+        run_id: str,
+        player_ids: list[str],
+        message: dict,
+    ) -> None:
+        """Send a message only to specific players within a run (e.g. team members)."""
+        target_set = set(player_ids)
+        for pid, ws in list(self.player_connections.get(run_id, {}).items()):
+            if pid not in target_set:
+                continue
+            try:
+                await ws.send_text(json.dumps(message))
+            except Exception:
+                log.error(
+                    "broadcast_to_team_failed",
+                    run_id=run_id,
+                    player_id=pid,
+                    exc_info=True,
+                )
+                await self.disconnect_player(run_id, pid)
+
     async def broadcast_to_all(self, run_id: str, message: dict) -> None:
         """Broadcast to all players + teacher without exclusions."""
         await self.broadcast_to_run(run_id, message)

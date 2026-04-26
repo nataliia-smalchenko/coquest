@@ -1,3 +1,4 @@
+import random
 from typing import List
 
 from fastapi import HTTPException, status
@@ -16,8 +17,14 @@ class MapService:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_map_by_slug(db: AsyncSession, slug: str) -> Map:
+    async def get_map_by_slug(
+        db: AsyncSession, slug: str, language: str | None = None
+    ) -> Map:
         """Return a single map with translations and objects (including hints).
+
+        When *language* is provided, only hints matching that language (with
+        ``"uk"`` as fallback) are included — this significantly reduces the
+        response size during gameplay.
 
         Raises HTTP 404 if no map with the given slug exists.
         """
@@ -34,4 +41,12 @@ class MapService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Map not found"
             )
+
+        if language:
+            for obj in m.objects:
+                localized = [h for h in obj.hints if h.language == language]
+                if not localized:
+                    localized = [h for h in obj.hints if h.language == "uk"]
+                obj.hints = [random.choice(localized)] if localized else []
+
         return m

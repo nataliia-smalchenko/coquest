@@ -266,30 +266,30 @@ class TestGetPlayerByToken:
 
 
 # ---------------------------------------------------------------------------
-# RunService.get_session_by_code
+# RunService.get_run_by_code
 # ---------------------------------------------------------------------------
 
 
-class TestGetSessionByCode:
+class TestGetRunByCode:
     @pytest.mark.asyncio
     async def test_returns_run_response(self):
         run = _make_run(join_code="ABC123")
         db = _make_db(scalar=run)
-        result = await RunService.get_session_by_code(db, "abc123")
+        result = await RunService.get_run_by_code(db, "abc123")
         assert result.join_code == "ABC123"
 
     @pytest.mark.asyncio
     async def test_uppercases_code(self):
         run = _make_run(join_code="XYZ789")
         db = _make_db(scalar=run)
-        result = await RunService.get_session_by_code(db, "xyz789")
+        result = await RunService.get_run_by_code(db, "xyz789")
         assert result.join_code == "XYZ789"
 
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
         db = _make_db(scalar=None)
         with pytest.raises(HTTPException) as exc_info:
-            await RunService.get_session_by_code(db, "NOPE00")
+            await RunService.get_run_by_code(db, "NOPE00")
         assert exc_info.value.status_code == 404
 
 

@@ -38,5 +38,6 @@ async def list_maps(
 async def get_map(
     slug: str,
     db: AsyncSession = Depends(get_db),
+    language: str = Depends(get_language),
 ):
-    return await MapService.get_map_by_slug(db, slug)
+    return await MapService.get_map_by_slug(db, slug, language=language)
