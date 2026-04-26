@@ -29,7 +29,7 @@ interface ResourceModalProps {
   isSubmitting?: boolean;
 }
 
-function getSelectedIds(answer: unknown, questionType: string): string[] {
+function getSelectedIds(answer: unknown, questionType?: string): string[] {
   if (!answer || typeof answer !== "object") return [];
   const a = answer as Record<string, unknown>;
   if (questionType === "single")
@@ -220,7 +220,7 @@ export default function ResourceModal({
                     {resource.question.options.map((opt) => {
                       const selected = getSelectedIds(
                         progress.answer,
-                        resource.question!.question_type,
+                        resource.question?.question_type,
                       ).includes(opt.id);
                       return (
                         <li

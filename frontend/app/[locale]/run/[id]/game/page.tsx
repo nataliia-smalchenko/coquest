@@ -231,7 +231,7 @@ export default function GamePage() {
         }
       }
     });
-  }, [stored, runId, isTeamMode, myPlayer?.team_id, map, locale]);
+  }, [stored, runId, isTeamMode, myPlayer?.team_id, map]);
 
   // Show hint when a new active object is revealed
   // Solo mode only — team mode uses WS team_step events
