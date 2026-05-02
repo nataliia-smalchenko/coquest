@@ -60,7 +60,13 @@ async def _teacher_heartbeat(sid: str) -> None:
 def _run_dict(run: GameRun) -> dict:
     return {
         "id": str(run.id),
-        "quest_id": str(run.quest_id),
+        "resource_set_id": str(run.resource_set_id),
+        "run_type": run.run_type.value
+        if hasattr(run.run_type, "value")
+        else run.run_type,
+        "test_mode": run.test_mode.value
+        if run.test_mode and hasattr(run.test_mode, "value")
+        else run.test_mode,
         "join_code": run.join_code,
         "status": run.status.value if hasattr(run.status, "value") else run.status,
         "max_players": run.max_players,
@@ -141,7 +147,9 @@ async def ws_player(
         now = datetime.now(timezone.utc)
         time_expired = run.ends_at is not None and run.ends_at < now
         if not time_expired and player.started_at:
-            settings_obj = await RunService.get_quest_settings(db, run.quest_id)
+            settings_obj = await RunService.get_resource_set_settings(
+                db, run.resource_set_id
+            )
             if settings_obj and settings_obj.time_limit_minutes:
                 player_ends_at = player.started_at + timedelta(
                     minutes=settings_obj.time_limit_minutes

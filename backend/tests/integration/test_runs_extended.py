@@ -10,10 +10,17 @@ from unittest.mock import AsyncMock, patch
 # ---------------------------------------------------------------------------
 
 
-async def _create_run(client, teacher_headers, quest_id, max_players=1, **extra):
+async def _create_run(
+    client, teacher_headers, resource_set_id, map_id, max_players=1, **extra
+):
     resp = await client.post(
         "/api/runs/",
-        json={"quest_id": str(quest_id), "max_players": max_players, **extra},
+        json={
+            "resource_set_id": str(resource_set_id),
+            "map_id": str(map_id),
+            "max_players": max_players,
+            **extra,
+        },
         headers=teacher_headers,
     )
     assert resp.status_code == 201, resp.text
@@ -35,8 +42,10 @@ async def _join_run(client, join_code, guest_name="Tester"):
 
 
 @pytest.mark.asyncio
-async def test_get_run_by_code(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_get_run_by_code(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
 
     resp = await client.get(f"/api/runs/code/{code}")
@@ -46,9 +55,9 @@ async def test_get_run_by_code(client: AsyncClient, teacher_headers, db_quest):
 
 @pytest.mark.asyncio
 async def test_get_run_by_code_lowercase(
-    client: AsyncClient, teacher_headers, db_quest
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
 ):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"].lower()
 
     resp = await client.get(f"/api/runs/code/{code}")
@@ -67,9 +76,9 @@ async def test_get_run_by_code_not_found(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_stop_run(client: AsyncClient, teacher_headers, db_quest):
+async def test_stop_run(client: AsyncClient, teacher_headers, db_resource_set, db_map):
     with patch("app.routes.runs.manager.broadcast_to_all", new_callable=AsyncMock):
-        run = await _create_run(client, teacher_headers, db_quest.id)
+        run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
         sid = run["id"]
 
         resp = await client.post(f"/api/runs/{sid}/stop", headers=teacher_headers)
@@ -78,8 +87,10 @@ async def test_stop_run(client: AsyncClient, teacher_headers, db_quest):
 
 
 @pytest.mark.asyncio
-async def test_stop_run_unauthorized(client: AsyncClient, db_quest, teacher_headers):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_stop_run_unauthorized(
+    client: AsyncClient, db_resource_set, db_map, teacher_headers
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
     resp = await client.post(f"/api/runs/{sid}/stop")
     assert resp.status_code == 401
@@ -91,8 +102,10 @@ async def test_stop_run_unauthorized(client: AsyncClient, db_quest, teacher_head
 
 
 @pytest.mark.asyncio
-async def test_update_run_settings(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_update_run_settings(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
 
     resp = await client.patch(
@@ -108,9 +121,9 @@ async def test_update_run_settings(client: AsyncClient, teacher_headers, db_ques
 
 @pytest.mark.asyncio
 async def test_update_settings_wrong_teacher(
-    client: AsyncClient, teacher_headers, teacher, db_quest, db_session
+    client: AsyncClient, teacher_headers, teacher, db_resource_set, db_map, db_session
 ):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
 
     # Second teacher token
@@ -149,9 +162,11 @@ async def test_update_settings_wrong_teacher(
 
 
 @pytest.mark.asyncio
-async def test_restart_run(client: AsyncClient, teacher_headers, db_quest):
+async def test_restart_run(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
     with patch("app.routes.runs.manager.broadcast_to_all", new_callable=AsyncMock):
-        run = await _create_run(client, teacher_headers, db_quest.id)
+        run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
         sid = run["id"]
 
         # Stop it first
@@ -169,8 +184,10 @@ async def test_restart_run(client: AsyncClient, teacher_headers, db_quest):
 
 
 @pytest.mark.asyncio
-async def test_delete_run(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_delete_run(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
 
     resp = await client.delete(f"/api/runs/{sid}", headers=teacher_headers)
@@ -184,9 +201,9 @@ async def test_delete_run(client: AsyncClient, teacher_headers, db_quest):
 
 @pytest.mark.asyncio
 async def test_delete_active_run_blocked(
-    client: AsyncClient, teacher_headers, db_quest
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
 ):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
 
     # Start the session to make it ACTIVE
@@ -202,8 +219,10 @@ async def test_delete_active_run_blocked(
 
 
 @pytest.mark.asyncio
-async def test_get_game_info(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_get_game_info(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
     sid = run["id"]
 
@@ -216,7 +235,7 @@ async def test_get_game_info(client: AsyncClient, teacher_headers, db_quest):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "quest_title" in data or "map_slug" in data or "settings" in data
+    assert "settings" in data
 
 
 # ---------------------------------------------------------------------------
@@ -225,8 +244,10 @@ async def test_get_game_info(client: AsyncClient, teacher_headers, db_quest):
 
 
 @pytest.mark.asyncio
-async def test_get_my_progress_empty(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_get_my_progress_empty(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
     sid = run["id"]
 
@@ -242,8 +263,10 @@ async def test_get_my_progress_empty(client: AsyncClient, teacher_headers, db_qu
 
 
 @pytest.mark.asyncio
-async def test_get_team_progress_empty(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_get_team_progress_empty(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
     sid = run["id"]
 
@@ -264,8 +287,10 @@ async def test_get_team_progress_empty(client: AsyncClient, teacher_headers, db_
 
 
 @pytest.mark.asyncio
-async def test_update_player_guest_name(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_update_player_guest_name(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
     sid = run["id"]
 
@@ -287,8 +312,10 @@ async def test_update_player_guest_name(client: AsyncClient, teacher_headers, db
 
 
 @pytest.mark.asyncio
-async def test_delete_player(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_delete_player(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
     sid = run["id"]
 
@@ -309,9 +336,9 @@ async def test_delete_player(client: AsyncClient, teacher_headers, db_quest):
 
 @pytest.mark.asyncio
 async def test_join_requires_guest_name_for_unauthenticated(
-    client: AsyncClient, teacher_headers, db_quest
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
 ):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
 
     resp = await client.post(
@@ -337,9 +364,9 @@ async def test_join_nonexistent_run(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_guest_token_required_for_my_progress(
-    client: AsyncClient, teacher_headers, db_quest
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
 ):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
     resp = await client.get(f"/api/runs/{sid}/my-progress")
     assert resp.status_code == 401
@@ -347,9 +374,9 @@ async def test_guest_token_required_for_my_progress(
 
 @pytest.mark.asyncio
 async def test_invalid_guest_token_rejected(
-    client: AsyncClient, teacher_headers, db_quest
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
 ):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
     resp = await client.get(
         f"/api/runs/{sid}/my-progress",
@@ -364,8 +391,10 @@ async def test_invalid_guest_token_rejected(
 
 
 @pytest.mark.asyncio
-async def test_player_timeout(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_player_timeout(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     code = run["join_code"]
     sid = run["id"]
 
@@ -389,16 +418,20 @@ async def test_player_timeout(client: AsyncClient, teacher_headers, db_quest):
 
 
 @pytest.mark.asyncio
-async def test_results_requires_token(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_results_requires_token(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
     resp = await client.get(f"/api/runs/{sid}/results")
     assert resp.status_code == 422  # missing required guest_token query param
 
 
 @pytest.mark.asyncio
-async def test_results_invalid_token(client: AsyncClient, teacher_headers, db_quest):
-    run = await _create_run(client, teacher_headers, db_quest.id)
+async def test_results_invalid_token(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
+    run = await _create_run(client, teacher_headers, db_resource_set.id, db_map.id)
     sid = run["id"]
     resp = await client.get(f"/api/runs/{sid}/results?guest_token=invalid")
     assert resp.status_code == 404
@@ -410,14 +443,17 @@ async def test_results_invalid_token(client: AsyncClient, teacher_headers, db_qu
 
 
 @pytest.mark.asyncio
-async def test_create_scheduled_run(client: AsyncClient, teacher_headers, db_quest):
+async def test_create_scheduled_run(
+    client: AsyncClient, teacher_headers, db_resource_set, db_map
+):
     from datetime import datetime, timedelta, timezone
 
     future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
     run = await _create_run(
         client,
         teacher_headers,
-        db_quest.id,
+        db_resource_set.id,
+        db_map.id,
         scheduled_at=future,
     )
     assert run["status"] == "scheduled"

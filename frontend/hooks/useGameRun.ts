@@ -152,6 +152,31 @@ export const useGameRun = create<GameRunStore>((set, get) => ({
         updatePlayer({ id: data.player_id as string, status: "finished" });
         break;
       }
+      case "step_advanced": {
+        // Teacher advanced to next step — add new progress items
+        if (Array.isArray(data.progress)) {
+          for (const p of data.progress as RunProgress[]) {
+            updateProgress(p);
+          }
+        }
+        set((state) => ({
+          run: state.run
+            ? { ...state.run, current_step_order: data.step_order as number }
+            : state.run,
+        }));
+        break;
+      }
+      case "answer_reviewed": {
+        // Teacher reviewed an open answer — update progress score
+        set((state) => ({
+          progress: state.progress.map((p) =>
+            p.id === (data.progress_id as string)
+              ? { ...p, score: data.score as number, requires_review: false }
+              : p,
+          ),
+        }));
+        break;
+      }
       case "run_completed": {
         set((state) => ({
           run: state.run ? { ...state.run, status: "completed" } : state.run,

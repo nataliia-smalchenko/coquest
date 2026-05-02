@@ -23,7 +23,7 @@ function renderTiptap(body: Record<string, unknown>): string {
 }
 
 function TextPreview({ body }: { body: Record<string, unknown> }) {
-  const tp = useTranslations("quests.preview");
+  const tp = useTranslations("resourceSets.preview");
   const html = renderTiptap(body);
   const ref = useHighlightCode<HTMLDivElement>([html]);
 
@@ -51,7 +51,7 @@ function QuestionPreview({
 }: {
   question: NonNullable<ResourceDetailResponse["question"]>;
 }) {
-  const tp = useTranslations("quests.preview");
+  const tp = useTranslations("resourceSets.preview");
   const { question_type, body, options, correct_answers, explanation } =
     question;
   const bodyRef = useHighlightCode<HTMLDivElement>([body]);

@@ -7,14 +7,14 @@ from app.models.resource_tag import ResourceTag
 from app.models.text_content import TextContent
 from app.models.question import Question, QuestionType
 from app.models.map import Map, MapTranslation, MapObject, MapObjectHint
-from app.models.quest import (
-    Quest,
-    QuestStatus,
-    QuestTranslation,
-    QuestSettings,
-    QuestResource,
+from app.models.resource_set import (
+    ResourceSet,
+    ResourceSetStatus,
+    ResourceSetTranslation,
+    ResourceSetSettings,
+    ResourceSetResource,
 )
-from app.models.game_run import GameRun, RunStatus
+from app.models.game_run import GameRun, RunStatus, RunType, TestMode
 from app.models.run_team import RunTeam, TeamStatus
 from app.models.run_player import RunPlayer, PlayerStatus
 from app.models.run_progress import RunProgress, ProgressStatus
@@ -37,13 +37,15 @@ __all__ = [
     "MapTranslation",
     "MapObject",
     "MapObjectHint",
-    "Quest",
-    "QuestStatus",
-    "QuestTranslation",
-    "QuestSettings",
-    "QuestResource",
+    "ResourceSet",
+    "ResourceSetStatus",
+    "ResourceSetTranslation",
+    "ResourceSetSettings",
+    "ResourceSetResource",
     "GameRun",
     "RunStatus",
+    "RunType",
+    "TestMode",
     "RunTeam",
     "TeamStatus",
     "RunPlayer",

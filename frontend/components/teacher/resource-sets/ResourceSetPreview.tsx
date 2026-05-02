@@ -13,21 +13,21 @@ import {
   Shuffle,
 } from "lucide-react";
 import Image from "next/image";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { ResizableImage } from "@/components/editor/ResizableImage";
 import { useHighlightCode } from "@/hooks/useHighlightCode";
 import { useRouter } from "@/i18n/navigation";
-import { getMap, getMaps } from "@/lib/api/maps";
-import { getQuest } from "@/lib/api/quests";
+import { getResourceSet } from "@/lib/api/resource-sets";
 import { getResource } from "@/lib/api/resources";
 import { sanitizeHtml } from "@/lib/sanitize";
-import type { MapResponse } from "@/types/map";
-import type { QuestResponse, QuestStatus } from "@/types/quest";
 import type { ResourceDetailResponse } from "@/types/resource";
-import MapPreview from "./MapPreview";
+import type {
+  ResourceSetResponse,
+  ResourceSetStatus,
+} from "@/types/resource-set";
 
-const STATUS_STYLE: Record<QuestStatus, { bg: string; color: string }> = {
+const STATUS_STYLE: Record<ResourceSetStatus, { bg: string; color: string }> = {
   draft: { bg: "#f3f4f6", color: "#4b5563" },
   published: { bg: "#f0fdf4", color: "#15803d" },
   archived: { bg: "#fff7ed", color: "#c2410c" },
@@ -45,39 +45,30 @@ function renderTiptap(body: Record<string, unknown>): string {
 }
 
 interface Props {
-  questId: string;
+  resourceSetId: string;
 }
 
-export default function QuestPreview({ questId }: Props) {
-  const t = useTranslations("quests");
-  const tp = useTranslations("quests.preview");
+export default function ResourceSetPreview({ resourceSetId }: Props) {
+  const t = useTranslations("resourceSets");
+  const tp = useTranslations("resourceSets.preview");
   const tCommon = useTranslations("common");
-  const locale = useLocale();
+
   const router = useRouter();
 
-  const [quest, setQuest] = useState<QuestResponse | null>(null);
-  const [map, setMap] = useState<MapResponse | null>(null);
+  const [resourceSet, setResourceSet] = useState<ResourceSetResponse | null>(
+    null,
+  );
   const [resources, setResources] = useState<ResourceDetailResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getQuest(questId)
-      .then(async (q) => {
-        setQuest(q);
-
-        // Load map
-        if (q.map_id) {
-          const maps = await getMaps(locale);
-          const found = maps.find((m) => m.id === q.map_id);
-          if (found) {
-            const fullMap = await getMap(found.slug);
-            setMap(fullMap);
-          }
-        }
+    getResourceSet(resourceSetId)
+      .then(async (rs) => {
+        setResourceSet(rs);
 
         // Load all resources in parallel
-        if (q.resources.length > 0) {
-          const sorted = [...q.resources].sort(
+        if (rs.resources.length > 0) {
+          const sorted = [...rs.resources].sort(
             (a, b) => a.order_index - b.order_index,
           );
           const details = await Promise.all(
@@ -86,11 +77,11 @@ export default function QuestPreview({ questId }: Props) {
           setResources(details);
         }
       })
-      .catch(() => router.push("/teacher/quests"))
+      .catch(() => router.push("/teacher/resource-sets"))
       .finally(() => setLoading(false));
-  }, [questId, locale, router]);
+  }, [resourceSetId, router]);
 
-  if (loading || !quest) {
+  if (loading || !resourceSet) {
     return (
       <div
         style={{
@@ -116,9 +107,9 @@ export default function QuestPreview({ questId }: Props) {
     );
   }
 
-  const translation = quest.translations[0];
-  const settings = quest.settings;
-  const badge = STATUS_STYLE[quest.status];
+  const translation = resourceSet.translations[0];
+  const settings = resourceSet.settings;
+  const badge = STATUS_STYLE[resourceSet.status];
 
   // Build active settings chips
   const chips: { icon: React.ReactNode; label: string; color: string }[] = [];
@@ -172,7 +163,7 @@ export default function QuestPreview({ questId }: Props) {
           >
             <button
               type="button"
-              onClick={() => router.push("/teacher/quests")}
+              onClick={() => router.push("/teacher/resource-sets")}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -226,7 +217,7 @@ export default function QuestPreview({ questId }: Props) {
                 flexShrink: 0,
               }}
             >
-              {t(`status.${quest.status}`)}
+              {t(`status.${resourceSet.status}`)}
             </span>
           </div>
           <div
@@ -237,11 +228,13 @@ export default function QuestPreview({ questId }: Props) {
               flexShrink: 0,
             }}
           >
-            {quest.status === "published" && (
+            {resourceSet.status === "published" && (
               <button
                 type="button"
                 onClick={() =>
-                  router.push(`/teacher/runs/new?quest_id=${quest.id}`)
+                  router.push(
+                    `/teacher/runs/new?resource_set_id=${resourceSet.id}`,
+                  )
                 }
                 style={{
                   display: "inline-flex",
@@ -266,12 +259,14 @@ export default function QuestPreview({ questId }: Props) {
                 }}
               >
                 <Play size={13} />
-                <span className="hide-mobile">{t("preview.startRun")}</span>
+                <span className="hide-mobile">{tp("startRun")}</span>
               </button>
             )}
             <button
               type="button"
-              onClick={() => router.push(`/teacher/quests/${quest.id}/edit`)}
+              onClick={() =>
+                router.push(`/teacher/resource-sets/${resourceSet.id}/edit`)
+              }
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -324,31 +319,6 @@ export default function QuestPreview({ questId }: Props) {
             {translation.description}
           </p>
         )}
-
-        {/* Map Preview */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: "16px",
-            border: "1px solid #e5e7eb",
-            overflow: "hidden",
-          }}
-        >
-          {map ? (
-            <MapPreview map={map} />
-          ) : (
-            <div
-              style={{
-                padding: "32px",
-                textAlign: "center",
-                color: "#9ca3af",
-                fontSize: "14px",
-              }}
-            >
-              {tp("noMap")}
-            </div>
-          )}
-        </div>
 
         {/* Settings chips */}
         {chips.length > 0 && (
@@ -496,7 +466,7 @@ function ResourceCard({
 }: {
   resource: ResourceDetailResponse;
   index: number;
-  tp: ReturnType<typeof useTranslations<"quests.preview">>;
+  tp: ReturnType<typeof useTranslations<"resourceSets.preview">>;
 }) {
   const isText = resource.type === "text";
 
@@ -603,7 +573,7 @@ function TextMaterialView({
   tp,
 }: {
   content: Record<string, unknown> | undefined;
-  tp: ReturnType<typeof useTranslations<"quests.preview">>;
+  tp: ReturnType<typeof useTranslations<"resourceSets.preview">>;
 }) {
   const html = content ? renderTiptap(content) : "";
   const ref = useHighlightCode<HTMLDivElement>([html]);
@@ -631,7 +601,7 @@ function QuestionView({
   tp,
 }: {
   question: NonNullable<ResourceDetailResponse["question"]>;
-  tp: ReturnType<typeof useTranslations<"quests.preview">>;
+  tp: ReturnType<typeof useTranslations<"resourceSets.preview">>;
 }) {
   const { question_type, body, options, correct_answers, explanation } =
     question;
@@ -639,7 +609,6 @@ function QuestionView({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-      {/* Question body */}
       <div
         ref={bodyRef}
         className="tiptap-preview"
@@ -654,7 +623,6 @@ function QuestionView({
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(body) }}
       />
 
-      {/* Options for single/multiple */}
       {(question_type === "single" || question_type === "multiple") &&
         options.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -743,7 +711,6 @@ function QuestionView({
           </div>
         )}
 
-      {/* Short answer */}
       {question_type === "short" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <span
@@ -778,7 +745,6 @@ function QuestionView({
         </div>
       )}
 
-      {/* Open answer */}
       {question_type === "open" && (
         <span
           style={{ fontSize: "13px", color: "#9ca3af", fontStyle: "italic" }}
@@ -787,7 +753,6 @@ function QuestionView({
         </span>
       )}
 
-      {/* Explanation */}
       {explanation && (
         <div
           style={{

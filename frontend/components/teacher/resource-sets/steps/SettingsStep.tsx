@@ -1,17 +1,17 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { QuestSettingsCreate } from "@/types/quest";
+import type { ResourceSetSettingsCreate } from "@/types/resource-set";
 
 interface Props {
-  settings: QuestSettingsCreate;
-  onChange: (settings: QuestSettingsCreate) => void;
+  settings: ResourceSetSettingsCreate;
+  onChange: (settings: ResourceSetSettingsCreate) => void;
 }
 
 export default function SettingsStep({ settings, onChange }: Props) {
-  const t = useTranslations("quests.settings");
+  const t = useTranslations("resourceSets.settings");
 
-  const update = (key: keyof QuestSettingsCreate, value: unknown) => {
+  const update = (key: keyof ResourceSetSettingsCreate, value: unknown) => {
     onChange({ ...settings, [key]: value });
   };
 

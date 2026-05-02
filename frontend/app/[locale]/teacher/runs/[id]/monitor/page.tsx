@@ -5,9 +5,11 @@ import {
   AlertTriangle,
   Check,
   CheckCircle,
+  ClipboardList,
   Clock,
   Copy,
   ExternalLink,
+  Map as MapIcon,
   Pencil,
   Play,
   RefreshCw,
@@ -23,6 +25,7 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TimerDisplay from "@/components/game/TimerDisplay";
+import TestControlPanel from "@/components/teacher/TestControlPanel";
 import { useTeacherWebSocket } from "@/hooks/useWebSocket";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
@@ -214,7 +217,7 @@ function PlayerDetailDrawer({
   };
 
   // Only show items this player actually answered/viewed (skip unstarted)
-  // Unreviewed open questions float to the top, the rest sorted by step_order (quest order)
+  // Unreviewed open questions float to the top, the rest sorted by step_order
   const questionItems = (items ?? [])
     .filter((p) => p.question !== null && p.status !== "assigned")
     .sort((a, b) => {
@@ -787,11 +790,18 @@ export default function MonitorPage() {
       if (data.type === "player_finished" || data.type === "player_answered") {
         refreshMonitor();
       }
+
+      if (data.type === "step_advanced") {
+        setRun((s) =>
+          s ? { ...s, current_step_order: data.step_order as number } : s,
+        );
+        refreshMonitor();
+      }
     },
     [refreshMonitor],
   );
 
-  useTeacherWebSocket(runId, token, handleWsMessage);
+  const { send: sendWs } = useTeacherWebSocket(runId, token, handleWsMessage);
 
   const handleStop = async () => {
     setStopping(true);
@@ -869,7 +879,7 @@ export default function MonitorPage() {
               {run?.name ?? t("title")}
             </h1>
             <Link
-              href={`/teacher/quests/${run?.quest_id}`}
+              href={`/teacher/resource-sets/${run?.resource_set_id}`}
               className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
             >
               <ExternalLink size={13} />
@@ -1011,21 +1021,47 @@ export default function MonitorPage() {
             </button>
           </div>
           <div className="flex flex-wrap gap-2 px-1">
+            {/* Run type badge */}
             <span
-              className="inline-flex items-center gap-1.5 text-xs rounded-full bg-blue-50 text-blue-700 font-medium"
-              style={{ padding: "3px 10px" }}
+              className="inline-flex items-center gap-1.5 text-xs rounded-full font-medium"
+              style={{
+                padding: "3px 10px",
+                backgroundColor:
+                  run.run_type === "test" ? "#fef3c7" : "#dbeafe",
+                color: run.run_type === "test" ? "#92400e" : "#1d4ed8",
+              }}
             >
-              {run.max_players === 1 ? (
+              {run.run_type === "test" ? (
                 <>
-                  <User size={11} /> {tRun("solo")}
+                  <ClipboardList size={11} /> {tRun("runTypeTest")}
+                  {run.test_mode === "teacher_managed"
+                    ? ` · ${tRun("testModeTeacherManaged")}`
+                    : ` · ${tRun("testModeSelfPaced")}`}
                 </>
               ) : (
                 <>
-                  <Users size={11} /> {tRun("teamMode")} · {run.max_players}
+                  <MapIcon size={11} /> {tRun("runTypeQuest")}
                 </>
               )}
             </span>
-            {run.max_players > 1 && (
+            {/* Game mode (quest only) */}
+            {run.run_type === "quest" && (
+              <span
+                className="inline-flex items-center gap-1.5 text-xs rounded-full bg-blue-50 text-blue-700 font-medium"
+                style={{ padding: "3px 10px" }}
+              >
+                {run.max_players === 1 ? (
+                  <>
+                    <User size={11} /> {tRun("solo")}
+                  </>
+                ) : (
+                  <>
+                    <Users size={11} /> {tRun("teamMode")} · {run.max_players}
+                  </>
+                )}
+              </span>
+            )}
+            {run.run_type === "quest" && run.max_players > 1 && (
               <SettingChip
                 on={run.allow_solo_in_team}
                 label={tRun("allowSolo")}
@@ -1048,6 +1084,15 @@ export default function MonitorPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Test control panel */}
+      {run && run.run_type === "test" && run.status === "active" && (
+        <TestControlPanel
+          run={run}
+          players={players}
+          onAdvanceStep={() => sendWs({ type: "advance_step" })}
+        />
       )}
 
       {/* Players list */}

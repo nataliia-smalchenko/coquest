@@ -45,7 +45,7 @@ class RunService:
     update_player_guest_name = RunCoreService.update_player_guest_name
     delete_player = RunCoreService.delete_player
     get_run_with_players = RunCoreService.get_run_with_players
-    get_quest_settings = RunCoreService.get_quest_settings
+    get_resource_set_settings = RunCoreService.get_resource_set_settings
     get_run_timing = RunCoreService.get_run_timing
     get_team_players = RunCoreService.get_team_players
     get_next_progress_for_map_object = RunCoreService.get_next_progress_for_map_object

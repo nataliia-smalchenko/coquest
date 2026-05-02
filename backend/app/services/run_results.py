@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.game_run import GameRun
-from app.models.quest import QuestSettings
+from app.models.resource_set import ResourceSetSettings
 from app.models.resource import Resource
 from app.models.run_chat import RunChat
 from app.models.run_player import RunPlayer
@@ -61,8 +61,8 @@ class RunResultsService:
         )
         if not time_expired and run_for_check and player.started_at:
             settings_res = await db.execute(
-                select(QuestSettings).where(
-                    QuestSettings.quest_id == run_for_check.quest_id
+                select(ResourceSetSettings).where(
+                    ResourceSetSettings.resource_set_id == run_for_check.resource_set_id
                 )
             )
             settings_obj = settings_res.scalar_one_or_none()
@@ -158,7 +158,9 @@ class RunResultsService:
             )
 
         settings_res2 = await db.execute(
-            select(QuestSettings).where(QuestSettings.quest_id == run.quest_id)
+            select(ResourceSetSettings).where(
+                ResourceSetSettings.resource_set_id == run.resource_set_id
+            )
         )
         quest_settings = settings_res2.scalar_one_or_none()
         result_max_grade = quest_settings.max_grade if quest_settings else None
@@ -176,7 +178,7 @@ class RunResultsService:
 
         return GameRunResultResponse(
             id=run.id,
-            quest_id=run.quest_id,
+            resource_set_id=run.resource_set_id,
             join_code=run.join_code,
             status=run.status,
             started_at=run.started_at,
@@ -210,7 +212,9 @@ class RunResultsService:
         from app.models.question import Question as QuestionModel
 
         monitor_settings_res = await db.execute(
-            select(QuestSettings).where(QuestSettings.quest_id == run.quest_id)
+            select(ResourceSetSettings).where(
+                ResourceSetSettings.resource_set_id == run.resource_set_id
+            )
         )
         monitor_quest_settings = monitor_settings_res.scalar_one_or_none()
         monitor_max_grade = (

@@ -45,7 +45,11 @@ export default function Navigation() {
       label: t("resources"),
       icon: <BookOpen size={16} />,
     },
-    { href: "/teacher/quests", label: t("quests"), icon: <Sword size={16} /> },
+    {
+      href: "/teacher/resource-sets",
+      label: t("resourceSets"),
+      icon: <Sword size={16} />,
+    },
     {
       href: "/teacher/runs",
       label: t("runs"),

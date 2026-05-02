@@ -18,6 +18,7 @@
     "home": "Головна",
     "dashboard": "Дашборд",
     "quests": "Квести",
+    "resourceSets": "Набори ресурсів",
     "resources": "Ресурси",
     "explore": "Огляд",
     "create": "Створити",
@@ -187,6 +188,79 @@
       "totalPoints": "Разом: {n} б"
     }
   },
+  "resourceSets": {
+    "title": "Набори ресурсів",
+    "new": "Новий набір",
+    "empty": "Наборів ще немає",
+    "emptyHint": "Створіть свій перший набір ресурсів",
+    "delete": "Видалити набір?",
+    "status": {
+      "draft": "Чернетка",
+      "published": "Опубліковано",
+      "archived": "Архівовано"
+    },
+    "builder": {
+      "title": "Новий набір ресурсів",
+      "editTitle": "Редагування набору",
+      "saveDraft": "Зберегти чернетку",
+      "next": "Далі",
+      "back": "Назад",
+      "publish": "Опублікувати",
+      "saved": "Збережено",
+      "saveError": "Помилка збереження",
+      "steps": {
+        "basic": "Основне",
+        "resources": "Ресурси",
+        "settings": "Налаштування"
+      }
+    },
+    "basic": {
+      "title": "Назва",
+      "titlePlaceholder": "Введіть назву...",
+      "description": "Опис",
+      "descriptionPlaceholder": "Необов'язково...",
+      "language": "Мова"
+    },
+    "resources": {
+      "title": "Ресурси",
+      "addResources": "Додати ресурси",
+      "noResources": "Ресурсів ще не додано",
+      "resourceCount": "{count} ресурсів",
+      "done": "Готово",
+      "search": "Пошук...",
+      "allFolders": "Усі папки",
+      "expandAll": "Розгорнути все",
+      "collapseAll": "Згорнути все"
+    },
+    "settings": {
+      "time": "Обмеження часу",
+      "timeLimit": "Обмежити час",
+      "minutes": "Хвилин",
+      "order": "Порядок",
+      "randomOrder": "Випадковий порядок ресурсів",
+      "grade": "Оцінка",
+      "maxGrade": "Вказати максимальну оцінку",
+      "maxGradeValue": "Максимальна оцінка"
+    },
+    "preview": {
+      "settings": "Налаштування",
+      "materials": "Матеріали",
+      "noMaterials": "Матеріали відсутні",
+      "noContent": "Вміст відсутній",
+      "textMaterial": "Текстовий матеріал",
+      "questionLabel": "Питання",
+      "correct": "Правильно",
+      "incorrect": "Неправильно",
+      "explanation": "Пояснення",
+      "shortAnswer": "Коротка відповідь",
+      "openAnswer": "Відкрита відповідь",
+      "startRun": "Розпочати запуск",
+      "settingTime": "{n} хв",
+      "settingRandom": "Випадковий порядок",
+      "pointsBadge": "{n} б",
+      "totalPoints": "Разом: {n} б"
+    }
+  },
   "quest": {
     "title": "Назва квесту",
     "description": "Опис",
@@ -215,6 +289,21 @@
     "run": {
       "newTitle": "Новий запуск",
       "quest": "Квест",
+      "resourceSet": "Набір ресурсів",
+      "runType": "Тип проходження",
+      "runTypeQuest": "Квест",
+      "runTypeQuestHint": "Гравці проходять завдання на інтерактивній карті",
+      "runTypeTest": "Тест",
+      "runTypeTestHint": "Гравці проходять завдання послідовно без карти",
+      "selectMap": "Оберіть карту",
+      "selectMapHint": "Карта з інтерактивними точками для квесту",
+      "noMapsAvailable": "Немає доступних карт",
+      "changeMap": "Змінити карту",
+      "testMode": "Режим тесту",
+      "testModeSelfPaced": "У своєму темпі",
+      "testModeSelfPacedHint": "Учні проходять тест самостійно, переходячи до наступного питання після відповіді",
+      "testModeTeacherManaged": "Керує вчитель",
+      "testModeTeacherManagedHint": "Вчитель відкриває кожне наступне питання для всіх учнів",
       "mode": "Режим гри",
       "solo": "Індивідуально",
       "soloHint": "Кожен гравець проходить квест самостійно",
@@ -238,7 +327,8 @@
       "runName": "Назва запуску",
       "create": "Створити запуск",
       "createHint": "Після створення отримаєте код для учнів",
-      "createError": "Помилка створення запуску"
+      "createError": "Помилка створення запуску",
+      "mapRequired": "Для квесту потрібно обрати карту"
     },
     "join": {
       "title": "Приєднатись до квесту",
@@ -301,7 +391,11 @@
       "teamAnsweredBy": "Відповів(ла): {name}",
       "teamViewedBy": "Переглянув(ла): {name}",
       "yourAnswer": "Надана відповідь",
-      "reconnecting": "З'єднання перервано, перепідключення..."
+      "reconnecting": "З'єднання перервано, перепідключення...",
+      "questionN": "Питання {n}",
+      "questionLocked": "Це питання ще не відкрите",
+      "allCompleted": "Усі питання пройдено!",
+      "nextQuestion": "Наступне питання"
     },
     "results": {
       "title": "Результати",
@@ -375,14 +469,20 @@
       "runEndsAt": "Запуск закінчується",
       "timeLeft": "залишилось",
       "pointsUnit": "б",
-      "questPreview": "Перегляд квесту",
+      "questPreview": "Перегляд набору ресурсів",
       "editSettings": "Редагувати налаштування",
       "saveSettings": "Зберегти",
       "restart": "Перезапустити запуск",
       "restartConfirm": "Перезапустити запуск? Учасники, які не завершили, будуть скинуті. Ті, хто пройшов, зберігають свої результати.",
       "runName": "Назва запуску",
       "endsAt": "Дедлайн",
-      "scheduledAt": "Запланований старт"
+      "scheduledAt": "Запланований старт",
+      "testControl": "Керування тестом",
+      "currentQuestion": "Поточне питання",
+      "advanceStep": "Відкрити наступне",
+      "allQuestionsOpened": "Усі питання відкрито",
+      "studentsAnswered": "{count} з {total} відповіли",
+      "questionOpened": "Питання {n} (відкрито)"
     }
   },
   "resources": {

@@ -21,31 +21,27 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
-    from app.models.map import Map
     from app.models.resource import Resource
     from app.models.game_run import GameRun
 
 
-class QuestStatus(str, enum.Enum):
+class ResourceSetStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
     ARCHIVED = "archived"
 
 
-class Quest(Base):
-    __tablename__ = "quests"
+class ResourceSet(Base):
+    __tablename__ = "resource_sets"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     teacher_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    map_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        Uuid, ForeignKey("maps.id", ondelete="SET NULL"), nullable=True, index=True
-    )
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    status: Mapped[QuestStatus] = mapped_column(
-        SQLEnum(QuestStatus, native_enum=False),
-        default=QuestStatus.DRAFT,
+    status: Mapped[ResourceSetStatus] = mapped_column(
+        SQLEnum(ResourceSetStatus, native_enum=False),
+        default=ResourceSetStatus.DRAFT,
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -56,78 +52,99 @@ class Quest(Base):
     )
 
     # Relationships
-    teacher: Mapped["User"] = relationship("User", back_populates="quests")
-    map: Mapped[Optional["Map"]] = relationship("Map")
-    translations: Mapped[List["QuestTranslation"]] = relationship(
-        "QuestTranslation", back_populates="quest", cascade="all, delete-orphan"
+    teacher: Mapped["User"] = relationship("User", back_populates="resource_sets")
+    translations: Mapped[List["ResourceSetTranslation"]] = relationship(
+        "ResourceSetTranslation",
+        back_populates="resource_set",
+        cascade="all, delete-orphan",
     )
-    settings: Mapped[Optional["QuestSettings"]] = relationship(
-        "QuestSettings",
-        back_populates="quest",
+    settings: Mapped[Optional["ResourceSetSettings"]] = relationship(
+        "ResourceSetSettings",
+        back_populates="resource_set",
         cascade="all, delete-orphan",
         uselist=False,
     )
-    resources: Mapped[List["QuestResource"]] = relationship(
-        "QuestResource", back_populates="quest", cascade="all, delete-orphan"
+    resources: Mapped[List["ResourceSetResource"]] = relationship(
+        "ResourceSetResource",
+        back_populates="resource_set",
+        cascade="all, delete-orphan",
     )
     runs: Mapped[List["GameRun"]] = relationship(
-        "GameRun", back_populates="quest", cascade="all, delete-orphan"
+        "GameRun", back_populates="resource_set", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
-        return f"<Quest {self.slug!r} status={self.status!r}>"
+        return f"<ResourceSet {self.slug!r} status={self.status!r}>"
 
 
-class QuestTranslation(Base):
-    __tablename__ = "quest_translations"
+class ResourceSetTranslation(Base):
+    __tablename__ = "resource_set_translations"
     __table_args__ = (
         UniqueConstraint(
-            "quest_id", "language", name="uq_quest_translations_quest_language"
+            "resource_set_id",
+            "language",
+            name="uq_resource_set_translations_resource_set_language",
         ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    quest_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("quests.id", ondelete="CASCADE"), nullable=False, index=True
+    resource_set_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("resource_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     language: Mapped[str] = mapped_column(String(5), nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
-    quest: Mapped["Quest"] = relationship("Quest", back_populates="translations")
+    resource_set: Mapped["ResourceSet"] = relationship(
+        "ResourceSet", back_populates="translations"
+    )
 
     def __repr__(self) -> str:
-        return f"<QuestTranslation quest_id={self.quest_id!r} lang={self.language!r}>"
+        return f"<ResourceSetTranslation resource_set_id={self.resource_set_id!r} lang={self.language!r}>"
 
 
-class QuestSettings(Base):
-    __tablename__ = "quest_settings"
+class ResourceSetSettings(Base):
+    __tablename__ = "resource_set_settings"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    quest_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("quests.id", ondelete="CASCADE"), nullable=False, unique=True
+    resource_set_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("resource_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
     )
     time_limit_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     random_order: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     max_grade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Relationships
-    quest: Mapped["Quest"] = relationship("Quest", back_populates="settings")
+    resource_set: Mapped["ResourceSet"] = relationship(
+        "ResourceSet", back_populates="settings"
+    )
 
     def __repr__(self) -> str:
-        return f"<QuestSettings quest_id={self.quest_id!r}>"
+        return f"<ResourceSetSettings resource_set_id={self.resource_set_id!r}>"
 
 
-class QuestResource(Base):
-    __tablename__ = "quest_resources"
+class ResourceSetResource(Base):
+    __tablename__ = "resource_set_resources"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    quest_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("quests.id", ondelete="CASCADE"), nullable=False, index=True
+    resource_set_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("resource_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     resource_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("resources.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid,
+        ForeignKey("resources.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     order_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -135,8 +152,10 @@ class QuestResource(Base):
     )
 
     # Relationships
-    quest: Mapped["Quest"] = relationship("Quest", back_populates="resources")
+    resource_set: Mapped["ResourceSet"] = relationship(
+        "ResourceSet", back_populates="resources"
+    )
     resource: Mapped["Resource"] = relationship("Resource")
 
     def __repr__(self) -> str:
-        return f"<QuestResource quest_id={self.quest_id!r} resource_id={self.resource_id!r}>"
+        return f"<ResourceSetResource resource_set_id={self.resource_set_id!r} resource_id={self.resource_id!r}>"

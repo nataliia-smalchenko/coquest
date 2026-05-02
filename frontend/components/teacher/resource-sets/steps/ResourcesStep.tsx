@@ -23,25 +23,19 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import MapPreview from "@/components/teacher/quests/MapPreview";
-import { ResourceContentPreview } from "@/components/teacher/quests/ResourceContentPreview";
-import { ResourcePickerModal } from "@/components/teacher/quests/ResourcePickerModal";
-import { getMap, getMaps } from "@/lib/api/maps";
+import { ResourceContentPreview } from "@/components/teacher/resource-sets/ResourceContentPreview";
+import { ResourcePickerModal } from "@/components/teacher/resource-sets/ResourcePickerModal";
 import { getFolders, getResource, getResources } from "@/lib/api/resources";
-import type { MapListItem, MapResponse } from "@/types/map";
-import type { QuestResourceItem } from "@/types/quest";
 import type {
   FolderResponse,
   ResourceDetailResponse,
   ResourceResponse,
 } from "@/types/resource";
+import type { ResourceSetResourceItem } from "@/types/resource-set";
 
 interface Props {
-  mapId: string | undefined;
-  resources: QuestResourceItem[];
-  onMapChange: (mapId: string) => void;
-  onResourcesChange: (resources: QuestResourceItem[]) => void;
-  onInteractiveCountChange?: (count: number) => void;
+  resources: ResourceSetResourceItem[];
+  onResourcesChange: (resources: ResourceSetResourceItem[]) => void;
   locale: string;
 }
 
@@ -63,7 +57,7 @@ function SortableResourceRow({
   onToggle,
   onRemove,
 }: {
-  item: QuestResourceItem;
+  item: ResourceSetResourceItem;
   resource?: ResourceResponse;
   folders: FolderResponse[];
   locale: string;
@@ -340,18 +334,12 @@ function SortableResourceRow({
   );
 }
 
-export default function MapAndResourcesStep({
-  mapId,
+export default function ResourcesStep({
   resources,
-  onMapChange,
   onResourcesChange,
-  onInteractiveCountChange,
   locale,
 }: Props) {
-  const t = useTranslations("quests.map");
-  const [maps, setMaps] = useState<MapListItem[]>([]);
-  const [fullMaps, setFullMaps] = useState<Record<string, MapResponse>>({});
-  const [loadingMaps, setLoadingMaps] = useState(true);
+  const t = useTranslations("resourceSets.resources");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [resourceCache, setResourceCache] = useState<
     Record<string, ResourceResponse>
@@ -370,23 +358,6 @@ export default function MapAndResourcesStep({
     resources.every((r) => expandedIds.has(r.resource_id));
 
   useEffect(() => {
-    getMaps(locale)
-      .then((list) => {
-        setMaps(list);
-        Promise.all(
-          list.map((m) =>
-            getMap(m.slug).then((full) => ({ slug: m.slug, full })),
-          ),
-        ).then((results) => {
-          const cache: Record<string, MapResponse> = {};
-          results.forEach(({ slug, full }) => {
-            cache[slug] = full;
-          });
-          setFullMaps(cache);
-        });
-      })
-      .finally(() => setLoadingMaps(false));
-
     Promise.all([getResources(), getFolders()]).then(
       ([resList, folderList]) => {
         const cache: Record<string, ResourceResponse> = {};
@@ -397,20 +368,7 @@ export default function MapAndResourcesStep({
         setFolders(folderList);
       },
     );
-  }, [locale]);
-
-  useEffect(() => {
-    if (!mapId || !onInteractiveCountChange) return;
-    const selectedMap = Object.values(fullMaps).find((m) => {
-      const listItem = maps.find((lm) => lm.slug === m.slug);
-      return listItem?.id === mapId;
-    });
-    if (selectedMap) {
-      onInteractiveCountChange(
-        selectedMap.objects.filter((o) => o.is_interactive).length,
-      );
-    }
-  }, [mapId, fullMaps, maps, onInteractiveCountChange]);
+  }, []);
 
   const fetchDetail = async (id: string) => {
     if (detailCache[id] || loadingIds.has(id)) return;
@@ -473,7 +431,7 @@ export default function MapAndResourcesStep({
     onResourcesChange(reordered);
   };
 
-  const handleAddResources = (items: QuestResourceItem[]) => {
+  const handleAddResources = (items: ResourceSetResourceItem[]) => {
     const newResources = [
       ...resources,
       ...items.filter(
@@ -508,143 +466,7 @@ export default function MapAndResourcesStep({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Section A: Map */}
-      <div
-        style={{
-          background: "white",
-          borderRadius: "16px",
-          border: "1px solid #e5e7eb",
-          padding: "20px",
-        }}
-      >
-        <h3
-          style={{
-            margin: "0 0 16px",
-            fontSize: "15px",
-            fontWeight: 700,
-            color: "#111827",
-          }}
-        >
-          {t("selectMap")}
-        </h3>
-        {loadingMaps ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "12px",
-            }}
-          >
-            {[0, 1].map((i) => (
-              <div
-                key={i}
-                style={{
-                  height: "160px",
-                  borderRadius: "12px",
-                  background: "#f3f4f6",
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: "12px",
-            }}
-          >
-            {maps.map((m) => {
-              const active = mapId === m.id;
-              return (
-                // biome-ignore lint/a11y/useSemanticElements: map card needs div for complex preview layout
-                <div
-                  key={m.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onMapChange(m.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onMapChange(m.id);
-                    }
-                  }}
-                  style={{
-                    borderRadius: "12px",
-                    border: active
-                      ? "2.5px solid #2563eb"
-                      : "1.5px solid #e5e7eb",
-                    cursor: "pointer",
-                    overflow: "hidden",
-                    boxShadow: active ? "0 0 0 3px #dbeafe" : "none",
-                    transition: "border-color 0.15s, box-shadow 0.15s",
-                    background: "white",
-                  }}
-                >
-                  <div style={{ padding: "8px 8px 0" }}>
-                    {fullMaps[m.slug] ? (
-                      <MapPreview map={fullMaps[m.slug]} />
-                    ) : (
-                      <div
-                        style={{
-                          width: "100%",
-                          aspectRatio: "16/9",
-                          background: "#f3f4f6",
-                          borderRadius: "8px",
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      padding: "10px 10px 12px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "16px",
-                        height: "16px",
-                        borderRadius: "50%",
-                        border: `2px solid ${active ? "#2563eb" : "#d1d5db"}`,
-                        backgroundColor: active ? "#2563eb" : "transparent",
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {active && (
-                        <div
-                          style={{
-                            width: "6px",
-                            height: "6px",
-                            borderRadius: "50%",
-                            backgroundColor: "white",
-                          }}
-                        />
-                      )}
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: active ? "#2563eb" : "#374151",
-                      }}
-                    >
-                      {m.name}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Section B: Resources */}
+      {/* Resources */}
       <div
         style={{
           background: "white",
@@ -670,7 +492,7 @@ export default function MapAndResourcesStep({
                 color: "#111827",
               }}
             >
-              {t("resources")}
+              {t("title")}
             </h3>
             {resources.length > 0 && (
               <p

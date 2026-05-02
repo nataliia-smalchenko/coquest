@@ -6,7 +6,6 @@ import {
   Calendar,
   Compass,
   Globe,
-  Map as MapIcon,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -14,32 +13,35 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
-  archiveQuest,
-  deleteQuest,
-  getQuests,
-  publishQuest,
-} from "@/lib/api/quests";
-import type { QuestListItem, QuestStatus } from "@/types/quest";
+  archiveResourceSet,
+  deleteResourceSet,
+  getResourceSets,
+  publishResourceSet,
+} from "@/lib/api/resource-sets";
+import type {
+  ResourceSetListItem,
+  ResourceSetStatus,
+} from "@/types/resource-set";
 
 // Status badge colors
-const STATUS_STYLE: Record<QuestStatus, { bg: string; color: string }> = {
+const STATUS_STYLE: Record<ResourceSetStatus, { bg: string; color: string }> = {
   draft: { bg: "#f3f4f6", color: "#4b5563" },
   published: { bg: "#f0fdf4", color: "#15803d" },
   archived: { bg: "#fff7ed", color: "#c2410c" },
 };
 
-export function QuestList() {
-  const t = useTranslations("quests");
+export function ResourceSetList() {
+  const t = useTranslations("resourceSets");
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
-  const [quests, setQuests] = useState<QuestListItem[]>([]);
+  const [resourceSets, setResourceSets] = useState<ResourceSetListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = () => {
     setLoading(true);
-    getQuests()
-      .then(setQuests)
+    getResourceSets()
+      .then(setResourceSets)
       .finally(() => setLoading(false));
   };
 
@@ -51,19 +53,19 @@ export function QuestList() {
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm(t("delete"))) return;
-    await deleteQuest(id);
+    await deleteResourceSet(id);
     load();
   };
 
   const handleToggleStatus = async (
     e: React.MouseEvent,
-    quest: QuestListItem,
+    rs: ResourceSetListItem,
   ) => {
     e.stopPropagation();
-    if (quest.status === "published") {
-      await archiveQuest(quest.id);
+    if (rs.status === "published") {
+      await archiveResourceSet(rs.id);
     } else {
-      await publishQuest(quest.id);
+      await publishResourceSet(rs.id);
     }
     load();
   };
@@ -78,8 +80,8 @@ export function QuestList() {
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 24px" }}>
       <style>{`
         @media (max-width: 640px) {
-          .quest-card-actions { opacity: 1 !important; position: static !important; display: flex; justify-content: flex-end; margin-top: 4px; }
-          .quest-card { padding-bottom: 16px !important; }
+          .rs-card-actions { opacity: 1 !important; position: static !important; display: flex; justify-content: flex-end; margin-top: 4px; }
+          .rs-card { padding-bottom: 16px !important; }
         }
       `}</style>
       {/* Header */}
@@ -104,7 +106,7 @@ export function QuestList() {
         </h1>
         <button
           type="button"
-          onClick={() => router.push("/teacher/quests/new")}
+          onClick={() => router.push("/teacher/resource-sets/new")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -147,7 +149,7 @@ export function QuestList() {
             />
           ))}
         </div>
-      ) : quests.length === 0 ? (
+      ) : resourceSets.length === 0 ? (
         <div
           style={{
             display: "flex",
@@ -175,16 +177,16 @@ export function QuestList() {
         </div>
       ) : (
         <div style={gridStyle}>
-          {quests.map((q) => {
-            const badge = STATUS_STYLE[q.status];
-            const formattedDate = new Date(q.created_at).toLocaleDateString(
+          {resourceSets.map((rs) => {
+            const badge = STATUS_STYLE[rs.status];
+            const formattedDate = new Date(rs.created_at).toLocaleDateString(
               locale,
               { day: "numeric", month: "short" },
             );
             return (
               <Link
-                key={q.id}
-                href={`/teacher/quests/${q.id}`}
+                key={rs.id}
+                href={`/teacher/resource-sets/${rs.id}`}
                 style={{
                   display: "block",
                   textDecoration: "none",
@@ -193,7 +195,7 @@ export function QuestList() {
               >
                 {/* biome-ignore lint/a11y/noStaticElementInteractions: visual hover effect on card, Link handles navigation */}
                 <div
-                  className="quest-card"
+                  className="rs-card"
                   style={{
                     background: "white",
                     borderRadius: "16px",
@@ -245,7 +247,7 @@ export function QuestList() {
                         color: badge.color,
                       }}
                     >
-                      {t(`status.${q.status}`)}
+                      {t(`status.${rs.status}`)}
                     </span>
                   </div>
 
@@ -262,7 +264,7 @@ export function QuestList() {
                       overflow: "hidden",
                     }}
                   >
-                    {q.title}
+                    {rs.title}
                   </p>
 
                   {/* Meta */}
@@ -278,21 +280,8 @@ export function QuestList() {
                         color: "#9ca3af",
                       }}
                     >
-                      <BookOpen size={13} /> {q.resources_count}
+                      <BookOpen size={13} /> {rs.resources_count}
                     </span>
-                    {q.map_name && (
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          fontSize: "12px",
-                          color: "#9ca3af",
-                        }}
-                      >
-                        <MapIcon size={13} /> {q.map_name}
-                      </span>
-                    )}
                     <span
                       style={{
                         display: "flex",
@@ -309,7 +298,7 @@ export function QuestList() {
                   {/* Actions */}
                   <div
                     data-actions
-                    className="quest-card-actions"
+                    className="rs-card-actions"
                     style={{
                       display: "flex",
                       gap: "4px",
@@ -324,7 +313,7 @@ export function QuestList() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/teacher/quests/${q.id}/edit`);
+                        router.push(`/teacher/resource-sets/${rs.id}/edit`);
                       }}
                       title={tCommon("edit")}
                       style={{
@@ -356,8 +345,8 @@ export function QuestList() {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => handleToggleStatus(e, q)}
-                      title={q.status === "published" ? "Archive" : "Publish"}
+                      onClick={(e) => handleToggleStatus(e, rs)}
+                      title={rs.status === "published" ? "Archive" : "Publish"}
                       style={{
                         padding: "6px",
                         borderRadius: "8px",
@@ -369,7 +358,7 @@ export function QuestList() {
                         color: "#9ca3af",
                       }}
                       onMouseEnter={(e) => {
-                        if (q.status === "published") {
+                        if (rs.status === "published") {
                           (
                             e.currentTarget as HTMLButtonElement
                           ).style.background = "#fff7ed";
@@ -391,7 +380,7 @@ export function QuestList() {
                           "#9ca3af";
                       }}
                     >
-                      {q.status === "published" ? (
+                      {rs.status === "published" ? (
                         <Archive size={14} />
                       ) : (
                         <Globe size={14} />
@@ -399,7 +388,7 @@ export function QuestList() {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => handleDelete(e, q.id)}
+                      onClick={(e) => handleDelete(e, rs.id)}
                       title={tCommon("delete")}
                       style={{
                         padding: "6px",

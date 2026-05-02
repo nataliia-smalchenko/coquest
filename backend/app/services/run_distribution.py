@@ -1,4 +1,4 @@
-"""Resource distribution service: assigns quest resources to players and teams."""
+"""Resource distribution service: assigns resource set resources to players and teams."""
 
 import random
 import uuid
@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.game_run import GameRun
 from app.models.map import MapObject
-from app.models.quest import Quest
+from app.models.resource_set import ResourceSet
 from app.models.resource import Resource
 from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.run_progress import ProgressStatus, RunProgress
@@ -20,33 +20,35 @@ from app.models.run_team import RunTeam
 class RunDistributionService:
     @staticmethod
     async def _distribute_resources(db: AsyncSession, run: GameRun) -> None:
-        quest_result = await db.execute(
-            select(Quest)
-            .where(Quest.id == run.quest_id)
+        rs_result = await db.execute(
+            select(ResourceSet)
+            .where(ResourceSet.id == run.resource_set_id)
             .options(
-                selectinload(Quest.settings),
-                selectinload(Quest.resources),
+                selectinload(ResourceSet.settings),
+                selectinload(ResourceSet.resources),
             )
         )
-        quest = quest_result.scalar_one()
+        rs = rs_result.scalar_one()
 
-        objects_result = await db.execute(
-            select(MapObject)
-            .where(
-                MapObject.map_id == quest.map_id,
-                MapObject.is_interactive == True,  # noqa: E712
+        interactive_objects: List[MapObject] = []
+        if run.map_id:
+            objects_result = await db.execute(
+                select(MapObject)
+                .where(
+                    MapObject.map_id == run.map_id,
+                    MapObject.is_interactive == True,  # noqa: E712
+                )
+                .order_by(MapObject.order_index)
             )
-            .order_by(MapObject.order_index)
-        )
-        interactive_objects: List[MapObject] = list(objects_result.scalars().all())
+            interactive_objects = list(objects_result.scalars().all())
 
         # Only distribute to players who are waiting (skip those already finished)
         players = [p for p in run.players if p.status != PlayerStatus.FINISHED]
         if not players:
             return
 
-        resources = sorted(quest.resources, key=lambda r: r.order_index)
-        settings = quest.settings
+        resources = sorted(rs.resources, key=lambda r: r.order_index)
+        settings = rs.settings
         random_order = settings.random_order if settings else False
 
         for player in players:
@@ -63,6 +65,7 @@ class RunDistributionService:
                         player_id=player.id,
                         resource_id=qr.resource_id,
                         map_object_id=first_obj.id if i == 0 and first_obj else None,
+                        step_order=i,
                         status=ProgressStatus.ASSIGNED,
                     )
                 )
@@ -73,26 +76,31 @@ class RunDistributionService:
     async def _distribute_resources_for_player(
         db: AsyncSession, run: GameRun, player: RunPlayer
     ) -> None:
-        """Solo mode: give all quest resources to one player."""
-        quest_result = await db.execute(
-            select(Quest)
-            .where(Quest.id == run.quest_id)
-            .options(selectinload(Quest.settings), selectinload(Quest.resources))
-        )
-        quest = quest_result.scalar_one()
-
-        objects_result = await db.execute(
-            select(MapObject)
-            .where(
-                MapObject.map_id == quest.map_id,
-                MapObject.is_interactive == True,  # noqa: E712
+        """Solo mode: give all resource set resources to one player."""
+        rs_result = await db.execute(
+            select(ResourceSet)
+            .where(ResourceSet.id == run.resource_set_id)
+            .options(
+                selectinload(ResourceSet.settings),
+                selectinload(ResourceSet.resources),
             )
-            .order_by(MapObject.order_index)
         )
-        interactive_objects = list(objects_result.scalars().all())
+        rs = rs_result.scalar_one()
 
-        resources = sorted(quest.resources, key=lambda r: r.order_index)
-        if quest.settings and quest.settings.random_order:
+        interactive_objects: List[MapObject] = []
+        if run.map_id:
+            objects_result = await db.execute(
+                select(MapObject)
+                .where(
+                    MapObject.map_id == run.map_id,
+                    MapObject.is_interactive == True,  # noqa: E712
+                )
+                .order_by(MapObject.order_index)
+            )
+            interactive_objects = list(objects_result.scalars().all())
+
+        resources = sorted(rs.resources, key=lambda r: r.order_index)
+        if rs.settings and rs.settings.random_order:
             random.shuffle(resources)
 
         first_obj = random.choice(interactive_objects) if interactive_objects else None
@@ -103,6 +111,7 @@ class RunDistributionService:
                     player_id=player.id,
                     resource_id=qr.resource_id,
                     map_object_id=first_obj.id if i == 0 and first_obj else None,
+                    step_order=i,
                     status=ProgressStatus.ASSIGNED,
                 )
             )
@@ -113,29 +122,34 @@ class RunDistributionService:
         db: AsyncSession, run: GameRun, team: RunTeam
     ) -> None:
         """Team mode: texts go to ALL players, questions balanced by points among players."""
-        quest_result = await db.execute(
-            select(Quest)
-            .where(Quest.id == run.quest_id)
-            .options(selectinload(Quest.settings), selectinload(Quest.resources))
-        )
-        quest = quest_result.scalar_one()
-
-        objects_result = await db.execute(
-            select(MapObject)
-            .where(
-                MapObject.map_id == quest.map_id,
-                MapObject.is_interactive == True,  # noqa: E712
+        rs_result = await db.execute(
+            select(ResourceSet)
+            .where(ResourceSet.id == run.resource_set_id)
+            .options(
+                selectinload(ResourceSet.settings),
+                selectinload(ResourceSet.resources),
             )
-            .order_by(MapObject.order_index)
         )
-        interactive_objects = list(objects_result.scalars().all())
+        rs = rs_result.scalar_one()
+
+        interactive_objects: List[MapObject] = []
+        if run.map_id:
+            objects_result = await db.execute(
+                select(MapObject)
+                .where(
+                    MapObject.map_id == run.map_id,
+                    MapObject.is_interactive == True,  # noqa: E712
+                )
+                .order_by(MapObject.order_index)
+            )
+            interactive_objects = list(objects_result.scalars().all())
 
         players = list(team.players)
         if not players:
             return
 
-        resources = sorted(quest.resources, key=lambda r: r.order_index)
-        if quest.settings and quest.settings.random_order:
+        resources = sorted(rs.resources, key=lambda r: r.order_index)
+        if rs.settings and rs.settings.random_order:
             random.shuffle(resources)
 
         # Load resource types and question points

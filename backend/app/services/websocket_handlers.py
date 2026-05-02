@@ -13,6 +13,7 @@ from app.models.run_progress import ProgressStatus, RunProgress
 from app.models.run_team import RunTeam, TeamStatus
 from app.schemas.run import ReviewAnswerRequest, SubmitAnswerRequest
 from app.schemas.websocket import (
+    AdvanceStepMessage,
     ChatMessage,
     MarkViewedMessage,
     ReviewAnswerMessage,
@@ -39,6 +40,7 @@ def _progress_dict(p: RunProgress) -> dict:
         "player_id": str(p.player_id),
         "resource_id": str(p.resource_id) if p.resource_id else None,
         "map_object_id": str(p.map_object_id) if p.map_object_id else None,
+        "step_order": p.step_order,
         "status": p.status.value if hasattr(p.status, "value") else p.status,
         "score": p.score,
         "answer": p.answer,
@@ -373,6 +375,8 @@ async def handle_teacher_message(run_id: str, teacher_id: str, data: dict) -> No
             await _handle_stop_run(run_id, teacher_id)
         elif isinstance(msg, ReviewAnswerMessage):
             await _handle_review_answer(run_id, teacher_id, msg)
+        elif isinstance(msg, AdvanceStepMessage):
+            await _handle_advance_step(run_id, teacher_id)
     except Exception as exc:
         log.exception(
             "teacher_message_handler_error",
@@ -389,16 +393,40 @@ async def _handle_start_run(run_id: str, teacher_id: str) -> None:
             db, uuid.UUID(run_id), uuid.UUID(teacher_id)
         )
 
+        # Check run type for progress visibility
+        run = await db.get(GameRun, uuid.UUID(run_id))
+        is_test = run and run.run_type.value == "test"
+        is_teacher_managed = (
+            is_test and run.test_mode and run.test_mode.value == "teacher_managed"
+        )
+
         # Send each player their assigned (visible) progress items
         for player_resp in result.players:
             pid = str(player_resp.id)
-            progress_result = await db.execute(
-                select(RunProgress).where(
-                    RunProgress.run_id == uuid.UUID(run_id),
-                    RunProgress.player_id == player_resp.id,
-                    RunProgress.map_object_id != None,  # noqa: E711
+            if is_test:
+                # Test: send all progress (or only up to current_step for teacher-managed)
+                query = (
+                    select(RunProgress)
+                    .where(
+                        RunProgress.run_id == uuid.UUID(run_id),
+                        RunProgress.player_id == player_resp.id,
+                    )
+                    .order_by(RunProgress.step_order)
                 )
-            )
+                if is_teacher_managed and run.current_step_order is not None:
+                    query = query.where(
+                        RunProgress.step_order <= run.current_step_order
+                    )
+                progress_result = await db.execute(query)
+            else:
+                # Quest: only items visible on map (have map_object_id)
+                progress_result = await db.execute(
+                    select(RunProgress).where(
+                        RunProgress.run_id == uuid.UUID(run_id),
+                        RunProgress.player_id == player_resp.id,
+                        RunProgress.map_object_id != None,  # noqa: E711
+                    )
+                )
             visible = progress_result.scalars().all()
             await manager.send_to_player(
                 run_id,
@@ -420,6 +448,7 @@ async def _handle_start_run(run_id: str, teacher_id: str) -> None:
                     else result.status,
                     "started_at": _iso(result.started_at),
                     "ends_at": _iso(result.ends_at),
+                    "current_step_order": run.current_step_order if run else None,
                 },
             },
         )
@@ -457,3 +486,64 @@ async def _handle_review_answer(
             "score": result.score,
         },
     )
+
+
+async def _handle_advance_step(run_id: str, teacher_id: str) -> None:
+    """Teacher advances to the next question in teacher-managed test mode."""
+    async with AsyncSessionLocal() as db:
+        run = await db.get(GameRun, uuid.UUID(run_id))
+        if not run or run.teacher_id != uuid.UUID(teacher_id):
+            await manager.send_to_teacher(
+                run_id, {"type": "error", "detail": "Not authorized"}
+            )
+            return
+        if (
+            run.run_type.value != "test"
+            or not run.test_mode
+            or run.test_mode.value != "teacher_managed"
+        ):
+            await manager.send_to_teacher(
+                run_id, {"type": "error", "detail": "Not a teacher-managed test"}
+            )
+            return
+        if run.status.value != "active":
+            await manager.send_to_teacher(
+                run_id, {"type": "error", "detail": "Run is not active"}
+            )
+            return
+
+        new_step = (run.current_step_order or 0) + 1
+        run.current_step_order = new_step
+        await db.commit()
+
+        # Send newly visible progress items to each player
+        players_result = await db.execute(
+            select(RunPlayer).where(RunPlayer.run_id == uuid.UUID(run_id))
+        )
+        players = players_result.scalars().all()
+        for player in players:
+            progress_result = await db.execute(
+                select(RunProgress).where(
+                    RunProgress.run_id == uuid.UUID(run_id),
+                    RunProgress.player_id == player.id,
+                    RunProgress.step_order == new_step,
+                )
+            )
+            new_progress = progress_result.scalars().all()
+            await manager.send_to_player(
+                run_id,
+                str(player.id),
+                {
+                    "type": "step_advanced",
+                    "step_order": new_step,
+                    "progress": [_progress_dict(p) for p in new_progress],
+                },
+            )
+
+        await manager.send_to_teacher(
+            run_id,
+            {
+                "type": "step_advanced",
+                "step_order": new_step,
+            },
+        )

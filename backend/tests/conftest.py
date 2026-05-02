@@ -11,7 +11,12 @@ from app.database import Base, get_db
 from app.config import settings
 from app.models.user import User, AuthProvider
 from app.models.map import Map, MapTranslation, MapObject
-from app.models.quest import Quest, QuestStatus, QuestSettings, QuestTranslation
+from app.models.resource_set import (
+    ResourceSet,
+    ResourceSetStatus,
+    ResourceSetSettings,
+    ResourceSetTranslation,
+)
 from app.utils.security import create_access_token, get_password_hash
 
 from sqlalchemy.pool import NullPool
@@ -164,7 +169,7 @@ def student_headers(student_token: str) -> dict:
 
 @pytest_asyncio.fixture()
 async def db_map(db_session: AsyncSession) -> Map:
-    """A map pre-populated in the db for testing quests/maps endpoints."""
+    """A map pre-populated in the db for testing runs/maps endpoints."""
     # Check if we already created it (since DB might not reset perfectly between scopes)
     m = Map(
         slug="test-island",
@@ -195,20 +200,19 @@ async def db_map(db_session: AsyncSession) -> Map:
 
 
 @pytest_asyncio.fixture()
-async def db_quest(db_session: AsyncSession, teacher: User, db_map: Map) -> Quest:
-    """A quest pre-populated in the db for testing run endpoints."""
-    q = Quest(
+async def db_resource_set(db_session: AsyncSession, teacher: User) -> ResourceSet:
+    """A resource set pre-populated in the db for testing run endpoints."""
+    rs = ResourceSet(
         teacher_id=teacher.id,
-        map_id=db_map.id,
-        slug=f"test-quest-{uuid.uuid4().hex[:8]}",
-        status=QuestStatus.PUBLISHED,
-        settings=QuestSettings(random_order=False),
-        translations=[QuestTranslation(language="uk", title="Test Quest")],
+        slug=f"test-rs-{uuid.uuid4().hex[:8]}",
+        status=ResourceSetStatus.PUBLISHED,
+        settings=ResourceSetSettings(random_order=False),
+        translations=[ResourceSetTranslation(language="uk", title="Test Resource Set")],
     )
-    db_session.add(q)
+    db_session.add(rs)
     await db_session.commit()
-    await db_session.refresh(q)
-    return q
+    await db_session.refresh(rs)
+    return rs
 
 
 # WebSocket fixtures
@@ -272,26 +276,26 @@ async def ws_map(ws_db: AsyncSession) -> Map:
 
 
 @pytest_asyncio.fixture()
-async def ws_quest(ws_db: AsyncSession, ws_teacher: User, ws_map: Map) -> Quest:
-    q = Quest(
+async def ws_resource_set(ws_db: AsyncSession, ws_teacher: User) -> ResourceSet:
+    rs = ResourceSet(
         teacher_id=ws_teacher.id,
-        map_id=ws_map.id,
-        slug=f"ws-quest-{uuid.uuid4().hex[:8]}",
-        status=QuestStatus.PUBLISHED,
-        settings=QuestSettings(random_order=False),
-        translations=[QuestTranslation(language="uk", title="WS Quest")],
+        slug=f"ws-rs-{uuid.uuid4().hex[:8]}",
+        status=ResourceSetStatus.PUBLISHED,
+        settings=ResourceSetSettings(random_order=False),
+        translations=[ResourceSetTranslation(language="uk", title="WS Resource Set")],
     )
-    ws_db.add(q)
+    ws_db.add(rs)
     await ws_db.commit()
-    await ws_db.refresh(q)
-    return q
+    await ws_db.refresh(rs)
+    return rs
 
 
 @pytest_asyncio.fixture()
 async def ws_run_and_player(
     ws_db: AsyncSession,
     ws_teacher: User,
-    ws_quest: Quest,
+    ws_resource_set: ResourceSet,
+    ws_map: Map,
     ws_teacher_token: str,
 ):
     """Create a GameRun + join a guest player via REST, return info dict."""
@@ -302,7 +306,11 @@ async def ws_run_and_player(
         teacher_headers = {"Authorization": f"Bearer {ws_teacher_token}"}
         create = await client.post(
             "/api/runs/",
-            json={"quest_id": str(ws_quest.id), "max_players": 1},
+            json={
+                "resource_set_id": str(ws_resource_set.id),
+                "map_id": str(ws_map.id),
+                "max_players": 1,
+            },
             headers=teacher_headers,
         )
         assert create.status_code == 201, create.text
