@@ -104,7 +104,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-API runs on `http://localhost:8000`  
+API runs on `http://localhost:8000`
 Swagger docs: `http://localhost:8000/api/docs`
 
 ### 3. Frontend
