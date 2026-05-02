@@ -11,12 +11,12 @@ import {
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getFolders, getResources, getTags } from "@/lib/api/resources";
-import type { QuestResourceItem } from "@/types/quest";
 import type {
   FolderResponse,
   ResourceResponse,
   TagResponse,
 } from "@/types/resource";
+import type { ResourceSetResourceItem } from "@/types/resource-set";
 
 const LIMIT = 20;
 
@@ -38,7 +38,7 @@ interface ResourcePickerModalProps {
   open: boolean;
   onClose: () => void;
   existingResourceIds: string[];
-  onAdd: (items: QuestResourceItem[]) => void;
+  onAdd: (items: ResourceSetResourceItem[]) => void;
 }
 
 export function ResourcePickerModal({
@@ -47,7 +47,7 @@ export function ResourcePickerModal({
   existingResourceIds,
   onAdd,
 }: ResourcePickerModalProps) {
-  const t = useTranslations("quests.map");
+  const t = useTranslations("resourceSets.resources");
   const tRes = useTranslations("resources");
   const tCommon = useTranslations("common");
 
@@ -205,10 +205,12 @@ export function ResourcePickerModal({
   };
 
   const handleAdd = () => {
-    const items: QuestResourceItem[] = Array.from(selected).map((id, i) => ({
-      resource_id: id,
-      order_index: existingResourceIds.length + i,
-    }));
+    const items: ResourceSetResourceItem[] = Array.from(selected).map(
+      (id, i) => ({
+        resource_id: id,
+        order_index: existingResourceIds.length + i,
+      }),
+    );
     onAdd(items);
     onClose();
   };

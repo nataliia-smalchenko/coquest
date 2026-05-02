@@ -108,8 +108,12 @@ class ReviewAnswerMessage(BaseModel):
     feedback: Optional[str] = Field(None, max_length=2000)
 
 
+class AdvanceStepMessage(BaseModel):
+    type: Literal["advance_step"]
+
+
 TeacherMessage = Annotated[
-    Union[StartRunMessage, StopRunMessage, ReviewAnswerMessage],
+    Union[StartRunMessage, StopRunMessage, ReviewAnswerMessage, AdvanceStepMessage],
     Field(discriminator="type"),
 ]
 

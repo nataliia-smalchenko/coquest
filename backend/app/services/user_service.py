@@ -36,14 +36,16 @@ class UserService:
         ):
             # Lazy imports to avoid circular dependencies at module load time.
             from app.models.game_run import GameRun
-            from app.models.quest import Quest
+            from app.models.resource_set import ResourceSet
             from app.models.resource import Resource
 
             has_resources = await db.scalar(
                 select(func.count(Resource.id)).where(Resource.teacher_id == user.id)
             )
             has_quests = await db.scalar(
-                select(func.count(Quest.id)).where(Quest.teacher_id == user.id)
+                select(func.count(ResourceSet.id)).where(
+                    ResourceSet.teacher_id == user.id
+                )
             )
             has_runs = await db.scalar(
                 select(func.count(GameRun.id)).where(GameRun.teacher_id == user.id)

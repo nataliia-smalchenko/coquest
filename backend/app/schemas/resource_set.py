@@ -4,17 +4,17 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.quest import QuestStatus
+from app.models.resource_set import ResourceSetStatus
 
 
 # Settings
-class QuestSettingsCreate(BaseModel):
+class ResourceSetSettingsCreate(BaseModel):
     time_limit_minutes: Optional[int] = None
     random_order: bool = False
     max_grade: Optional[int] = None
 
 
-class QuestSettingsResponse(BaseModel):
+class ResourceSetSettingsResponse(BaseModel):
     time_limit_minutes: Optional[int] = None
     random_order: bool
     max_grade: Optional[int] = None
@@ -23,8 +23,8 @@ class QuestSettingsResponse(BaseModel):
 
 
 # Resources
-class QuestResourceItem(BaseModel):
-    """One resource attached to a quest.
+class ResourceSetResourceItem(BaseModel):
+    """One resource attached to a resource set.
 
     Example:
         {"resource_id": "30bbc28f-...", "order_index": 0}
@@ -38,7 +38,7 @@ class QuestResourceItem(BaseModel):
     )
 
 
-class QuestResourceResponse(BaseModel):
+class ResourceSetResourceResponse(BaseModel):
     id: uuid.UUID
     resource_id: uuid.UUID
     order_index: int
@@ -47,7 +47,7 @@ class QuestResourceResponse(BaseModel):
 
 
 # Translations
-class QuestTranslationResponse(BaseModel):
+class ResourceSetTranslationResponse(BaseModel):
     language: str
     title: str
     description: Optional[str] = None
@@ -56,33 +56,32 @@ class QuestTranslationResponse(BaseModel):
 
 
 # Create / Update
-class QuestCreate(BaseModel):
-    map_id: uuid.UUID = Field(..., description="Map UUID (required)")
-    title: str = Field(..., min_length=1, max_length=500, description="Quest title")
+class ResourceSetCreate(BaseModel):
+    title: str = Field(
+        ..., min_length=1, max_length=500, description="Resource set title"
+    )
     description: Optional[str] = Field(
-        default=None, description="Quest description (optional)"
+        default=None, description="Resource set description (optional)"
     )
     language: str = Field(
         default="uk", description="Translation language: 'uk' or 'en'"
     )
-    settings: QuestSettingsCreate = Field(
-        default_factory=QuestSettingsCreate,
-        description="Quest settings (time limit, random order)",
+    settings: ResourceSetSettingsCreate = Field(
+        default_factory=ResourceSetSettingsCreate,
+        description="Resource set settings (time limit, random order)",
     )
-    resources: List[QuestResourceItem] = Field(
+    resources: List[ResourceSetResourceItem] = Field(
         default=[],
         description=(
-            "Quest resource list. Each item: "
-            '{"resource_id": "<uuid>", "order_index": 0}'
+            'Resource list. Each item: {"resource_id": "<uuid>", "order_index": 0}'
         ),
     )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "map_id": "d7b66ec5-ea2c-48b6-83ee-b45fc446446e",
                 "title": "Python Lists",
-                "description": "A quest about working with lists",
+                "description": "A set of resources about working with lists",
                 "language": "en",
                 "settings": {
                     "time_limit_minutes": None,
@@ -103,36 +102,32 @@ class QuestCreate(BaseModel):
     )
 
 
-class QuestUpdate(BaseModel):
-    map_id: Optional[uuid.UUID] = None
+class ResourceSetUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=500)
     description: Optional[str] = None
     language: Optional[str] = None
-    settings: Optional[QuestSettingsCreate] = None
-    resources: Optional[List[QuestResourceItem]] = None
+    settings: Optional[ResourceSetSettingsCreate] = None
+    resources: Optional[List[ResourceSetResourceItem]] = None
 
 
 # Responses
-class QuestResponse(BaseModel):
+class ResourceSetResponse(BaseModel):
     id: uuid.UUID
     slug: str
-    status: QuestStatus
-    map_id: Optional[uuid.UUID] = None
-    translations: List[QuestTranslationResponse] = []
-    settings: Optional[QuestSettingsResponse] = None
-    resources: List[QuestResourceResponse] = []
+    status: ResourceSetStatus
+    translations: List[ResourceSetTranslationResponse] = []
+    settings: Optional[ResourceSetSettingsResponse] = None
+    resources: List[ResourceSetResourceResponse] = []
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class QuestListItem(BaseModel):
+class ResourceSetListItem(BaseModel):
     id: uuid.UUID
     slug: str
-    status: QuestStatus
-    map_id: Optional[uuid.UUID] = None
-    map_name: Optional[str] = None
+    status: ResourceSetStatus
     title: str
     created_at: datetime
     resources_count: int

@@ -4,7 +4,9 @@ import {
   Activity,
   AlertTriangle,
   BarChart2,
+  ClipboardList,
   Clock,
+  Map as MapIcon,
   Trash2,
   Users,
 } from "lucide-react";
@@ -50,6 +52,8 @@ export default function TeacherRunsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const tRun = useTranslations("game.run");
 
   const STATUS_LABEL: Record<RunStatus, string> = {
     waiting: t("statusWaiting"),
@@ -139,6 +143,16 @@ export default function TeacherRunsPage() {
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[effectiveStatus(s)]}`}
                     >
                       {STATUS_LABEL[effectiveStatus(s)]}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+                      {s.run_type === "test" ? (
+                        <ClipboardList size={11} />
+                      ) : (
+                        <MapIcon size={11} />
+                      )}
+                      {s.run_type === "test"
+                        ? tRun("runTypeTest")
+                        : tRun("runTypeQuest")}
                     </span>
                   </div>
                   <div className="flex items-start gap-3 text-xs text-gray-400 flex-wrap">

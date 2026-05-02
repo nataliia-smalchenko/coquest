@@ -6,6 +6,8 @@ export type RunStatus =
   | "scheduled";
 export type PlayerStatus = "waiting" | "playing" | "finished";
 export type ProgressStatus = "assigned" | "viewed" | "answered";
+export type RunType = "quest" | "test";
+export type TestMode = "teacher_managed" | "self_paced";
 
 export interface RunPlayer {
   id: string;
@@ -65,10 +67,14 @@ export interface ChatMessage {
 
 export interface GameRun {
   id: string;
-  quest_id: string;
+  resource_set_id: string;
   join_code: string;
   name: string | null;
   status: RunStatus;
+  run_type: RunType;
+  test_mode: TestMode | null;
+  map_id: string | null;
+  current_step_order: number | null;
   started_at: string | null;
   ends_at: string | null;
   scheduled_at: string | null;
@@ -85,10 +91,11 @@ export interface GameRun {
 
 export interface RunListItem {
   id: string;
-  quest_id: string;
+  resource_set_id: string;
   join_code: string;
   name: string | null;
   status: RunStatus;
+  run_type: RunType;
   started_at: string | null;
   ends_at: string | null;
   scheduled_at: string | null;
@@ -126,9 +133,11 @@ export interface RunSettingsPublic {
 }
 
 export interface GameInfoResponse {
-  quest_title: string;
+  resource_set_title: string;
   map_slug: string | null;
   settings: RunSettingsPublic | null;
+  run_type: RunType;
+  test_mode: TestMode | null;
 }
 
 export interface GameRunDetailResponse extends GameRun {
@@ -171,8 +180,11 @@ export interface RunStorageData {
 }
 
 export interface RunCreate {
-  quest_id: string;
+  resource_set_id: string;
   name?: string;
+  run_type?: RunType;
+  test_mode?: TestMode;
+  map_id?: string;
   max_players?: number;
   allow_solo_in_team?: boolean;
   random_teams?: boolean;

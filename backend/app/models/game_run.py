@@ -9,8 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.quest import Quest
+    from app.models.resource_set import ResourceSet
     from app.models.user import User
+    from app.models.map import Map
     from app.models.run_team import RunTeam
     from app.models.run_player import RunPlayer
     from app.models.run_progress import RunProgress
@@ -25,12 +26,25 @@ class RunStatus(str, enum.Enum):
     SCHEDULED = "scheduled"
 
 
+class RunType(str, enum.Enum):
+    QUEST = "quest"
+    TEST = "test"
+
+
+class TestMode(str, enum.Enum):
+    TEACHER_MANAGED = "teacher_managed"
+    SELF_PACED = "self_paced"
+
+
 class GameRun(Base):
     __tablename__ = "game_runs"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    quest_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("quests.id", ondelete="CASCADE"), nullable=False, index=True
+    resource_set_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("resource_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     teacher_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
@@ -44,6 +58,23 @@ class GameRun(Base):
         default=RunStatus.WAITING,
         nullable=False,
     )
+    run_type: Mapped[RunType] = mapped_column(
+        Enum(
+            RunType, native_enum=False, values_callable=lambda e: [m.value for m in e]
+        ),
+        default=RunType.QUEST,
+        nullable=False,
+    )
+    test_mode: Mapped[Optional[TestMode]] = mapped_column(
+        Enum(
+            TestMode, native_enum=False, values_callable=lambda e: [m.value for m in e]
+        ),
+        nullable=True,
+    )
+    map_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid, ForeignKey("maps.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    current_step_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -90,7 +121,10 @@ class GameRun(Base):
     chat_messages: Mapped[List["RunChat"]] = relationship(
         "RunChat", back_populates="run", cascade="all, delete-orphan"
     )
-    quest: Mapped["Quest"] = relationship("Quest", back_populates="runs")
+    resource_set: Mapped["ResourceSet"] = relationship(
+        "ResourceSet", back_populates="runs"
+    )
+    map: Mapped[Optional["Map"]] = relationship("Map")
     teacher: Mapped["User"] = relationship(
         "User", back_populates="teaching_runs", foreign_keys=[teacher_id]
     )

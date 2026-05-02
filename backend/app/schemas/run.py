@@ -4,7 +4,7 @@ from typing import Annotated, Any, Dict, List, Optional
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, ValidationError
 
-from app.models.game_run import RunStatus
+from app.models.game_run import RunStatus, RunType, TestMode
 from app.models.run_player import PlayerStatus
 from app.models.run_progress import ProgressStatus
 from app.models.run_team import TeamStatus
@@ -49,8 +49,18 @@ ValidatedAnswer = Annotated[Dict[str, Any], BeforeValidator(_validate_player_ans
 
 
 class RunCreate(BaseModel):
-    quest_id: uuid.UUID
+    resource_set_id: uuid.UUID
     name: Optional[str] = None
+    # Run type
+    run_type: RunType = Field(default=RunType.QUEST, description="quest or test")
+    test_mode: Optional[TestMode] = Field(
+        default=None,
+        description="teacher_managed or self_paced (required when run_type=test)",
+    )
+    map_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description="Map UUID (required when run_type=quest)",
+    )
     # Game mode
     max_players: int = Field(
         default=1, ge=1, le=30, description="1 = individual, 2+ = team"
@@ -59,7 +69,8 @@ class RunCreate(BaseModel):
         default=True, description="Allow solo play in team mode"
     )
     random_teams: bool = Field(
-        default=False, description="Hide player names and prevent manual team switching"
+        default=False,
+        description="Hide player names and prevent manual team switching",
     )
     # Gameplay settings
     show_feedback_after_answer: bool = False
@@ -150,10 +161,11 @@ class RunChatMessage(BaseModel):
 
 class RunListItem(BaseModel):
     id: uuid.UUID
-    quest_id: uuid.UUID
+    resource_set_id: uuid.UUID
     join_code: str
     name: Optional[str] = None
     status: RunStatus
+    run_type: RunType = RunType.QUEST
     started_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     scheduled_at: Optional[datetime] = None
@@ -173,10 +185,14 @@ class LeaveTeamResponse(BaseModel):
 
 class GameRunResponse(BaseModel):
     id: uuid.UUID
-    quest_id: uuid.UUID
+    resource_set_id: uuid.UUID
     join_code: str
     name: Optional[str] = None
     status: RunStatus
+    run_type: RunType = RunType.QUEST
+    test_mode: Optional[TestMode] = None
+    map_id: Optional[uuid.UUID] = None
+    current_step_order: Optional[int] = None
     started_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     scheduled_at: Optional[datetime] = None
@@ -281,6 +297,8 @@ class RunSettingsPublic(BaseModel):
 
 
 class GameInfoResponse(BaseModel):
-    quest_title: str
+    resource_set_title: str
     map_slug: Optional[str] = None
     settings: Optional[RunSettingsPublic] = None
+    run_type: RunType = RunType.QUEST
+    test_mode: Optional[TestMode] = None

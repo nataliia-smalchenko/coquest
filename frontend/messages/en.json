@@ -18,6 +18,7 @@
     "home": "Home",
     "dashboard": "Dashboard",
     "quests": "Quests",
+    "resourceSets": "Resource Sets",
     "resources": "Resources",
     "explore": "Explore",
     "create": "Create",
@@ -187,6 +188,79 @@
       "totalPoints": "Total: {n} pts"
     }
   },
+  "resourceSets": {
+    "title": "Resource Sets",
+    "new": "New Set",
+    "empty": "No resource sets yet",
+    "emptyHint": "Create your first resource set",
+    "delete": "Delete resource set?",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "builder": {
+      "title": "New Resource Set",
+      "editTitle": "Edit Resource Set",
+      "saveDraft": "Save Draft",
+      "next": "Next",
+      "back": "Back",
+      "publish": "Publish",
+      "saved": "Saved",
+      "saveError": "Save error",
+      "steps": {
+        "basic": "Basic Info",
+        "resources": "Resources",
+        "settings": "Settings"
+      }
+    },
+    "basic": {
+      "title": "Title",
+      "titlePlaceholder": "Enter title...",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional...",
+      "language": "Language"
+    },
+    "resources": {
+      "title": "Resources",
+      "addResources": "Add resources",
+      "noResources": "No resources added yet",
+      "resourceCount": "{count} resources",
+      "done": "Done",
+      "search": "Search...",
+      "allFolders": "All folders",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all"
+    },
+    "settings": {
+      "time": "Time limit",
+      "timeLimit": "Limit time",
+      "minutes": "Minutes",
+      "order": "Order",
+      "randomOrder": "Random resource order",
+      "grade": "Grade",
+      "maxGrade": "Set maximum grade",
+      "maxGradeValue": "Maximum grade"
+    },
+    "preview": {
+      "settings": "Settings",
+      "materials": "Materials",
+      "noMaterials": "No materials",
+      "noContent": "No content",
+      "textMaterial": "Text material",
+      "questionLabel": "Question",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "explanation": "Explanation",
+      "shortAnswer": "Short answer",
+      "openAnswer": "Open answer",
+      "startRun": "Start run",
+      "settingTime": "{n} min",
+      "settingRandom": "Random order",
+      "pointsBadge": "{n} pt",
+      "totalPoints": "Total: {n} pts"
+    }
+  },
   "quest": {
     "title": "Quest title",
     "description": "Description",
@@ -215,6 +289,21 @@
     "run": {
       "newTitle": "New Run",
       "quest": "Quest",
+      "resourceSet": "Resource Set",
+      "runType": "Run type",
+      "runTypeQuest": "Quest",
+      "runTypeQuestHint": "Players complete tasks on an interactive map",
+      "runTypeTest": "Test",
+      "runTypeTestHint": "Players complete tasks sequentially without a map",
+      "selectMap": "Select map",
+      "selectMapHint": "Map with interactive points for the quest",
+      "noMapsAvailable": "No maps available",
+      "changeMap": "Change map",
+      "testMode": "Test mode",
+      "testModeSelfPaced": "Self-paced",
+      "testModeSelfPacedHint": "Students progress through the test at their own pace, moving to the next question after answering",
+      "testModeTeacherManaged": "Teacher-managed",
+      "testModeTeacherManagedHint": "Teacher reveals each next question for all students",
       "mode": "Game mode",
       "solo": "Individual",
       "soloHint": "Each player completes the quest on their own",
@@ -238,7 +327,8 @@
       "runName": "Run name",
       "create": "Create Run",
       "createHint": "After creating, you'll get a code to share with students",
-      "createError": "Failed to create run"
+      "createError": "Failed to create run",
+      "mapRequired": "A map is required for quest runs"
     },
     "join": {
       "title": "Join a Quest",
@@ -301,7 +391,11 @@
       "teamAnsweredBy": "Answered by {name}",
       "teamViewedBy": "Viewed by {name}",
       "yourAnswer": "Provided answer",
-      "reconnecting": "Connection lost, reconnecting..."
+      "reconnecting": "Connection lost, reconnecting...",
+      "questionN": "Question {n}",
+      "questionLocked": "This question is not yet available",
+      "allCompleted": "All questions completed!",
+      "nextQuestion": "Next question"
     },
     "results": {
       "title": "Results",
@@ -375,14 +469,20 @@
       "runEndsAt": "Run ends at",
       "timeLeft": "time left",
       "pointsUnit": "pt",
-      "questPreview": "Quest preview",
+      "questPreview": "Resource set preview",
       "editSettings": "Edit settings",
       "saveSettings": "Save",
       "restart": "Restart run",
       "restartConfirm": "Restart the run? Players who have not finished will be reset. Finished players keep their results.",
       "runName": "Run name",
       "endsAt": "Deadline",
-      "scheduledAt": "Scheduled start"
+      "scheduledAt": "Scheduled start",
+      "testControl": "Test control",
+      "currentQuestion": "Current question",
+      "advanceStep": "Open next",
+      "allQuestionsOpened": "All questions opened",
+      "studentsAnswered": "{count} of {total} answered",
+      "questionOpened": "Question {n} (opened)"
     }
   },
   "resources": {

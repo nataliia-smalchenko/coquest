@@ -27,7 +27,7 @@ from app.routes import auth  # noqa: E402
 from app.routes import user  # noqa: E402
 from app.routes import resources  # noqa: E402
 from app.routes import maps  # noqa: E402
-from app.routes import quests  # noqa: E402
+from app.routes import resource_sets  # noqa: E402
 from app.routes import runs  # noqa: E402
 from app.routes import websocket as ws_routes  # noqa: E402
 
@@ -97,7 +97,7 @@ app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(resources.router)
 app.include_router(maps.router)
-app.include_router(quests.router)
+app.include_router(resource_sets.router)
 app.include_router(runs.router)
 app.include_router(ws_routes.router)
 

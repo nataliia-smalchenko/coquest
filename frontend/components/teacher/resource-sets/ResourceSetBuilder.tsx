@@ -5,26 +5,26 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import {
-  createQuest,
-  getQuest,
-  publishQuest,
-  updateQuest,
-} from "@/lib/api/quests";
+  createResourceSet,
+  getResourceSet,
+  publishResourceSet,
+  updateResourceSet,
+} from "@/lib/api/resource-sets";
 import type {
-  QuestCreate,
-  QuestResourceItem,
-  QuestSettingsCreate,
-} from "@/types/quest";
+  ResourceSetCreate,
+  ResourceSetResourceItem,
+  ResourceSetSettingsCreate,
+} from "@/types/resource-set";
 import BasicInfoStep, { type BasicInfoRef } from "./steps/BasicInfoStep";
-import MapAndResourcesStep from "./steps/MapAndResourcesStep";
+import ResourcesStep from "./steps/ResourcesStep";
 import SettingsStep from "./steps/SettingsStep";
 
 interface Props {
   mode: "create" | "edit";
-  questId?: string;
+  resourceSetId?: string;
 }
 
-const DEFAULT_SETTINGS: QuestSettingsCreate = {
+const DEFAULT_SETTINGS: ResourceSetSettingsCreate = {
   time_limit_minutes: null,
   random_order: false,
 };
@@ -33,20 +33,24 @@ interface BuilderData {
   title: string;
   description?: string;
   language: string;
-  map_id?: string;
-  resources: QuestResourceItem[];
-  settings: QuestSettingsCreate;
+  resources: ResourceSetResourceItem[];
+  settings: ResourceSetSettingsCreate;
 }
 
-export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
-  const _t = useTranslations("quests");
-  const tBuilder = useTranslations("quests.builder");
+export default function ResourceSetBuilder({
+  mode,
+  resourceSetId: initialResourceSetId,
+}: Props) {
+  const _t = useTranslations("resourceSets");
+  const tBuilder = useTranslations("resourceSets.builder");
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
 
   const [step, setStep] = useState(0);
-  const [questId, setQuestId] = useState<string | null>(initialQuestId ?? null);
+  const [resourceSetId, setResourceSetId] = useState<string | null>(
+    initialResourceSetId ?? null,
+  );
   const [dataReady, setDataReady] = useState(mode === "create");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -59,57 +63,53 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
 
   const basicInfoRef = useRef<BasicInfoRef>(null);
 
-  // Load existing quest for edit mode
+  // Load existing resource set for edit mode
   useEffect(() => {
-    if (mode === "edit" && initialQuestId) {
-      getQuest(initialQuestId)
-        .then((q) => {
-          const tr = q.translations[0];
+    if (mode === "edit" && initialResourceSetId) {
+      getResourceSet(initialResourceSetId)
+        .then((rs) => {
+          const tr = rs.translations[0];
           setData({
             title: tr?.title ?? "",
             description: tr?.description ?? undefined,
             language: tr?.language ?? locale,
-            map_id: q.map_id ?? undefined,
-            resources: q.resources.map((r) => ({
+            resources: rs.resources.map((r) => ({
               resource_id: r.resource_id,
               order_index: r.order_index,
             })),
-            settings: q.settings ?? { ...DEFAULT_SETTINGS },
+            settings: rs.settings ?? { ...DEFAULT_SETTINGS },
           });
           setDataReady(true);
         })
-        .catch(() => router.push("/teacher/quests"));
+        .catch(() => router.push("/teacher/resource-sets"));
     }
-  }, [mode, initialQuestId, locale, router]);
+  }, [mode, initialResourceSetId, locale, router]);
 
   const showToast = (msg: string, ok: boolean) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 2500);
   };
 
-  const buildPayload = (): Omit<QuestCreate, "map_id"> & {
-    map_id?: string;
-  } => ({
+  const buildPayload = (): ResourceSetCreate => ({
     title: data.title,
     description: data.description ?? null,
     language: data.language,
-    map_id: data.map_id,
     settings: data.settings,
     resources: data.resources,
   });
 
   const handleSaveDraft = async () => {
-    if (!data.title || !data.map_id) {
+    if (!data.title) {
       showToast(tBuilder("saveError"), false);
       return;
     }
     setSaving(true);
     try {
-      if (questId) {
-        await updateQuest(questId, buildPayload());
+      if (resourceSetId) {
+        await updateResourceSet(resourceSetId, buildPayload());
       } else {
-        const result = await createQuest(buildPayload() as QuestCreate);
-        setQuestId(result.id);
+        const result = await createResourceSet(buildPayload());
+        setResourceSetId(result.id);
       }
       showToast(tBuilder("saved"), true);
     } catch {
@@ -130,22 +130,22 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
   const handleBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const handlePublish = async () => {
-    if (!data.title || !data.map_id) {
+    if (!data.title) {
       showToast(tBuilder("saveError"), false);
       return;
     }
     setSaving(true);
     try {
-      let id = questId;
+      let id = resourceSetId;
       const payload = buildPayload();
       if (!id) {
-        const result = await createQuest(payload as QuestCreate);
+        const result = await createResourceSet(payload);
         id = result.id;
       } else {
-        await updateQuest(id, payload);
+        await updateResourceSet(id, payload);
       }
-      await publishQuest(id);
-      router.push("/teacher/quests");
+      await publishResourceSet(id);
+      router.push("/teacher/resource-sets");
     } catch {
       showToast(tBuilder("saveError"), false);
       setSaving(false);
@@ -154,11 +154,9 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
 
   const STEPS = [
     tBuilder("steps.basic"),
-    tBuilder("steps.map"),
+    tBuilder("steps.resources"),
     tBuilder("steps.settings"),
   ];
-
-  const [_interactiveCount, setInteractiveCount] = useState(0);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
@@ -198,7 +196,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
           >
             <button
               type="button"
-              onClick={() => router.push("/teacher/quests")}
+              onClick={() => router.push("/teacher/resource-sets")}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -243,7 +241,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
             </span>
           </div>
 
-          {/* Stepper — center (moves to second row on mobile) */}
+          {/* Stepper */}
           <div
             className="builder-header-stepper"
             style={{
@@ -332,7 +330,7 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
             <button
               type="button"
               onClick={handleSaveDraft}
-              disabled={saving || !data.title || !data.map_id}
+              disabled={saving || !data.title}
               className="builder-btn"
               style={{
                 padding: "7px 16px",
@@ -342,11 +340,8 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
                 borderRadius: "8px",
                 fontSize: "13px",
                 fontWeight: 600,
-                cursor:
-                  saving || !data.title || !data.map_id
-                    ? "not-allowed"
-                    : "pointer",
-                opacity: !data.title || !data.map_id ? 0.5 : 1,
+                cursor: saving || !data.title ? "not-allowed" : "pointer",
+                opacity: !data.title ? 0.5 : 1,
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
@@ -411,23 +406,18 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
               <button
                 type="button"
                 onClick={handlePublish}
-                disabled={saving || !data.title || !data.map_id}
+                disabled={saving || !data.title}
                 className="builder-btn"
                 style={{
                   padding: "7px 16px",
                   backgroundColor:
-                    saving || !data.title || !data.map_id
-                      ? "#93c5fd"
-                      : "#2563eb",
+                    saving || !data.title ? "#93c5fd" : "#2563eb",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
                   fontSize: "13px",
                   fontWeight: 600,
-                  cursor:
-                    saving || !data.title || !data.map_id
-                      ? "not-allowed"
-                      : "pointer",
+                  cursor: saving || !data.title ? "not-allowed" : "pointer",
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
@@ -486,14 +476,11 @@ export default function QuestBuilder({ mode, questId: initialQuestId }: Props) {
           />
         )}
         {step === 1 && (
-          <MapAndResourcesStep
-            mapId={data.map_id}
+          <ResourcesStep
             resources={data.resources}
-            onMapChange={(id) => setData((prev) => ({ ...prev, map_id: id }))}
             onResourcesChange={(res) =>
               setData((prev) => ({ ...prev, resources: res }))
             }
-            onInteractiveCountChange={setInteractiveCount}
             locale={locale}
           />
         )}

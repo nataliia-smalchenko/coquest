@@ -25,7 +25,7 @@ interface Props {
 }
 
 export default function BasicInfoStep({ initialData, onChange, ref }: Props) {
-  const t = useTranslations("quests.basic");
+  const t = useTranslations("resourceSets.basic");
 
   const {
     register,
@@ -85,11 +85,11 @@ export default function BasicInfoStep({ initialData, onChange, ref }: Props) {
     >
       {/* Title */}
       <div>
-        <label htmlFor="quest-title" style={labelStyle}>
+        <label htmlFor="resource-set-title" style={labelStyle}>
           {t("title")} <span style={{ color: "#ef4444" }}>*</span>
         </label>
         <input
-          id="quest-title"
+          id="resource-set-title"
           {...register("title")}
           placeholder={t("titlePlaceholder")}
           style={inputStyle(!!errors.title)}
@@ -111,11 +111,11 @@ export default function BasicInfoStep({ initialData, onChange, ref }: Props) {
 
       {/* Description */}
       <div>
-        <label htmlFor="quest-description" style={labelStyle}>
+        <label htmlFor="resource-set-description" style={labelStyle}>
           {t("description")}
         </label>
         <textarea
-          id="quest-description"
+          id="resource-set-description"
           {...register("description")}
           placeholder={t("descriptionPlaceholder")}
           rows={3}

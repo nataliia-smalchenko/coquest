@@ -13,7 +13,7 @@ from app.services.run_service import (
     _load_own_run,
     RunService,
 )
-from app.models.game_run import GameRun, RunStatus
+from app.models.game_run import GameRun, RunStatus, RunType
 from app.models.run_player import RunPlayer, PlayerStatus
 
 
@@ -42,7 +42,7 @@ def _make_player(**kw):
 def _make_run(**kw):
     s = MagicMock(spec=GameRun)
     s.id = kw.get("id", uuid.uuid4())
-    s.quest_id = kw.get("quest_id", uuid.uuid4())
+    s.resource_set_id = kw.get("resource_set_id", uuid.uuid4())
     s.teacher_id = kw.get("teacher_id", uuid.uuid4())
     s.join_code = kw.get("join_code", "ABC123")
     s.name = kw.get("name", "Test Session")
@@ -58,6 +58,10 @@ def _make_run(**kw):
     s.show_correct_answers = kw.get("show_correct_answers", True)
     s.keep_completed_in_materials = kw.get("keep_completed_in_materials", True)
     s.allow_change_answers = kw.get("allow_change_answers", False)
+    s.run_type = kw.get("run_type", RunType.QUEST)
+    s.test_mode = kw.get("test_mode", None)
+    s.map_id = kw.get("map_id", None)
+    s.current_step_order = kw.get("current_step_order", None)
     s.created_at = kw.get("created_at", datetime.now(timezone.utc))
     s.players = kw.get("players", [])
     return s
@@ -338,28 +342,28 @@ class TestListSessions:
 
 class TestCreateSession:
     @pytest.mark.asyncio
-    async def test_raises_404_when_quest_not_found(self):
+    async def test_raises_404_when_resource_set_not_found(self):
         db = _make_db(scalar=None)
 
         from app.schemas.run import RunCreate
 
         data = MagicMock(spec=RunCreate)
-        data.quest_id = uuid.uuid4()
+        data.resource_set_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
             await RunService.create_run(db, uuid.uuid4(), data)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_raises_400_when_quest_not_published(self):
-        quest = MagicMock()
-        quest.status = "draft"
-        db = _make_db(scalar=quest)
+    async def test_raises_400_when_resource_set_not_published(self):
+        resource_set = MagicMock()
+        resource_set.status = "draft"
+        db = _make_db(scalar=resource_set)
 
         from app.schemas.run import RunCreate
 
         data = MagicMock(spec=RunCreate)
-        data.quest_id = uuid.uuid4()
+        data.resource_set_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
             await RunService.create_run(db, uuid.uuid4(), data)

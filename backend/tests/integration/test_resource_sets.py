@@ -3,13 +3,12 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_create_quest(client: AsyncClient, teacher_headers: dict, db_map):
+async def test_create_resource_set(client: AsyncClient, teacher_headers: dict):
     response = await client.post(
-        "/api/quests/",
+        "/api/resource-sets/",
         json={
-            "map_id": str(db_map.id),
-            "title": "First Quest",
-            "description": "This is a test quest",
+            "title": "First Resource Set",
+            "description": "This is a test resource set",
             "language": "uk",
         },
         headers=teacher_headers,
@@ -17,99 +16,96 @@ async def test_create_quest(client: AsyncClient, teacher_headers: dict, db_map):
     assert response.status_code == 201
     data = response.json()
     assert data["status"] == "draft"
-    assert data["map_id"] == str(db_map.id)
-    assert data["translations"][0]["title"] == "First Quest"
+    assert data["translations"][0]["title"] == "First Resource Set"
 
 
 @pytest.mark.asyncio
-async def test_list_quests(client: AsyncClient, teacher_headers: dict, db_map):
-    # Create one quest
+async def test_list_resource_sets(client: AsyncClient, teacher_headers: dict):
     await client.post(
-        "/api/quests/",
-        json={"map_id": str(db_map.id), "title": "List Me", "language": "en"},
+        "/api/resource-sets/",
+        json={"title": "List Me", "language": "en"},
         headers=teacher_headers,
     )
 
-    response = await client.get("/api/quests/", headers=teacher_headers)
+    response = await client.get("/api/resource-sets/", headers=teacher_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
-    assert any(q["title"] == "List Me" for q in data)
+    assert any(rs["title"] == "List Me" for rs in data)
 
 
 @pytest.mark.asyncio
-async def test_get_quest(client: AsyncClient, teacher_headers: dict, db_map):
+async def test_get_resource_set(client: AsyncClient, teacher_headers: dict):
     create = await client.post(
-        "/api/quests/",
-        json={"map_id": str(db_map.id), "title": "Get Me"},
+        "/api/resource-sets/",
+        json={"title": "Get Me"},
         headers=teacher_headers,
     )
-    quest_id = create.json()["id"]
+    rs_id = create.json()["id"]
 
-    response = await client.get(f"/api/quests/{quest_id}", headers=teacher_headers)
+    response = await client.get(f"/api/resource-sets/{rs_id}", headers=teacher_headers)
     assert response.status_code == 200
-    assert response.json()["id"] == quest_id
+    assert response.json()["id"] == rs_id
 
 
 @pytest.mark.asyncio
-async def test_update_quest(client: AsyncClient, teacher_headers: dict, db_map):
+async def test_update_resource_set(client: AsyncClient, teacher_headers: dict):
     create = await client.post(
-        "/api/quests/",
-        json={"map_id": str(db_map.id), "title": "Old"},
+        "/api/resource-sets/",
+        json={"title": "Old"},
         headers=teacher_headers,
     )
-    quest_id = create.json()["id"]
+    rs_id = create.json()["id"]
 
     update = await client.put(
-        f"/api/quests/{quest_id}", json={"title": "New"}, headers=teacher_headers
+        f"/api/resource-sets/{rs_id}", json={"title": "New"}, headers=teacher_headers
     )
     assert update.status_code == 200
 
-    get = await client.get(f"/api/quests/{quest_id}", headers=teacher_headers)
-    # Check that translation was updated
+    get = await client.get(f"/api/resource-sets/{rs_id}", headers=teacher_headers)
     assert get.json()["translations"][0]["title"] == "New"
 
 
 @pytest.mark.asyncio
-async def test_quest_publish_and_archive(
-    client: AsyncClient, teacher_headers: dict, db_map
+async def test_resource_set_publish_and_archive(
+    client: AsyncClient, teacher_headers: dict
 ):
     create = await client.post(
-        "/api/quests/",
-        json={"map_id": str(db_map.id), "title": "Status Test"},
+        "/api/resource-sets/",
+        json={"title": "Status Test"},
         headers=teacher_headers,
     )
-    quest_id = create.json()["id"]
+    rs_id = create.json()["id"]
 
     publish = await client.post(
-        f"/api/quests/{quest_id}/publish", headers=teacher_headers
+        f"/api/resource-sets/{rs_id}/publish", headers=teacher_headers
     )
     assert publish.status_code == 200
     assert publish.json()["status"] == "published"
 
     archive = await client.post(
-        f"/api/quests/{quest_id}/archive", headers=teacher_headers
+        f"/api/resource-sets/{rs_id}/archive", headers=teacher_headers
     )
     assert archive.status_code == 200
     assert archive.json()["status"] == "archived"
 
 
 @pytest.mark.asyncio
-async def test_student_cannot_access_quests(client: AsyncClient, student_headers: dict):
-    response = await client.get("/api/quests/", headers=student_headers)
+async def test_student_cannot_access_resource_sets(
+    client: AsyncClient, student_headers: dict
+):
+    response = await client.get("/api/resource-sets/", headers=student_headers)
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_create_quest_with_settings(
-    client: AsyncClient, teacher_headers: dict, db_map
+async def test_create_resource_set_with_settings(
+    client: AsyncClient, teacher_headers: dict
 ):
-    """Create a quest with custom settings (time_limit, random_order, max_grade)."""
     response = await client.post(
-        "/api/quests/",
+        "/api/resource-sets/",
         json={
-            "map_id": str(db_map.id),
-            "title": "Settings Quest",
+            "title": "Settings Set",
             "settings": {
                 "time_limit_minutes": 15,
                 "random_order": True,
@@ -126,23 +122,20 @@ async def test_create_quest_with_settings(
 
 
 @pytest.mark.asyncio
-async def test_create_quest_with_resources(
-    client: AsyncClient, teacher_headers: dict, db_map
+async def test_create_resource_set_with_resources(
+    client: AsyncClient, teacher_headers: dict
 ):
-    """Create a quest with attached resources."""
-    # First create a resource to attach
     res = await client.post(
         "/api/resources/",
-        json={"type": "text", "title": "Quest Resource"},
+        json={"type": "text", "title": "Set Resource"},
         headers=teacher_headers,
     )
     resource_id = res.json()["id"]
 
     response = await client.post(
-        "/api/quests/",
+        "/api/resource-sets/",
         json={
-            "map_id": str(db_map.id),
-            "title": "Resource Quest",
+            "title": "Resource Set",
             "resources": [
                 {"resource_id": resource_id, "order_index": 0},
             ],
@@ -157,48 +150,42 @@ async def test_create_quest_with_resources(
 
 
 @pytest.mark.asyncio
-async def test_update_quest_description(
-    client: AsyncClient, teacher_headers: dict, db_map
+async def test_update_resource_set_description(
+    client: AsyncClient, teacher_headers: dict
 ):
-    """Update a quest's description via the same language."""
     create = await client.post(
-        "/api/quests/",
+        "/api/resource-sets/",
         json={
-            "map_id": str(db_map.id),
             "title": "Describable",
             "description": "Old desc",
             "language": "uk",
         },
         headers=teacher_headers,
     )
-    quest_id = create.json()["id"]
+    rs_id = create.json()["id"]
 
     update = await client.put(
-        f"/api/quests/{quest_id}",
+        f"/api/resource-sets/{rs_id}",
         json={"description": "New desc", "language": "uk"},
         headers=teacher_headers,
     )
     assert update.status_code == 200
     tr = update.json()["translations"][0]
     assert tr["description"] == "New desc"
-    # Title should remain unchanged
     assert tr["title"] == "Describable"
 
 
 @pytest.mark.asyncio
-async def test_update_quest_settings(
-    client: AsyncClient, teacher_headers: dict, db_map
-):
-    """Update quest settings."""
+async def test_update_resource_set_settings(client: AsyncClient, teacher_headers: dict):
     create = await client.post(
-        "/api/quests/",
-        json={"map_id": str(db_map.id), "title": "Settable"},
+        "/api/resource-sets/",
+        json={"title": "Settable"},
         headers=teacher_headers,
     )
-    quest_id = create.json()["id"]
+    rs_id = create.json()["id"]
 
     update = await client.put(
-        f"/api/quests/{quest_id}",
+        f"/api/resource-sets/{rs_id}",
         json={"settings": {"time_limit_minutes": 30, "random_order": True}},
         headers=teacher_headers,
     )
@@ -208,11 +195,9 @@ async def test_update_quest_settings(
 
 
 @pytest.mark.asyncio
-async def test_update_quest_resources(
-    client: AsyncClient, teacher_headers: dict, db_map
+async def test_update_resource_set_resources(
+    client: AsyncClient, teacher_headers: dict
 ):
-    """Update quest by replacing its resources."""
-    # Create two resources
     r1 = await client.post(
         "/api/resources/",
         json={"type": "text", "title": "R1"},
@@ -226,22 +211,19 @@ async def test_update_quest_resources(
     rid1 = r1.json()["id"]
     rid2 = r2.json()["id"]
 
-    # Create quest with r1
     create = await client.post(
-        "/api/quests/",
+        "/api/resource-sets/",
         json={
-            "map_id": str(db_map.id),
             "title": "Replaceable",
             "resources": [{"resource_id": rid1, "order_index": 0}],
         },
         headers=teacher_headers,
     )
-    quest_id = create.json()["id"]
+    rs_id = create.json()["id"]
     assert len(create.json()["resources"]) == 1
 
-    # Replace resources with r2
     update = await client.put(
-        f"/api/quests/{quest_id}",
+        f"/api/resource-sets/{rs_id}",
         json={
             "resources": [
                 {"resource_id": rid2, "order_index": 0},
@@ -251,54 +233,51 @@ async def test_update_quest_resources(
     )
     assert update.status_code == 200
 
-    # Re-fetch to get fresh data
-    get = await client.get(f"/api/quests/{quest_id}", headers=teacher_headers)
+    get = await client.get(f"/api/resource-sets/{rs_id}", headers=teacher_headers)
     updated_resources = get.json()["resources"]
     assert len(updated_resources) == 1
     assert updated_resources[0]["resource_id"] == rid2
 
 
 @pytest.mark.asyncio
-async def test_delete_quest(client: AsyncClient, teacher_headers: dict, db_map):
+async def test_delete_resource_set(client: AsyncClient, teacher_headers: dict):
     create = await client.post(
-        "/api/quests/",
-        json={"map_id": str(db_map.id), "title": "To Delete"},
+        "/api/resource-sets/",
+        json={"title": "To Delete"},
         headers=teacher_headers,
     )
-    quest_id = create.json()["id"]
+    rs_id = create.json()["id"]
 
-    delete = await client.delete(f"/api/quests/{quest_id}", headers=teacher_headers)
+    delete = await client.delete(f"/api/resource-sets/{rs_id}", headers=teacher_headers)
     assert delete.status_code == 204
 
-    # Confirm it's gone
-    get = await client.get(f"/api/quests/{quest_id}", headers=teacher_headers)
+    get = await client.get(f"/api/resource-sets/{rs_id}", headers=teacher_headers)
     assert get.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_nonexistent_quest(client: AsyncClient, teacher_headers: dict):
+async def test_get_nonexistent_resource_set(client: AsyncClient, teacher_headers: dict):
     import uuid
 
     fake_id = str(uuid.uuid4())
-    response = await client.get(f"/api/quests/{fake_id}", headers=teacher_headers)
+    response = await client.get(
+        f"/api/resource-sets/{fake_id}", headers=teacher_headers
+    )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_quests_isolated_between_teachers(
-    client: AsyncClient, teacher_headers: dict, db_map, db_session
+async def test_resource_sets_isolated_between_teachers(
+    client: AsyncClient, teacher_headers: dict, db_session
 ):
-    """Teacher B should not see Teacher A's quests."""
     from tests.conftest import _create_verified_user, _token_for
 
-    # Create quest as teacher A
     await client.post(
-        "/api/quests/",
-        json={"map_id": str(db_map.id), "title": "Secret Quest"},
+        "/api/resource-sets/",
+        json={"title": "Secret Set"},
         headers=teacher_headers,
     )
 
-    # Create teacher B
     teacher_b = await _create_verified_user(
         db_session,
         email=f"teacher_b_{__import__('uuid').uuid4().hex[:8]}@test.com",
@@ -307,7 +286,6 @@ async def test_quests_isolated_between_teachers(
     )
     headers_b = {"Authorization": f"Bearer {_token_for(teacher_b)}"}
 
-    # Teacher B lists quests — should be empty
-    response = await client.get("/api/quests/", headers=headers_b)
+    response = await client.get("/api/resource-sets/", headers=headers_b)
     assert response.status_code == 200
     assert len(response.json()) == 0

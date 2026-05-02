@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from app.models.resource_folder import ResourceFolder
     from app.models.tag import Tag
     from app.models.resource import Resource
-    from app.models.quest import Quest
+    from app.models.resource_set import ResourceSet
     from app.models.game_run import GameRun
     from app.models.run_player import RunPlayer
 
@@ -90,8 +90,8 @@ class User(Base):
     resources: Mapped[List["Resource"]] = relationship(
         "Resource", back_populates="teacher", cascade="all, delete-orphan"
     )
-    quests: Mapped[List["Quest"]] = relationship(
-        "Quest", back_populates="teacher", cascade="all, delete-orphan"
+    resource_sets: Mapped[List["ResourceSet"]] = relationship(
+        "ResourceSet", back_populates="teacher", cascade="all, delete-orphan"
     )
     teaching_runs: Mapped[List["GameRun"]] = relationship(
         "GameRun",

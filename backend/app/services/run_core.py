@@ -12,8 +12,12 @@ from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.game_run import GameRun, RunStatus
-from app.models.quest import Quest, QuestSettings, QuestTranslation
+from app.models.game_run import GameRun, RunStatus, RunType, TestMode
+from app.models.resource_set import (
+    ResourceSet,
+    ResourceSetSettings,
+    ResourceSetTranslation,
+)
 from app.models.run_player import PlayerStatus, RunPlayer
 from app.models.run_progress import RunProgress
 from app.models.run_team import RunTeam, TeamStatus
@@ -96,10 +100,14 @@ def _player_response(player: RunPlayer) -> RunPlayerResponse:
 def _run_response(run: GameRun) -> GameRunResponse:
     return GameRunResponse(
         id=run.id,
-        quest_id=run.quest_id,
+        resource_set_id=run.resource_set_id,
         join_code=run.join_code,
         name=run.name,
         status=run.status,
+        run_type=run.run_type,
+        test_mode=run.test_mode,
+        map_id=run.map_id,
+        current_step_order=run.current_step_order,
         started_at=run.started_at,
         ends_at=run.ends_at,
         scheduled_at=run.scheduled_at,
@@ -177,10 +185,11 @@ class RunCoreService:
         return [
             RunListItem(
                 id=s.id,
-                quest_id=s.quest_id,
+                resource_set_id=s.resource_set_id,
                 join_code=s.join_code,
                 name=s.name,
                 status=s.status,
+                run_type=s.run_type,
                 started_at=s.started_at,
                 ends_at=s.ends_at,
                 scheduled_at=s.scheduled_at,
@@ -195,20 +204,34 @@ class RunCoreService:
     async def create_run(
         db: AsyncSession, teacher_id: uuid.UUID, data: RunCreate
     ) -> GameRunResponse:
-        quest_result = await db.execute(
-            select(Quest).where(
-                Quest.id == data.quest_id, Quest.teacher_id == teacher_id
+        resource_set_result = await db.execute(
+            select(ResourceSet).where(
+                ResourceSet.id == data.resource_set_id,
+                ResourceSet.teacher_id == teacher_id,
             )
         )
-        quest = quest_result.scalar_one_or_none()
-        if not quest:
+        resource_set = resource_set_result.scalar_one_or_none()
+        if not resource_set:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Resource set not found",
             )
-        if quest.status != "published":
+        if resource_set.status != "published":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Quest must be published to create a run",
+                detail="Resource set must be published to create a run",
+            )
+
+        # Validate run_type-specific fields
+        if data.run_type == "quest" and not data.map_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="map_id is required for quest runs",
+            )
+        if data.run_type == "test" and not data.test_mode:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="test_mode is required for test runs",
             )
 
         # Generate unique 6-char join code
@@ -229,13 +252,13 @@ class RunCoreService:
                 detail="Could not generate a unique join code",
             )
 
-        # Resolve default name from quest title (prefer "uk", fallback to any)
+        # Resolve default name from resource set title (prefer "uk", fallback to any)
         run_name = data.name
         if not run_name:
             title_result = await db.execute(
-                select(QuestTranslation.title)
-                .where(QuestTranslation.quest_id == data.quest_id)
-                .order_by(QuestTranslation.language)
+                select(ResourceSetTranslation.title)
+                .where(ResourceSetTranslation.resource_set_id == data.resource_set_id)
+                .order_by(ResourceSetTranslation.language)
             )
             rows = title_result.scalars().all()
             if rows:
@@ -243,11 +266,14 @@ class RunCoreService:
 
         run_status = RunStatus.SCHEDULED if data.scheduled_at else RunStatus.WAITING
         run = GameRun(
-            quest_id=data.quest_id,
+            resource_set_id=data.resource_set_id,
             teacher_id=teacher_id,
             join_code=code,
             name=run_name,
             status=run_status,
+            run_type=data.run_type,
+            test_mode=data.test_mode,
+            map_id=data.map_id,
             scheduled_at=data.scheduled_at,
             ends_at=data.ends_at,
             max_players=data.max_players,
@@ -428,6 +454,10 @@ class RunCoreService:
 
         await RunDistributionService._distribute_resources(db, run)
 
+        # For teacher-managed tests, start at step 0 so only the first question is visible
+        if run.run_type == RunType.TEST and run.test_mode == TestMode.TEACHER_MANAGED:
+            run.current_step_order = 0
+
         now = _now()
         run.status = RunStatus.ACTIVE
         run.started_at = now
@@ -603,7 +633,6 @@ class RunCoreService:
         player: RunPlayer,
         lang: str = "uk",
     ) -> GameInfoResponse:
-        from app.models.quest import Quest
         from app.models.map import Map  # noqa: F401
 
         if player.run_id != run_id:
@@ -615,29 +644,29 @@ class RunCoreService:
             select(GameRun)
             .where(GameRun.id == run_id)
             .options(
-                selectinload(GameRun.quest).selectinload(Quest.translations),
-                selectinload(GameRun.quest).selectinload(Quest.settings),
-                selectinload(GameRun.quest).selectinload(Quest.map),
+                selectinload(GameRun.resource_set).selectinload(
+                    ResourceSet.translations
+                ),
+                selectinload(GameRun.resource_set).selectinload(ResourceSet.settings),
+                selectinload(GameRun.map),
             )
         )
         run = result.scalar_one_or_none()
-        if not run or not run.quest:
+        if not run or not run.resource_set:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Run or quest not found",
+                detail="Run or resource set not found",
             )
 
-        quest = run.quest
+        rs = run.resource_set
         title = next(
-            (t.title for t in quest.translations if t.language == lang), None
-        ) or next((t.title for t in quest.translations), "Quest")
-        map_slug = quest.map.slug if quest.map else None
+            (t.title for t in rs.translations if t.language == lang), None
+        ) or next((t.title for t in rs.translations), "Resource Set")
+        map_slug = run.map.slug if run.map else None
 
-        quest_settings = quest.settings
+        rs_settings = rs.settings
         settings_obj = RunSettingsPublic(
-            time_limit_minutes=quest_settings.time_limit_minutes
-            if quest_settings
-            else None,
+            time_limit_minutes=rs_settings.time_limit_minutes if rs_settings else None,
             keep_completed_in_materials=run.keep_completed_in_materials,
             show_feedback_after_answer=run.show_feedback_after_answer,
             show_score_after=run.show_score_after,
@@ -645,7 +674,11 @@ class RunCoreService:
             allow_change_answers=run.allow_change_answers,
         )
         return GameInfoResponse(
-            quest_title=title, map_slug=map_slug, settings=settings_obj
+            resource_set_title=title,
+            map_slug=map_slug,
+            settings=settings_obj,
+            run_type=run.run_type,
+            test_mode=run.test_mode,
         )
 
     @staticmethod
@@ -734,12 +767,14 @@ class RunCoreService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_quest_settings(
-        db: AsyncSession, quest_id: uuid.UUID
-    ) -> Optional[QuestSettings]:
-        """Load quest settings, returning None if not configured."""
+    async def get_resource_set_settings(
+        db: AsyncSession, resource_set_id: uuid.UUID
+    ) -> Optional[ResourceSetSettings]:
+        """Load resource set settings, returning None if not configured."""
         result = await db.execute(
-            select(QuestSettings).where(QuestSettings.quest_id == quest_id)
+            select(ResourceSetSettings).where(
+                ResourceSetSettings.resource_set_id == resource_set_id
+            )
         )
         return result.scalar_one_or_none()
 

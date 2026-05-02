@@ -573,6 +573,33 @@ async def delete_player(
     await RunService.delete_player(db, run_id, player_id, teacher.id)
 
 
+@router.post("/{run_id}/advance-step")
+async def advance_step(
+    run_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
+    """Teacher advances to the next question in teacher-managed test mode."""
+    from app.models.game_run import GameRun, RunType, TestMode, RunStatus
+    from sqlalchemy import select as sa_select
+
+    run_result = await db.execute(
+        sa_select(GameRun).where(GameRun.id == run_id, GameRun.teacher_id == teacher.id)
+    )
+    run = run_result.scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.run_type != RunType.TEST or run.test_mode != TestMode.TEACHER_MANAGED:
+        raise HTTPException(status_code=400, detail="Not a teacher-managed test")
+    if run.status != RunStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Run is not active")
+
+    new_step = (run.current_step_order or 0) + 1
+    run.current_step_order = new_step
+    await db.commit()
+    return {"current_step_order": new_step}
+
+
 @router.get("/{run_id}/game-info", response_model=GameInfoResponse)
 async def get_game_info(
     run_id: uuid.UUID,

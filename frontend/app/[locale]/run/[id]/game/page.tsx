@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ChatPanel from "@/components/game/ChatPanel";
 import MapInteractive from "@/components/game/MapInteractive";
 import ResourceModal from "@/components/game/ResourceModal";
+import TestView from "@/components/game/TestView";
 import TimerDisplay from "@/components/game/TimerDisplay";
 import { getRunStorage, useGameRun } from "@/hooks/useGameRun";
 import { usePlayerWebSocket } from "@/hooks/useWebSocket";
@@ -579,6 +580,32 @@ export default function GamePage() {
     textViewers.length < totalTeamMembers &&
     textViewers.includes(myPlayerId);
 
+  // Test mode: render a completely different light-themed page
+  if (gameInfo?.run_type === "test" && stored && !loadingMap) {
+    return (
+      <TestView
+        gameInfo={gameInfo}
+        progress={progress}
+        guestToken={stored.guest_token}
+        runId={runId}
+        onProgressUpdate={updateProgress}
+        reconnecting={reconnecting}
+        endsAt={effectiveEndsAt ?? undefined}
+        onTimeout={async () => {
+          if (playerEndsAt && stored) {
+            try {
+              await playerTimeout(runId, stored.guest_token);
+            } catch {
+              // ignore
+            }
+          }
+          router.push(`/run/${runId}/results`);
+        }}
+        onComplete={() => router.push(`/run/${runId}/results`)}
+      />
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-900">
       {/* Reconnecting banner */}
@@ -591,7 +618,7 @@ export default function GamePage() {
       {/* Header */}
       <header className="h-14 bg-gray-800 text-white flex items-center justify-between px-4 flex-shrink-0 z-10">
         <span className="text-sm font-medium truncate max-w-[160px]">
-          {gameInfo?.quest_title ?? "Quest"}
+          {gameInfo?.resource_set_title ?? "Quest"}
         </span>
 
         <div className="flex items-center gap-3">

@@ -4,8 +4,12 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 
-from app.services.quest_service import QuestService, _make_slug, _get_own_quest
-from app.models.quest import Quest
+from app.services.resource_set_service import (
+    ResourceSetService,
+    _make_slug,
+    _get_own_resource_set,
+)
+from app.models.resource_set import ResourceSet
 
 
 # ---------------------------------------------------------------------------
@@ -34,19 +38,17 @@ def _make_db(scalar=None, scalars=None):
     return db
 
 
-def _make_quest(**kwargs) -> Quest:
-    q = MagicMock(spec=Quest)
-    q.id = kwargs.get("id", uuid.uuid4())
-    q.teacher_id = kwargs.get("teacher_id", uuid.uuid4())
-    q.map_id = kwargs.get("map_id", uuid.uuid4())
-    q.slug = kwargs.get("slug", "test-quest-abc12345")
-    q.status = kwargs.get("status", "draft")
-    q.created_at = kwargs.get("created_at", datetime.now(timezone.utc))
-    q.translations = kwargs.get("translations", [])
-    q.resources = kwargs.get("resources", [])
-    q.settings = kwargs.get("settings", MagicMock())
-    q.map = kwargs.get("map", None)
-    return q
+def _make_resource_set(**kwargs) -> ResourceSet:
+    rs = MagicMock(spec=ResourceSet)
+    rs.id = kwargs.get("id", uuid.uuid4())
+    rs.teacher_id = kwargs.get("teacher_id", uuid.uuid4())
+    rs.slug = kwargs.get("slug", "test-resource-set-abc12345")
+    rs.status = kwargs.get("status", "draft")
+    rs.created_at = kwargs.get("created_at", datetime.now(timezone.utc))
+    rs.translations = kwargs.get("translations", [])
+    rs.resources = kwargs.get("resources", [])
+    rs.settings = kwargs.get("settings", MagicMock())
+    return rs
 
 
 # ---------------------------------------------------------------------------
@@ -56,11 +58,11 @@ def _make_quest(**kwargs) -> Quest:
 
 class TestMakeSlug:
     def test_returns_string(self):
-        result = _make_slug("My Quest")
+        result = _make_slug("My Resource Set")
         assert isinstance(result, str)
 
     def test_lowercases_title(self):
-        result = _make_slug("My Quest")
+        result = _make_slug("My Resource Set")
         assert result == result.lower()
 
     def test_replaces_spaces_with_hyphens(self):
@@ -69,13 +71,13 @@ class TestMakeSlug:
         assert "hello-world" in result
 
     def test_strips_special_characters(self):
-        result = _make_slug("Quest #1 (special!)")
+        result = _make_slug("Set #1 (special!)")
         assert "#" not in result
         assert "!" not in result
         assert "(" not in result
 
     def test_appends_uuid_suffix(self):
-        result = _make_slug("My Quest")
+        result = _make_slug("My Set")
         parts = result.rsplit("-", 1)
         assert len(parts) == 2
         assert len(parts[1]) == 8  # first 8 chars of uuid4
@@ -85,43 +87,43 @@ class TestMakeSlug:
         assert len(slugs) == 10
 
     def test_unicode_title(self):
-        result = _make_slug("Мій квест")
+        result = _make_slug("Мій набір")
         assert isinstance(result, str)
         assert len(result) > 0
 
 
 # ---------------------------------------------------------------------------
-# _get_own_quest
+# _get_own_resource_set
 # ---------------------------------------------------------------------------
 
 
-class TestGetOwnQuest:
+class TestGetOwnResourceSet:
     @pytest.mark.asyncio
-    async def test_returns_quest_when_found(self):
-        quest = _make_quest()
-        db = _make_db(scalar=quest)
-        result = await _get_own_quest(db, quest.id, quest.teacher_id)
-        assert result is quest
+    async def test_returns_resource_set_when_found(self):
+        rs = _make_resource_set()
+        db = _make_db(scalar=rs)
+        result = await _get_own_resource_set(db, rs.id, rs.teacher_id)
+        assert result is rs
 
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
         db = _make_db(scalar=None)
         with pytest.raises(HTTPException) as exc_info:
-            await _get_own_quest(db, uuid.uuid4(), uuid.uuid4())
+            await _get_own_resource_set(db, uuid.uuid4(), uuid.uuid4())
         assert exc_info.value.status_code == 404
-        assert "Quest not found" in exc_info.value.detail
+        assert "Resource set not found" in exc_info.value.detail
 
 
 # ---------------------------------------------------------------------------
-# QuestService.list_quests
+# ResourceSetService.list_resource_sets
 # ---------------------------------------------------------------------------
 
 
-class TestListQuests:
+class TestListResourceSets:
     @pytest.mark.asyncio
-    async def test_returns_empty_list_when_no_quests(self):
+    async def test_returns_empty_list_when_no_resource_sets(self):
         db = _make_db(scalars=[])
-        result = await QuestService.list_quests(db, uuid.uuid4(), "uk")
+        result = await ResourceSetService.list_resource_sets(db, uuid.uuid4(), "uk")
         assert result == []
 
     @pytest.mark.asyncio
@@ -130,26 +132,16 @@ class TestListQuests:
         translation.language = "uk"
         translation.title = "Тест"
 
-        map_tr = MagicMock()
-        map_tr.language = "uk"
-        map_tr.name = "Клас"
-
-        map_obj = MagicMock()
-        map_obj.translations = [map_tr]
-        map_obj.slug = "classroom1"
-
-        quest = _make_quest(
+        rs = _make_resource_set(
             translations=[translation],
             resources=[MagicMock(), MagicMock()],
-            map=map_obj,
         )
 
-        db = _make_db(scalars=[quest])
-        result = await QuestService.list_quests(db, uuid.uuid4(), "uk")
+        db = _make_db(scalars=[rs])
+        result = await ResourceSetService.list_resource_sets(db, uuid.uuid4(), "uk")
 
         assert len(result) == 1
         assert result[0].title == "Тест"
-        assert result[0].map_name == "Клас"
         assert result[0].resources_count == 2
 
     @pytest.mark.asyncio
@@ -158,51 +150,38 @@ class TestListQuests:
         translation.language = "uk"
         translation.title = "Тест"
 
-        quest = _make_quest(translations=[translation], resources=[], map=None)
-        db = _make_db(scalars=[quest])
-        result = await QuestService.list_quests(db, uuid.uuid4(), "en")
+        rs = _make_resource_set(translations=[translation], resources=[])
+        db = _make_db(scalars=[rs])
+        result = await ResourceSetService.list_resource_sets(db, uuid.uuid4(), "en")
 
         assert result[0].title == "Тест"
 
     @pytest.mark.asyncio
     async def test_falls_back_to_slug_when_no_translation(self):
-        quest = _make_quest(translations=[], resources=[], map=None)
-        db = _make_db(scalars=[quest])
-        result = await QuestService.list_quests(db, uuid.uuid4(), "uk")
+        rs = _make_resource_set(translations=[], resources=[])
+        db = _make_db(scalars=[rs])
+        result = await ResourceSetService.list_resource_sets(db, uuid.uuid4(), "uk")
 
-        assert result[0].title == quest.slug
-
-    @pytest.mark.asyncio
-    async def test_map_name_falls_back_to_slug_when_no_translation(self):
-        map_obj = MagicMock()
-        map_obj.translations = []
-        map_obj.slug = "island-map"
-
-        quest = _make_quest(translations=[], resources=[], map=map_obj)
-        db = _make_db(scalars=[quest])
-        result = await QuestService.list_quests(db, uuid.uuid4(), "uk")
-
-        assert result[0].map_name == "island-map"
+        assert result[0].title == rs.slug
 
 
 # ---------------------------------------------------------------------------
-# QuestService.create_quest
+# ResourceSetService.create_resource_set
 # ---------------------------------------------------------------------------
 
 
-class TestCreateQuest:
+class TestCreateResourceSet:
     @pytest.mark.asyncio
-    async def test_adds_quest_translation_settings_and_resources(self):
-        quest_id = uuid.uuid4()
-        created_quest = _make_quest(id=quest_id)
+    async def test_adds_resource_set_translation_settings_and_resources(self):
+        rs_id = uuid.uuid4()
+        created_rs = _make_resource_set(id=rs_id)
 
         db = AsyncMock()
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         db.add = MagicMock()
 
-        # First execute (after flush) returns None for the Quest select after commit
-        db.execute.return_value = _exec_returning(scalar=created_quest)
+        db.execute.return_value = _exec_returning(scalar=created_rs)
 
         resource_item = MagicMock()
         resource_item.resource_id = uuid.uuid4()
@@ -212,102 +191,89 @@ class TestCreateQuest:
         settings.model_dump.return_value = {"random_order": False}
 
         data = MagicMock()
-        data.map_id = uuid.uuid4()
-        data.title = "New Quest"
+        data.title = "New Resource Set"
         data.language = "uk"
         data.description = "Desc"
         data.settings = settings
         data.resources = [resource_item]
 
         with patch(
-            "app.services.quest_service._make_slug", return_value="new-quest-abc12345"
+            "app.services.resource_set_service._make_slug",
+            return_value="new-rs-abc12345",
         ):
-            result = await QuestService.create_quest(db, uuid.uuid4(), data)
+            result = await ResourceSetService.create_resource_set(
+                db, uuid.uuid4(), data
+            )
 
-        assert db.add.call_count >= 3  # Quest + Translation + Settings + QuestResource
+        assert db.add.call_count >= 3  # ResourceSet + Translation + Settings + Resource
         db.flush.assert_called_once()
         db.commit.assert_called_once()
-        assert result is created_quest
+        assert result is created_rs
 
     @pytest.mark.asyncio
-    async def test_creates_quest_without_resources(self):
-        created_quest = _make_quest()
+    async def test_creates_resource_set_without_resources(self):
+        created_rs = _make_resource_set()
         db = AsyncMock()
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         db.add = MagicMock()
-        db.execute.return_value = _exec_returning(scalar=created_quest)
+        db.execute.return_value = _exec_returning(scalar=created_rs)
 
         settings = MagicMock()
         settings.model_dump.return_value = {}
 
         data = MagicMock()
-        data.map_id = uuid.uuid4()
-        data.title = "Empty Quest"
+        data.title = "Empty Set"
         data.language = "uk"
         data.description = None
         data.settings = settings
         data.resources = []
 
         with patch(
-            "app.services.quest_service._make_slug", return_value="empty-quest-abc"
+            "app.services.resource_set_service._make_slug", return_value="empty-set-abc"
         ):
-            result = await QuestService.create_quest(db, uuid.uuid4(), data)
-
-        assert result is created_quest
-
-
-# ---------------------------------------------------------------------------
-# QuestService.get_quest
-# ---------------------------------------------------------------------------
-
-
-class TestGetQuest:
-    @pytest.mark.asyncio
-    async def test_delegates_to_get_own_quest(self):
-        quest = _make_quest()
-        with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = quest
-            result = await QuestService.get_quest(
-                MagicMock(), quest.id, quest.teacher_id
+            result = await ResourceSetService.create_resource_set(
+                db, uuid.uuid4(), data
             )
-        assert result is quest
+
+        assert result is created_rs
+
+
+# ---------------------------------------------------------------------------
+# ResourceSetService.get_resource_set
+# ---------------------------------------------------------------------------
+
+
+class TestGetResourceSet:
+    @pytest.mark.asyncio
+    async def test_delegates_to_get_own_resource_set(self):
+        rs = _make_resource_set()
+        with patch(
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
+        ) as mock_get:
+            mock_get.return_value = rs
+            result = await ResourceSetService.get_resource_set(
+                MagicMock(), rs.id, rs.teacher_id
+            )
+        assert result is rs
         mock_get.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
-# QuestService.update_quest
+# ResourceSetService.update_resource_set
 # ---------------------------------------------------------------------------
 
 
-class TestUpdateQuest:
+class TestUpdateResourceSet:
     def _make_update_data(self, **kwargs):
         data = MagicMock()
-        data.map_id = kwargs.get("map_id", None)
         data.title = kwargs.get("title", None)
         data.description = kwargs.get("description", None)
         data.language = kwargs.get("language", "uk")
         data.settings = kwargs.get("settings", None)
         data.resources = kwargs.get("resources", None)
         return data
-
-    @pytest.mark.asyncio
-    async def test_updates_map_id(self):
-        new_map_id = uuid.uuid4()
-        quest = _make_quest(translations=[], resources=[])
-        updated_quest = _make_quest()
-
-        db = _make_db(scalar=updated_quest)
-        with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = quest
-            data = self._make_update_data(map_id=new_map_id)
-            await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
-
-        assert quest.map_id == new_map_id
 
     @pytest.mark.asyncio
     async def test_updates_existing_translation(self):
@@ -317,174 +283,191 @@ class TestUpdateQuest:
         translation.title = "Old Title"
         translation.description = "Old Desc"
 
-        quest = _make_quest(translations=[translation], resources=[])
-        updated_quest = _make_quest()
+        rs = _make_resource_set(translations=[translation], resources=[])
+        updated_rs = _make_resource_set()
 
-        db = _make_db(scalar=updated_quest)
+        db = _make_db(scalar=updated_rs)
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
+            mock_get.return_value = rs
             data = self._make_update_data(
                 title="New Title", description="New Desc", language=lang
             )
-            await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
+            await ResourceSetService.update_resource_set(db, rs.id, rs.teacher_id, data)
 
         assert translation.title == "New Title"
         assert translation.description == "New Desc"
 
     @pytest.mark.asyncio
     async def test_creates_new_translation_when_language_missing(self):
-        quest = _make_quest(translations=[], resources=[])
-        updated_quest = _make_quest()
+        rs = _make_resource_set(translations=[], resources=[])
+        updated_rs = _make_resource_set()
 
-        db = _make_db(scalar=updated_quest)
+        db = _make_db(scalar=updated_rs)
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
+            mock_get.return_value = rs
             data = self._make_update_data(title="Title", language="en")
-            await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
+            await ResourceSetService.update_resource_set(db, rs.id, rs.teacher_id, data)
 
         db.add.assert_called()
 
     @pytest.mark.asyncio
     async def test_updates_settings_when_provided(self):
         settings_obj = MagicMock()
-        quest = _make_quest(translations=[], resources=[], settings=settings_obj)
-        updated_quest = _make_quest()
+        rs = _make_resource_set(translations=[], resources=[], settings=settings_obj)
+        updated_rs = _make_resource_set()
 
-        db = _make_db(scalar=updated_quest)
+        db = _make_db(scalar=updated_rs)
         settings_data = MagicMock()
         settings_data.model_dump.return_value = {"random_order": True}
 
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
+            mock_get.return_value = rs
             data = self._make_update_data(settings=settings_data)
-            await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
+            await ResourceSetService.update_resource_set(db, rs.id, rs.teacher_id, data)
 
-        # setattr was called for each setting field
         assert settings_obj.random_order is True
 
     @pytest.mark.asyncio
     async def test_replaces_resources_when_provided(self):
         old_res = MagicMock()
-        quest = _make_quest(translations=[], resources=[old_res])
-        updated_quest = _make_quest()
+        rs = _make_resource_set(translations=[], resources=[old_res])
+        updated_rs = _make_resource_set()
 
-        db = _make_db(scalar=updated_quest)
+        db = _make_db(scalar=updated_rs)
 
         new_item = MagicMock()
         new_item.resource_id = uuid.uuid4()
         new_item.order_index = 0
 
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
+            mock_get.return_value = rs
             data = self._make_update_data(resources=[new_item])
-            await QuestService.update_quest(db, quest.id, quest.teacher_id, data)
+            await ResourceSetService.update_resource_set(db, rs.id, rs.teacher_id, data)
 
         db.delete.assert_called_with(old_res)
         db.add.assert_called()
 
     @pytest.mark.asyncio
-    async def test_raises_404_when_quest_not_found(self):
+    async def test_raises_404_when_resource_set_not_found(self):
         db = _make_db(scalar=None)
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.side_effect = HTTPException(
-                status_code=404, detail="Quest not found"
+                status_code=404, detail="Resource set not found"
             )
             data = self._make_update_data()
             with pytest.raises(HTTPException) as exc_info:
-                await QuestService.update_quest(db, uuid.uuid4(), uuid.uuid4(), data)
+                await ResourceSetService.update_resource_set(
+                    db, uuid.uuid4(), uuid.uuid4(), data
+                )
         assert exc_info.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# QuestService.delete_quest
+# ResourceSetService.delete_resource_set
 # ---------------------------------------------------------------------------
 
 
-class TestDeleteQuest:
+class TestDeleteResourceSet:
     @pytest.mark.asyncio
-    async def test_deletes_quest(self):
-        quest = _make_quest()
+    async def test_deletes_resource_set(self):
+        rs = _make_resource_set()
         db = _make_db()
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
-            await QuestService.delete_quest(db, quest.id, quest.teacher_id)
+            mock_get.return_value = rs
+            await ResourceSetService.delete_resource_set(db, rs.id, rs.teacher_id)
 
-        db.delete.assert_called_once_with(quest)
+        db.delete.assert_called_once_with(rs)
         db.commit.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
         db = _make_db()
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.side_effect = HTTPException(
-                status_code=404, detail="Quest not found"
+                status_code=404, detail="Resource set not found"
             )
             with pytest.raises(HTTPException) as exc_info:
-                await QuestService.delete_quest(db, uuid.uuid4(), uuid.uuid4())
+                await ResourceSetService.delete_resource_set(
+                    db, uuid.uuid4(), uuid.uuid4()
+                )
         assert exc_info.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# QuestService._set_status / publish_quest / archive_quest
+# ResourceSetService._set_status / publish_resource_set / archive_resource_set
 # ---------------------------------------------------------------------------
 
 
 class TestSetStatus:
     @pytest.mark.asyncio
-    async def test_sets_status_and_returns_quest(self):
-        quest = _make_quest(status="draft")
-        refreshed = _make_quest(status="published")
+    async def test_sets_status_and_returns_resource_set(self):
+        rs = _make_resource_set(status="draft")
+        refreshed = _make_resource_set(status="published")
         db = _make_db(scalar=refreshed)
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
-            result = await QuestService._set_status(
-                db, quest.id, quest.teacher_id, "published"
+            mock_get.return_value = rs
+            result = await ResourceSetService._set_status(
+                db, rs.id, rs.teacher_id, "published"
             )
 
-        assert quest.status == "published"
+        assert rs.status == "published"
         db.commit.assert_called_once()
         assert result is refreshed
 
     @pytest.mark.asyncio
-    async def test_publish_quest_sets_published_status(self):
-        quest = _make_quest()
-        refreshed = _make_quest(status="published")
+    async def test_publish_resource_set_sets_published_status(self):
+        rs = _make_resource_set()
+        refreshed = _make_resource_set(status="published")
         db = _make_db(scalar=refreshed)
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
-            result = await QuestService.publish_quest(db, quest.id, quest.teacher_id)
+            mock_get.return_value = rs
+            result = await ResourceSetService.publish_resource_set(
+                db, rs.id, rs.teacher_id
+            )
 
-        assert quest.status == "published"
+        assert rs.status == "published"
         assert result is refreshed
 
     @pytest.mark.asyncio
-    async def test_archive_quest_sets_archived_status(self):
-        quest = _make_quest()
-        refreshed = _make_quest(status="archived")
+    async def test_archive_resource_set_sets_archived_status(self):
+        rs = _make_resource_set()
+        refreshed = _make_resource_set(status="archived")
         db = _make_db(scalar=refreshed)
         with patch(
-            "app.services.quest_service._get_own_quest", new_callable=AsyncMock
+            "app.services.resource_set_service._get_own_resource_set",
+            new_callable=AsyncMock,
         ) as mock_get:
-            mock_get.return_value = quest
-            result = await QuestService.archive_quest(db, quest.id, quest.teacher_id)
+            mock_get.return_value = rs
+            result = await ResourceSetService.archive_resource_set(
+                db, rs.id, rs.teacher_id
+            )
 
-        assert quest.status == "archived"
+        assert rs.status == "archived"
         assert result is refreshed

@@ -275,3 +275,15 @@ export async function restartRun(run_id: string): Promise<GameRun> {
   const { data } = await api.post(`/api/runs/${run_id}/restart`);
   return data;
 }
+
+export async function advanceStep(run_id: string): Promise<void> {
+  await api.post(`/api/runs/${run_id}/advance-step`);
+}
+
+export async function getCurrentStep(run_id: string): Promise<{
+  current_step_order: number;
+  total_steps: number;
+}> {
+  const { data } = await api.get(`/api/runs/${run_id}/current-step`);
+  return data;
+}
